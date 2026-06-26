@@ -80,6 +80,18 @@ EXPO_PUBLIC_API_URL=http://192.168.1.20:3000/api pnpm mobile
 - Bottom tab bar (home / explore / flow / shared / profile), language switcher.
 - Optimistic like + signal logging groundwork.
 
+## Troubleshooting
+
+**`Unable to resolve "./metroServerLogs"` or other "Unable to resolve" errors on
+start** — stale Metro cache (common after an Expo SDK upgrade or dependency
+change). Clear it once:
+
+```bash
+pnpm mobile:clear   # = expo start --clear
+```
+
+After clearing once, `pnpm mobile` works normally again.
+
 ## Tests
 
 ```bash
