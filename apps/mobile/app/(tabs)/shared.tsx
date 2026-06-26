@@ -4,7 +4,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, useTheme, type ThemeColors } from "../../src/theme";
-import { ScreenContainer } from "../../src/components/ScreenContainer";
+import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useLocale } from "../../src/i18n";
 
@@ -17,18 +17,21 @@ export default function SharedScreen() {
   const { shared } = useLibrary();
 
   return (
-    <ScreenContainer
-      style={{ paddingTop: insets.top + 20, paddingHorizontal: spacing.screenPadding }}
-    >
-      <Text style={styles.title}>{t("tab.share")}</Text>
+    <ScreenContainer style={{ paddingTop: insets.top + 20 }}>
+      <View style={centeredColumn}>
+        <Text style={styles.title}>{t("tab.share")}</Text>
+      </View>
 
       {shared.length === 0 ? (
-        <View style={styles.emptyBox}>
+        <View style={[styles.emptyBox, centeredColumn]}>
           <MaterialIcons name="forum" size={40} color={colors.mutedLight} />
           <Text style={styles.empty}>{t("shared.empty")}</Text>
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.list, centeredColumn]}
+        >
           {shared.map((article) => (
             <Pressable
               key={article.id}
@@ -64,7 +67,13 @@ export default function SharedScreen() {
 
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-    title: { fontSize: 24, fontWeight: "600", color: colors.textPrimary, marginBottom: 16 },
+    title: {
+      fontSize: 24,
+      fontWeight: "600",
+      color: colors.textPrimary,
+      marginBottom: 16,
+      paddingHorizontal: spacing.screenPadding,
+    },
     emptyBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingBottom: 80 },
     empty: {
       color: colors.textSecondary,
@@ -73,7 +82,7 @@ const makeStyles = (colors: ThemeColors) =>
       maxWidth: 260,
       lineHeight: 21,
     },
-    list: { paddingBottom: 24 },
+    list: { paddingBottom: 24, paddingHorizontal: spacing.screenPadding },
     row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
     thumb: { width: 48, height: 48, borderRadius: 10, backgroundColor: colors.field },
     placeholder: { backgroundColor: colors.separatorThick },

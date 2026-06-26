@@ -17,7 +17,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Article } from "@flowpedia/shared";
 import { fetchFeed, fetchSearch } from "../../src/api/client";
-import { ScreenContainer } from "../../src/components/ScreenContainer";
+import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { SkeletonCell } from "../../src/components/SkeletonCard";
 import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
@@ -137,27 +137,29 @@ export default function ExploreScreen() {
 
   return (
     <ScreenContainer style={{ paddingTop: insets.top + 12 }}>
-      <View style={styles.searchBar}>
-        <MaterialIcons name="search" size={20} color={colors.muted} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t("explore.searchPlaceholder")}
-          placeholderTextColor={colors.muted}
-          style={styles.searchInput}
-          returnKeyType="search"
-          autoCorrect={false}
-        />
-        {query ? (
-          <Pressable onPress={() => setQuery("")} hitSlop={8}>
-            <MaterialIcons name="close" size={20} color={colors.muted} />
-          </Pressable>
-        ) : null}
+      <View style={[centeredColumn, styles.searchBarWrap]}>
+        <View style={styles.searchBar}>
+          <MaterialIcons name="search" size={20} color={colors.muted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t("explore.searchPlaceholder")}
+            placeholderTextColor={colors.muted}
+            style={styles.searchInput}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {query ? (
+            <Pressable onPress={() => setQuery("")} hitSlop={8}>
+              <MaterialIcons name="close" size={20} color={colors.muted} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, centeredColumn]}
         scrollEventThrottle={200}
         onScroll={onScroll}
       >
@@ -209,11 +211,11 @@ export default function ExploreScreen() {
 
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    searchBarWrap: { paddingHorizontal: spacing.screenPadding },
     searchBar: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      marginHorizontal: spacing.screenPadding,
       paddingHorizontal: 12,
       height: 44,
       borderRadius: radii.pill,

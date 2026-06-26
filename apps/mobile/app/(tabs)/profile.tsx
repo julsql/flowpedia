@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Article } from "@flowpedia/shared";
 import { radii, spacing, useTheme, type ThemeColors, type ThemeMode } from "../../src/theme";
-import { ScreenContainer } from "../../src/components/ScreenContainer";
+import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useUser } from "../../src/user/UserProvider";
 import { LOCALE_LABELS, SUPPORTED_LOCALES, useLocale, type TranslationKey } from "../../src/i18n";
@@ -61,7 +61,10 @@ export default function ProfileScreen() {
 
   return (
     <ScreenContainer style={{ paddingTop: insets.top + 16 }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scroll, centeredColumn]}
+      >
         {/* Identity */}
         <View style={styles.identity}>
           <View style={styles.avatar}>

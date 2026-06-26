@@ -6,7 +6,7 @@ import { useRouter } from "expo-router";
 import type { Article, FeedTab } from "@flowpedia/shared";
 import { ArticleCard } from "../../src/components/ArticleCard";
 import { SkeletonList } from "../../src/components/SkeletonCard";
-import { ScreenContainer } from "../../src/components/ScreenContainer";
+import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { fetchFeed } from "../../src/api/client";
 import { useShare } from "../../src/share/ShareSheetProvider";
 import { useLibrary } from "../../src/library/LibraryProvider";
@@ -136,11 +136,11 @@ export default function FeedScreen() {
 
   return (
     <ScreenContainer style={{ paddingTop: insets.top }}>
-      <View style={styles.header}>
+      <View style={[styles.header, centeredColumn]}>
         <Text style={styles.brand}>Flowpedia</Text>
       </View>
 
-      <View style={styles.tabsRow}>
+      <View style={[styles.tabsRow, centeredColumn]}>
         {TABS.map(({ key, label }) => {
           const active = key === tab;
           return (
@@ -153,22 +153,30 @@ export default function FeedScreen() {
       </View>
 
       {error ? (
-        <View style={styles.center}>
+        <View style={[styles.center, centeredColumn]}>
           <Text style={styles.errorText}>{t("common.loadError")}</Text>
           <Pressable onPress={() => load(tab)} style={styles.retryBtn}>
             <Text style={styles.retryText}>{t("common.retry")}</Text>
           </Pressable>
         </View>
       ) : loading && articles.length === 0 ? (
-        <SkeletonList count={3} />
+        <View style={centeredColumn}>
+          <SkeletonList count={3} />
+        </View>
       ) : (
         <FlashList
           data={articles}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ArticleCard article={item} onOpen={openArticle} onShare={openShare} />
+            <View style={centeredColumn}>
+              <ArticleCard article={item} onOpen={openArticle} onShare={openShare} />
+            </View>
           )}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={() => (
+            <View style={centeredColumn}>
+              <View style={styles.separator} />
+            </View>
+          )}
           onEndReached={loadMore}
           onEndReachedThreshold={0.6}
           refreshControl={

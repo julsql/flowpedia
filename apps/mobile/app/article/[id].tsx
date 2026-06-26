@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import type { Article, ArticleSection } from "@flowpedia/shared";
 import { fetchArticle, sendEvents } from "../../src/api/client";
-import { ScreenContainer } from "../../src/components/ScreenContainer";
+import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
 import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
@@ -127,7 +127,7 @@ export default function ArticleScreen() {
 
   return (
     <ScreenContainer style={{ paddingTop: insets.top }}>
-      <View style={styles.header}>
+      <View style={[styles.header, centeredColumn]}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
           <MaterialIcons name="arrow-back" size={26} color={colors.textPrimary} />
         </Pressable>
@@ -149,11 +149,11 @@ export default function ArticleScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
+        <View style={[styles.center, centeredColumn]}>
           <ActivityIndicator color={colors.accent} />
         </View>
       ) : error || !article ? (
-        <View style={styles.center}>
+        <View style={[styles.center, centeredColumn]}>
           <Text style={styles.errorText}>{t("common.loadError")}</Text>
           <Pressable onPress={load} style={styles.retryBtn}>
             <Text style={styles.retryText}>{t("common.retry")}</Text>
@@ -162,7 +162,7 @@ export default function ArticleScreen() {
       ) : (
         <>
           {article.sections.length > 1 ? (
-            <View style={styles.chipsBar}>
+            <View style={[styles.chipsBar, centeredColumn]}>
               <ScrollView
                 ref={chipsScrollRef}
                 horizontal
@@ -197,7 +197,7 @@ export default function ArticleScreen() {
             ref={scrollRef}
             scrollEventThrottle={16}
             onScroll={onScroll}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, centeredColumn]}
           >
             {article.image ? (
               <Image source={{ uri: article.image }} style={styles.lead} resizeMode="cover" />
