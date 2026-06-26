@@ -10,6 +10,8 @@
   "scripts": {
     "api": "pnpm --filter @flowpedia/api start:dev",
     "mobile": "pnpm --filter @flowpedia/mobile start",
+    "mobile:web": "pnpm --filter @flowpedia/mobile web",
+    "mobile:android": "pnpm --filter @flowpedia/mobile android",
     "build:shared": "pnpm --filter @flowpedia/shared build",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
