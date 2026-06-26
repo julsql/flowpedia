@@ -67,11 +67,27 @@ The web build talks to `http://localhost:3000/api` out of the box (same machine)
    ```
 
 With `adb reverse`, the default `EXPO_PUBLIC_API_URL` (`localhost:3000`) works as-is.
-Over Wi-Fi instead of USB, skip `adb reverse` and set the machine LAN IP:
+
+### Run over Wi-Fi (no cable)
+
+The API binds to `0.0.0.0`, so it's reachable from any device on the same
+network. On start it prints the LAN URL to use, e.g.:
+
+```
+Flowpedia API → http://localhost:3000/api
+            LAN → http://192.168.1.20:3000/api  (set EXPO_PUBLIC_API_URL to this on your phone)
+```
+
+Point the app at that address (skip `adb reverse`):
 
 ```bash
 EXPO_PUBLIC_API_URL=http://192.168.1.20:3000/api pnpm mobile
 ```
+
+Then scan the QR with Expo Go (phone + Mac on the same Wi-Fi). If the phone
+can't reach the API, allow incoming connections for Node in
+**System Settings → Network → Firewall** (or turn the firewall off briefly to
+confirm), and make sure the network isn't "client isolation"/guest mode.
 
 ## What works now
 
