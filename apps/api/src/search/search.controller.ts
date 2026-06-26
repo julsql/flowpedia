@@ -1,14 +1,18 @@
 import { Controller, Get, Query } from "@nestjs/common";
-import type { Article } from "@flowpedia/shared";
+import type { FeedResponse } from "@flowpedia/shared";
 import { WikipediaService } from "../wikipedia/wikipedia.service";
 
 @Controller("search")
 export class SearchController {
   constructor(private readonly wikipedia: WikipediaService) {}
 
-  /** Full-text search for the Explore screen. */
+  /** Broad-theme search for the Explore screen (paginated, continuous scroll). */
   @Get()
-  search(@Query("q") q?: string, @Query("lang") lang?: string): Promise<Article[]> {
-    return this.wikipedia.search(q ?? "", lang);
+  search(
+    @Query("q") q?: string,
+    @Query("lang") lang?: string,
+    @Query("cursor") cursor?: string,
+  ): Promise<FeedResponse> {
+    return this.wikipedia.search(q ?? "", lang, cursor);
   }
 }

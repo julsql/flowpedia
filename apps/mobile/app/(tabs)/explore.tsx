@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Article } from "@flowpedia/shared";
 import { fetchFeed, fetchSearch } from "../../src/api/client";
 import { ScreenContainer } from "../../src/components/ScreenContainer";
+import { SkeletonCell } from "../../src/components/SkeletonCard";
 import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
 
@@ -32,8 +33,11 @@ export default function ExploreScreen() {
   const [trending, setTrending] = useState<Article[]>([]);
   const [trendingCursor, setTrendingCursor] = useState<string | undefined>();
   const [results, setResults] = useState<Article[] | null>(null);
+  const [searchCursor, setSearchCursor] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const loadingMoreRef = useRef(false);
+  // The query currently backing `results`, so paginated loads stay coherent.
+  const activeQueryRef = useRef("");
   const seedRef = useRef<number>(Math.floor(Math.random() * 1_000_000_000));
 
   useEffect(() => {
@@ -45,18 +49,27 @@ export default function ExploreScreen() {
       .catch(() => undefined);
   }, [locale]);
 
-  // Debounced search.
+  // Debounced broad-theme search.
   useEffect(() => {
     const q = query.trim();
     if (!q) {
       setResults(null);
+      setSearchCursor(undefined);
+      activeQueryRef.current = "";
       return;
     }
     setLoading(true);
     const handle = setTimeout(() => {
       void fetchSearch(q, locale)
-        .then(setResults)
-        .catch(() => setResults([]))
+        .then((res) => {
+          activeQueryRef.current = q;
+          setResults(res.items);
+          setSearchCursor(res.nextCursor);
+        })
+        .catch(() => {
+          setResults([]);
+          setSearchCursor(undefined);
+        })
         .finally(() => setLoading(false));
     }, 350);
     return () => clearTimeout(handle);
@@ -85,17 +98,38 @@ export default function ExploreScreen() {
     }
   }, [trendingCursor, locale]);
 
+  const loadMoreSearch = useCallback(async () => {
+    if (!searchCursor || loadingMoreRef.current) {
+      return;
+    }
+    loadingMoreRef.current = true;
+    const q = activeQueryRef.current;
+    try {
+      const res = await fetchSearch(q, locale, searchCursor);
+      // Ignore if the query changed while this request was in flight.
+      if (activeQueryRef.current === q) {
+        setResults((prev) => [...(prev ?? []), ...res.items]);
+        setSearchCursor(res.nextCursor);
+      }
+    } catch {
+      // keep current
+    } finally {
+      loadingMoreRef.current = false;
+    }
+  }, [searchCursor, locale]);
+
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (results !== null) {
-        return; // search results aren't paginated
-      }
       const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
       if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 600) {
-        void loadMoreTrending();
+        if (results !== null) {
+          void loadMoreSearch();
+        } else {
+          void loadMoreTrending();
+        }
       }
     },
-    [results, loadMoreTrending],
+    [results, loadMoreSearch, loadMoreTrending],
   );
 
   const showingResults = results !== null;
@@ -135,7 +169,11 @@ export default function ExploreScreen() {
         ) : null}
 
         {loading ? (
-          <ActivityIndicator color={colors.accent} style={styles.loader} />
+          <View style={styles.grid}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonCell key={i} style={styles.cell} />
+            ))}
+          </View>
         ) : grid.length === 0 ? (
           <Text style={styles.empty}>{t("explore.noResults")}</Text>
         ) : (
@@ -159,7 +197,7 @@ export default function ExploreScreen() {
                 </Pressable>
               ))}
             </View>
-            {!showingResults ? (
+            {(showingResults ? searchCursor : trendingCursor) ? (
               <ActivityIndicator color={colors.muted} style={styles.loader} />
             ) : null}
           </>

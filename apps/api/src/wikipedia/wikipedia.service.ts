@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import type { Article } from "@flowpedia/shared";
+import type { Article, FeedResponse } from "@flowpedia/shared";
 import { collectLinks, parseArticleSections } from "./parse-article";
 
 // Keep in sync with the mobile SUPPORTED_LOCALES.
@@ -35,6 +35,8 @@ interface TitlesCacheEntry {
 const POPULAR_TTL_MS = 6 * 60 * 60 * 1000;
 const NEWS_TTL_MS = 60 * 60 * 1000;
 const RELATED_TTL_MS = 10 * 60 * 1000;
+const SEARCH_TTL_MS = 30 * 60 * 1000;
+const SEARCH_PAGE_SIZE = 10;
 const POPULAR_LIMIT = 150; // large pool so the shuffled feed stays varied
 const ARTICLE_LINKS_LIMIT = 40;
 const RELATED_SEED_LIMIT = 6;
@@ -69,6 +71,7 @@ export class WikipediaService {
   private readonly popularCache = new Map<SupportedLang, TitlesCacheEntry>();
   private readonly newsCache = new Map<SupportedLang, TitlesCacheEntry>();
   private readonly relatedCache = new Map<string, TitlesCacheEntry>();
+  private readonly searchCache = new Map<string, TitlesCacheEntry>();
 
   constructor(private readonly config: ConfigService) {}
 
@@ -177,16 +180,11 @@ export class WikipediaService {
     return res.text();
   }
 
-  /** Full-text search → article summaries for the Explore screen. */
-  async search(query: string, lang?: string): Promise<Article[]> {
-    const language = this.normalizeLang(lang);
-    const q = query.trim();
-    if (!q) {
-      return [];
-    }
+  /** Raw full-text search → titles. */
+  private async rawSearch(query: string, language: SupportedLang, limit: number): Promise<string[]> {
     const url =
       `https://${language}.wikipedia.org/w/api.php?action=query&list=search` +
-      `&srsearch=${encodeURIComponent(q)}&srlimit=12&srnamespace=0&format=json&origin=*`;
+      `&srsearch=${encodeURIComponent(query)}&srlimit=${limit}&srnamespace=0&format=json&origin=*`;
     try {
       const res = await fetch(url, {
         headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
@@ -195,17 +193,53 @@ export class WikipediaService {
         return [];
       }
       const data = (await res.json()) as { query?: { search?: { title: string }[] } };
-      const titles = (data.query?.search ?? []).map((s) => s.title);
-      const settled = await Promise.allSettled(
-        titles.map((title) => this.getSummary(title, language)),
-      );
-      return settled
-        .filter((r): r is PromiseFulfilledResult<Article> => r.status === "fulfilled")
-        .map((r) => r.value);
+      return (data.query?.search ?? [])
+        .map((s) => s.title)
+        .filter((title) => !isExcludedTitle(title));
     } catch (err) {
-      this.logger.warn(`search failed for "${q}": ${String(err)}`);
+      this.logger.warn(`search failed for "${query}": ${String(err)}`);
       return [];
     }
+  }
+
+  /**
+   * Broad theme pool for Explore: direct matches expanded with "more like" the
+   * best match, so a query like "Egyptian alphabet" also surfaces other writing
+   * systems, ancient Egypt, history of numbers, etc. Cached per query.
+   */
+  private async getSearchPool(query: string, language: SupportedLang): Promise<string[]> {
+    const key = `${language}:${query.toLowerCase()}`;
+    const cached = this.searchCache.get(key);
+    if (cached && cached.expiresAt > nowMs()) {
+      return cached.titles;
+    }
+    const direct = await this.rawSearch(query, language, 20);
+    const related = direct.length ? await this.getRelatedTitles([direct[0]], language) : [];
+    const pool = [...new Set([...direct, ...related])];
+    if (pool.length) {
+      this.searchCache.set(key, { titles: pool, expiresAt: nowMs() + SEARCH_TTL_MS });
+    }
+    return pool;
+  }
+
+  /** Paginated theme search for Explore (continuous scroll). */
+  async search(query: string, lang?: string, cursor?: string): Promise<FeedResponse> {
+    const language = this.normalizeLang(lang);
+    const q = query.trim();
+    if (!q) {
+      return { items: [] };
+    }
+    const pool = await this.getSearchPool(q, language);
+    const offset = cursor ? Number(cursor) : 0;
+    const slice = pool.slice(offset, offset + SEARCH_PAGE_SIZE);
+    const settled = await Promise.allSettled(
+      slice.map((title) => this.getSummary(title, language)),
+    );
+    const items = settled
+      .filter((r): r is PromiseFulfilledResult<Article> => r.status === "fulfilled")
+      .map((r) => r.value);
+    const nextOffset = offset + SEARCH_PAGE_SIZE;
+    return { items, nextCursor: nextOffset < pool.length ? String(nextOffset) : undefined };
   }
 
   /**
@@ -328,7 +362,7 @@ export class WikipediaService {
     const srsearch = `morelike:${trimmed.join("|")}`;
     const url =
       `https://${language}.wikipedia.org/w/api.php?action=query&list=search` +
-      `&srsearch=${encodeURIComponent(srsearch)}&srlimit=40&srnamespace=0&format=json&origin=*`;
+      `&srsearch=${encodeURIComponent(srsearch)}&srlimit=80&srnamespace=0&format=json&origin=*`;
     try {
       const res = await fetch(url, {
         headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },

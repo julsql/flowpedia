@@ -4,19 +4,26 @@ import { WikipediaService } from "../wikipedia/wikipedia.service";
 
 const PAGE_SIZE = 5;
 
+// How often a "different subject" item is injected into a feed (every Nth slot),
+// so the user always has an escape door out of a rabbit hole.
+const FORYOU_DIVERSITY_PERIOD = 4;
+const DISCOVER_DIVERSITY_PERIOD = 3;
+const NEWS_INTEREST_PERIOD = 3;
+
 @Injectable()
 export class FeedService {
   constructor(private readonly wikipedia: WikipediaService) {}
 
   /**
-   * Infinite, always-varied feed. Each tab resolves its own candidate pool,
-   * which is shuffled per session (`seed`) so reloads bring new content. Once
+   * Infinite, always-varied feed. Each tab builds its own ordered candidate
+   * pool (already seeded so reloads bring new content) with regular "different
+   * subject" injections, so the user is never trapped in a single topic. Once
    * the pool is exhausted the feed keeps going with random articles, so it
    * never ends and rarely repeats.
    *
-   * - forYou: "more like" the user's seeds (interests); falls back to popular
+   * - forYou: "more like" the user's seeds, with popular woven in for escape
    * - popular: global most-viewed
-   * - news: current events + most-read of the day; falls back to popular
+   * - news: current events + most-read, oriented toward the user's interests
    * - discover (Flow): related-to-you blended with popular
    */
   async getFeed(
@@ -26,8 +33,7 @@ export class FeedService {
     seeds: string[] = [],
     seed = 0,
   ): Promise<FeedResponse> {
-    const pool = await this.resolvePool(tab, lang, seeds);
-    const ordered = seed ? shuffleSeeded(pool, seed) : pool;
+    const ordered = await this.buildPool(tab, lang, seeds, seed);
     const offset = cursor ? Number(cursor) : 0;
 
     const slice =
@@ -46,24 +52,113 @@ export class FeedService {
     return { items, nextCursor: String(offset + PAGE_SIZE) };
   }
 
-  private async resolvePool(tab: FeedTab, lang?: string, seeds: string[] = []): Promise<string[]> {
+  /**
+   * Build the ordered, deterministic pool for a tab. `seed` makes each session's
+   * order different while keeping pagination stable across cursor calls.
+   */
+  private async buildPool(
+    tab: FeedTab,
+    lang: string | undefined,
+    seeds: string[],
+    seed: number,
+  ): Promise<string[]> {
     if (tab === "forYou") {
-      const related = await this.wikipedia.getRelatedTitles(seeds, lang);
-      return related.length ? related : this.wikipedia.getPopularTitles(lang);
+      const [related, popular] = await Promise.all([
+        this.wikipedia.getRelatedTitles(seeds, lang),
+        this.wikipedia.getPopularTitles(lang),
+      ]);
+      if (!related.length) {
+        return shuffleSeeded(popular, seed);
+      }
+      // Mostly interest-driven, with popular woven in as the escape door.
+      return blendDiverse(
+        shuffleSeeded(related, seed),
+        shuffleSeeded(popular, seed),
+        FORYOU_DIVERSITY_PERIOD,
+      );
     }
+
     if (tab === "news") {
-      const news = await this.wikipedia.getNewsTitles(lang);
-      return news.length ? news : this.wikipedia.getPopularTitles(lang);
+      const [news, related] = await Promise.all([
+        this.wikipedia.getNewsTitles(lang),
+        this.wikipedia.getRelatedTitles(seeds, lang),
+      ]);
+      if (!news.length) {
+        return shuffleSeeded(related.length ? related : await this.wikipedia.getPopularTitles(lang), seed);
+      }
+      if (!related.length) {
+        return shuffleSeeded(news, seed);
+      }
+      // Current events oriented toward the user's interests: interest-related
+      // articles are injected into the live news stream at a regular cadence.
+      return blendDiverse(
+        shuffleSeeded(news, seed),
+        shuffleSeeded(related, seed),
+        NEWS_INTEREST_PERIOD,
+      );
     }
+
     if (tab === "discover") {
-      return this.wikipedia.getDiscoverTitles(lang, seeds);
+      const [related, popular] = await Promise.all([
+        this.wikipedia.getRelatedTitles(seeds, lang),
+        this.wikipedia.getPopularTitles(lang),
+      ]);
+      if (!related.length) {
+        return shuffleSeeded(popular, seed);
+      }
+      return blendDiverse(
+        shuffleSeeded(related, seed),
+        shuffleSeeded(popular, seed),
+        DISCOVER_DIVERSITY_PERIOD,
+      );
     }
-    return this.wikipedia.getPopularTitles(lang);
+
+    return shuffleSeeded(await this.wikipedia.getPopularTitles(lang), seed);
   }
+}
+
+/**
+ * Interleave a primary list with a secondary one, placing a secondary item at
+ * every `period`-th slot. Used to inject "different subject" articles so a feed
+ * never stays locked on one topic. Deduplicates across both lists.
+ */
+function blendDiverse(primary: string[], secondary: string[], period: number): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (title: string | undefined) => {
+    if (title && !seen.has(title)) {
+      seen.add(title);
+      out.push(title);
+    }
+  };
+
+  let pi = 0;
+  let si = 0;
+  let slot = 0;
+  while (pi < primary.length || si < secondary.length) {
+    const wantSecondary = secondary.length > 0 && (slot + 1) % period === 0 && si < secondary.length;
+    if (wantSecondary) {
+      push(secondary[si]);
+      si += 1;
+    } else if (pi < primary.length) {
+      push(primary[pi]);
+      pi += 1;
+    } else if (si < secondary.length) {
+      push(secondary[si]);
+      si += 1;
+    } else {
+      break;
+    }
+    slot += 1;
+  }
+  return out;
 }
 
 /** Deterministic shuffle so pagination is stable for a given seed. */
 function shuffleSeeded(input: string[], seed: number): string[] {
+  if (!seed) {
+    return [...input];
+  }
   const rng = mulberry32(seed);
   const arr = [...input];
   for (let i = arr.length - 1; i > 0; i -= 1) {

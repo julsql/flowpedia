@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import type { Article, FeedTab } from "@flowpedia/shared";
 import { ArticleCard } from "../../src/components/ArticleCard";
+import { SkeletonList } from "../../src/components/SkeletonCard";
 import { ScreenContainer } from "../../src/components/ScreenContainer";
 import { fetchFeed } from "../../src/api/client";
 import { useShare } from "../../src/share/ShareSheetProvider";
@@ -54,9 +55,15 @@ export default function FeedScreen() {
   const seedRef = useRef<number>(Math.floor(Math.random() * 1_000_000_000));
 
   const load = useCallback(
-    async (nextTab: FeedTab) => {
+    async (nextTab: FeedTab, clear = true) => {
       setLoading(true);
       setError(false);
+      // Drop stale items immediately so a tab switch shows skeletons, never the
+      // previous tab's articles. Pull-to-refresh keeps them (RefreshControl spins).
+      if (clear) {
+        setArticles([]);
+        setCursor(undefined);
+      }
       try {
         const res = await fetchFeed(nextTab, locale, undefined, seedsFor(nextTab), seedRef.current);
         setArticles(res.items);
@@ -77,7 +84,7 @@ export default function FeedScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     seedRef.current = Math.floor(Math.random() * 1_000_000_000);
-    await load(tab);
+    await load(tab, false);
     setRefreshing(false);
   }, [load, tab]);
 
@@ -120,9 +127,7 @@ export default function FeedScreen() {
           </Pressable>
         </View>
       ) : loading && articles.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
-        </View>
+        <SkeletonList count={3} />
       ) : (
         <FlashList
           data={articles}

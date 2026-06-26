@@ -43,8 +43,16 @@ export function fetchArticle(id: string, locale: Locale): Promise<Article> {
   return getJson<Article>(`/articles/${encodeURIComponent(id)}?lang=${locale}`);
 }
 
-export function fetchSearch(query: string, locale: Locale): Promise<Article[]> {
-  return getJson<Article[]>(`/search?q=${encodeURIComponent(query)}&lang=${locale}`);
+export function fetchSearch(
+  query: string,
+  locale: Locale,
+  cursor?: string,
+): Promise<FeedResponse> {
+  const params = new URLSearchParams({ q: query, lang: locale });
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+  return getJson<FeedResponse>(`/search?${params.toString()}`);
 }
 
 /** Trending = the popular feed, used as the Explore default state. */

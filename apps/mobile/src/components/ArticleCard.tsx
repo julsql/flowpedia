@@ -54,7 +54,7 @@ export function ArticleCard({ article, onShare, onOpen }: ArticleCardProps) {
 
       <Pressable onPress={() => onOpen?.(article)}>
         {article.image ? (
-          <Image source={{ uri: article.image }} style={styles.image} resizeMode="cover" />
+          <Image source={{ uri: article.image }} style={styles.image} resizeMode="contain" />
         ) : (
           <View style={[styles.image, styles.imagePlaceholder]} />
         )}
@@ -126,7 +126,9 @@ const makeStyles = (colors: ThemeColors) =>
       letterSpacing: 0.8,
     },
     meta: { color: colors.mutedLight, fontSize: 12 },
-    image: { width: "100%", height: 186, borderRadius: radii.media, backgroundColor: colors.field },
+    // Whole image shown (no crop) on a neutral backdrop; portrait images appear
+    // naturally narrower than the card.
+    image: { width: "100%", height: 240, borderRadius: radii.media, backgroundColor: colors.field },
     imagePlaceholder: { backgroundColor: colors.separatorThick },
     title: {
       color: colors.textPrimary,

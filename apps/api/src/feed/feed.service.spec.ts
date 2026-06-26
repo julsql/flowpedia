@@ -57,7 +57,9 @@ describe("FeedService", () => {
     expect(wiki.getRelatedTitles).toHaveBeenCalled();
 
     await service.getFeed("discover", "en", undefined, ["Seed"]);
-    expect(wiki.getDiscoverTitles).toHaveBeenCalled();
+    // Discover now blends related-to-you with popular directly (for diversity).
+    expect(wiki.getRelatedTitles).toHaveBeenCalled();
+    expect(wiki.getPopularTitles).toHaveBeenCalled();
   });
 
   it("skips articles whose fetch fails", async () => {
@@ -82,6 +84,39 @@ describe("FeedService", () => {
     expect(wiki.getRandomTitles).toHaveBeenCalled();
     expect(res.items.length).toBeGreaterThan(0);
     expect(res.nextCursor).toBe("25"); // always a cursor
+  });
+
+  it("weaves a different subject into 'forYou' (escape door from the rabbit hole)", async () => {
+    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const wiki = makeWikipediaMock(getSummary);
+    const related = Array.from({ length: 12 }, (_, i) => `Related_${i}`);
+    const popular = Array.from({ length: 12 }, (_, i) => `Popular_${i}`);
+    wiki.getRelatedTitles = jest.fn(async () => related);
+    wiki.getPopularTitles = jest.fn(async () => popular);
+    const service = new FeedService(wiki as never);
+
+    // First two pages (10 items) should contain at least one popular item.
+    const p1 = (await service.getFeed("forYou", "en", undefined, ["Seed"])).items.map((a) => a.id);
+    const p2 = (await service.getFeed("forYou", "en", "5", ["Seed"])).items.map((a) => a.id);
+    const ids = [...p1, ...p2];
+
+    expect(ids.some((id) => id.startsWith("Popular_"))).toBe(true);
+    expect(ids.some((id) => id.startsWith("Related_"))).toBe(true);
+  });
+
+  it("orients news toward the user's interests when seeds exist", async () => {
+    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const wiki = makeWikipediaMock(getSummary);
+    const news = Array.from({ length: 12 }, (_, i) => `News_${i}`);
+    const related = Array.from({ length: 12 }, (_, i) => `Interest_${i}`);
+    wiki.getNewsTitles = jest.fn(async () => news);
+    wiki.getRelatedTitles = jest.fn(async () => related);
+    const service = new FeedService(wiki as never);
+
+    const ids = (await service.getFeed("news", "en", undefined, ["Seed"])).items.map((a) => a.id);
+
+    expect(ids.some((id) => id.startsWith("News_"))).toBe(true);
+    expect(ids.some((id) => id.startsWith("Interest_"))).toBe(true);
   });
 
   it("reorders deterministically with a seed", async () => {
