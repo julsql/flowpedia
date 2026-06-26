@@ -35,7 +35,7 @@ interface TitlesCacheEntry {
 const POPULAR_TTL_MS = 6 * 60 * 60 * 1000;
 const NEWS_TTL_MS = 60 * 60 * 1000;
 const RELATED_TTL_MS = 10 * 60 * 1000;
-const POPULAR_LIMIT = 40;
+const POPULAR_LIMIT = 150; // large pool so the shuffled feed stays varied
 const ARTICLE_LINKS_LIMIT = 40;
 const RELATED_SEED_LIMIT = 6;
 
@@ -281,12 +281,20 @@ export class WikipediaService {
           continue;
         }
         const data = (await res.json()) as FeaturedFeed;
+        // Current events ("In the news") first…
         for (const item of data.news ?? []) {
           for (const link of item.links ?? []) {
             const title = link.titles?.canonical ?? link.title;
             if (title && !isExcludedTitle(title)) {
               titles.push(title);
             }
+          }
+        }
+        // …then the most-read articles of the day.
+        for (const article of data.mostread?.articles ?? []) {
+          const title = article.titles?.canonical ?? article.title;
+          if (title && !isExcludedTitle(title)) {
+            titles.push(title);
           }
         }
       } catch (err) {
@@ -344,6 +352,39 @@ export class WikipediaService {
     }
   }
 
+  /** Random article titles — serendipity + the infinite-scroll fallback. */
+  async getRandomTitles(lang: string | undefined, count: number): Promise<string[]> {
+    const language = this.normalizeLang(lang);
+    const url =
+      `https://${language}.wikipedia.org/w/api.php?action=query&list=random` +
+      `&rnnamespace=0&rnlimit=${Math.min(count * 2, 20)}&format=json&origin=*`;
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
+      });
+      if (!res.ok) {
+        return [];
+      }
+      const data = (await res.json()) as { query?: { random?: { title: string }[] } };
+      return (data.query?.random ?? [])
+        .map((r) => r.title)
+        .filter((title) => !isExcludedTitle(title))
+        .slice(0, count);
+    } catch (err) {
+      this.logger.warn(`random fetch failed for ${language}: ${String(err)}`);
+      return [];
+    }
+  }
+
+  /** Discovery pool for the immersive Flow: related-to-you blended with popular. */
+  async getDiscoverTitles(lang: string | undefined, seeds: string[]): Promise<string[]> {
+    const [related, popular] = await Promise.all([
+      this.getRelatedTitles(seeds, lang),
+      this.getPopularTitles(lang),
+    ]);
+    return [...new Set([...related, ...popular])];
+  }
+
   private toArticle(data: WikiSummary, language: SupportedLang): Article {
     return {
       id: data.titles?.canonical ?? data.title,
@@ -396,6 +437,7 @@ interface PageviewsTop {
 
 interface FeaturedFeed {
   news?: { links?: { title?: string; titles?: { canonical?: string } }[] }[];
+  mostread?: { articles?: { title?: string; titles?: { canonical?: string } }[] };
 }
 
 interface WikiSummary {

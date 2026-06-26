@@ -29,5 +29,9 @@
   "theme.system": "Systemowy",
   "theme.light": "Jasny",
   "theme.dark": "Ciemny",
-  "profile.saved": "Zapisane"
+  "profile.saved": "Zapisane",
+  "profile.read": "Przeczytane",
+  "profile.liked": "Polubione",
+  "profile.interests": "Zainteresowania",
+  "profile.bio": "Odkrywam Wikipedię, artykuł po artykule."
 }

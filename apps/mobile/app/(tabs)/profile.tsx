@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { Article } from "@flowpedia/shared";
 import { radii, spacing, useTheme, type ThemeColors, type ThemeMode } from "../../src/theme";
 import { ScreenContainer } from "../../src/components/ScreenContainer";
 import { useLibrary } from "../../src/library/LibraryProvider";
+import { useUser } from "../../src/user/UserProvider";
 import { LOCALE_LABELS, SUPPORTED_LOCALES, useLocale, type TranslationKey } from "../../src/i18n";
 
 const THEME_OPTIONS: { mode: ThemeMode; label: TranslationKey }[] = [
@@ -14,92 +15,198 @@ const THEME_OPTIONS: { mode: ThemeMode; label: TranslationKey }[] = [
   { mode: "dark", label: "theme.dark" },
 ];
 
+function initials(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+/** Top distinct categories across the user's activity → interest chips. */
+function deriveInterests(articles: Article[]): string[] {
+  const counts = new Map<string, number>();
+  for (const a of articles) {
+    const c = a.category?.trim();
+    if (c && c.toLowerCase() !== "wikipedia") {
+      counts.set(c, (counts.get(c) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([c]) => c);
+}
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, mode, setMode } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale, setLocale } = useLocale();
-  const { saved } = useLibrary();
+  const user = useUser();
+  const { read, liked, saved } = useLibrary();
+
+  const interests = useMemo(
+    () => deriveInterests([...read, ...liked, ...saved]),
+    [read, liked, saved],
+  );
+
+  const openArticle = (id: string) =>
+    router.push({ pathname: "/article/[id]", params: { id: encodeURIComponent(id) } });
 
   return (
-    <ScreenContainer
-      style={{ paddingTop: insets.top + 20, paddingHorizontal: spacing.screenPadding }}
-    >
-      <Text style={styles.title}>{t("tab.profile")}</Text>
-
-      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionLabel}>{t("settings.theme")}</Text>
-        <View style={styles.segment}>
-          {THEME_OPTIONS.map(({ mode: optionMode, label }) => {
-            const active = optionMode === mode;
-            return (
-              <Pressable
-                key={optionMode}
-                onPress={() => setMode(optionMode)}
-                style={[styles.segmentItem, active && styles.segmentItemActive]}
-              >
-                <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
-                  {t(label)}
-                </Text>
-              </Pressable>
-            );
-          })}
+    <ScreenContainer style={{ paddingTop: insets.top + 16 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {/* Identity */}
+        <View style={styles.identity}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initials(user.name)}</Text>
+          </View>
+          <Text style={styles.name}>{user.name}</Text>
+          <Text style={styles.bio}>{t("profile.bio")}</Text>
         </View>
 
-        {saved.length > 0 ? (
-          <>
-            <Text style={[styles.sectionLabel, styles.sectionSpacing]}>{t("profile.saved")}</Text>
-            {saved.map((article) => (
-              <Pressable
-                key={article.id}
-                style={styles.savedRow}
-                onPress={() =>
-                  router.push({
-                    pathname: "/article/[id]",
-                    params: { id: encodeURIComponent(article.id) },
-                  })
-                }
-              >
-                {article.image ? (
-                  <Image source={{ uri: article.image }} style={styles.savedThumb} />
-                ) : (
-                  <View style={[styles.savedThumb, styles.savedPlaceholder]} />
-                )}
-                <View style={styles.savedText}>
-                  <Text style={styles.savedTitle} numberOfLines={1}>
-                    {article.title}
-                  </Text>
-                  <Text style={styles.savedCategory} numberOfLines={1}>
-                    {article.category}
-                  </Text>
+        {/* Stats */}
+        <View style={styles.stats}>
+          <Stat styles={styles} value={read.length} label={t("profile.read")} />
+          <View style={styles.statDivider} />
+          <Stat styles={styles} value={liked.length} label={t("profile.liked")} />
+          <View style={styles.statDivider} />
+          <Stat styles={styles} value={saved.length} label={t("profile.saved")} />
+        </View>
+
+        {/* Interests */}
+        {interests.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>{t("profile.interests")}</Text>
+            <View style={styles.chips}>
+              {interests.map((interest) => (
+                <View key={interest} style={styles.interestChip}>
+                  <Text style={styles.interestChipText}>{interest}</Text>
                 </View>
-                <MaterialIcons name="bookmark" size={20} color={colors.accent} />
-              </Pressable>
-            ))}
-          </>
+              ))}
+            </View>
+          </View>
         ) : null}
 
-        <Text style={[styles.sectionLabel, styles.sectionSpacing]}>{t("settings.language")}</Text>
-        {SUPPORTED_LOCALES.map((code) => {
-          const active = code === locale;
-          return (
-            <Pressable key={code} onPress={() => setLocale(code)} style={styles.row}>
-              <Text style={[styles.rowLabel, active && styles.rowLabelActive]}>
-                {LOCALE_LABELS[code]}
-              </Text>
-              {active ? <MaterialIcons name="check" size={20} color={colors.accent} /> : null}
-            </Pressable>
-          );
-        })}
+        {/* Saved grid */}
+        {saved.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>{t("profile.saved")}</Text>
+            <View style={styles.savedGrid}>
+              {saved.map((article) => (
+                <Pressable
+                  key={article.id}
+                  style={styles.savedCell}
+                  onPress={() => openArticle(article.id)}
+                >
+                  {article.image ? (
+                    <Image source={{ uri: article.image }} style={styles.savedImage} />
+                  ) : (
+                    <View style={[styles.savedImage, styles.savedPlaceholder]} />
+                  )}
+                  <Text style={styles.savedCaption} numberOfLines={2}>
+                    {article.title}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {/* Settings — compact */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t("settings.theme")}</Text>
+          <View style={styles.segment}>
+            {THEME_OPTIONS.map(({ mode: optionMode, label }) => {
+              const active = optionMode === mode;
+              return (
+                <Pressable
+                  key={optionMode}
+                  onPress={() => setMode(optionMode)}
+                  style={[styles.segmentItem, active && styles.segmentItemActive]}
+                >
+                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                    {t(label)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t("settings.language")}</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.langRow}
+          >
+            {SUPPORTED_LOCALES.map((code) => {
+              const active = code === locale;
+              return (
+                <Pressable
+                  key={code}
+                  onPress={() => setLocale(code)}
+                  style={[styles.langChip, active && styles.langChipActive]}
+                >
+                  <Text style={[styles.langChipText, active && styles.langChipTextActive]}>
+                    {LOCALE_LABELS[code]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
       </ScrollView>
     </ScreenContainer>
   );
 }
 
+function Stat({
+  value,
+  label,
+  styles,
+}: {
+  value: number;
+  label: string;
+  styles: ReturnType<typeof makeStyles>;
+}) {
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-    title: { fontSize: 24, fontWeight: "600", color: colors.textPrimary, marginBottom: 24 },
+    scroll: { paddingHorizontal: spacing.screenPadding, paddingBottom: 32 },
+    identity: { alignItems: "center", marginBottom: 24 },
+    avatar: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.accent,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarText: { color: "#fff", fontSize: 26, fontWeight: "700" },
+    name: { color: colors.textPrimary, fontSize: 20, fontWeight: "600", marginTop: 12 },
+    bio: { color: colors.textTertiary, fontSize: 14, marginTop: 4, textAlign: "center" },
+    stats: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 16,
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: colors.separator,
+    },
+    stat: { flex: 1, alignItems: "center" },
+    statValue: { color: colors.textPrimary, fontSize: 20, fontWeight: "700" },
+    statLabel: { color: colors.textTertiary, fontSize: 12, marginTop: 2 },
+    statDivider: { width: 1, height: 32, backgroundColor: colors.separator },
+    section: { marginTop: 26 },
     sectionLabel: {
       fontSize: 13,
       fontWeight: "600",
@@ -108,8 +215,24 @@ const makeStyles = (colors: ThemeColors) =>
       letterSpacing: 0.6,
       marginBottom: 12,
     },
-    sectionSpacing: { marginTop: 28 },
-    list: { paddingBottom: 24 },
+    chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    interestChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: radii.pill,
+      backgroundColor: colors.interestChipBg,
+    },
+    interestChipText: { color: colors.interestChipText, fontSize: 13, fontWeight: "500" },
+    savedGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    savedCell: { width: "31%" },
+    savedImage: {
+      width: "100%",
+      height: 90,
+      borderRadius: radii.profileThumb,
+      backgroundColor: colors.field,
+    },
+    savedPlaceholder: { backgroundColor: colors.separatorThick },
+    savedCaption: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
     segment: {
       flexDirection: "row",
       backgroundColor: colors.field,
@@ -117,29 +240,18 @@ const makeStyles = (colors: ThemeColors) =>
       padding: 4,
       gap: 4,
     },
-    segmentItem: {
-      flex: 1,
-      alignItems: "center",
-      paddingVertical: 9,
-      borderRadius: radii.pill,
-    },
+    segmentItem: { flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: radii.pill },
     segmentItemActive: { backgroundColor: colors.accent },
     segmentText: { color: colors.textSecondary, fontSize: 14, fontWeight: "500" },
     segmentTextActive: { color: "#fff", fontWeight: "600" },
-    savedRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
-    savedThumb: { width: 48, height: 48, borderRadius: 10, backgroundColor: colors.field },
-    savedPlaceholder: { backgroundColor: colors.separatorThick },
-    savedText: { flex: 1 },
-    savedTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "500" },
-    savedCategory: { color: colors.textTertiary, fontSize: 12, marginTop: 2 },
-    row: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingVertical: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.separator,
+    langRow: { gap: 8, paddingRight: 8 },
+    langChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: radii.pill,
+      backgroundColor: colors.field,
     },
-    rowLabel: { fontSize: 16, color: colors.textSecondary },
-    rowLabelActive: { color: colors.textPrimary, fontWeight: "600" },
+    langChipActive: { backgroundColor: colors.accent },
+    langChipText: { color: colors.textSecondary, fontSize: 14 },
+    langChipTextActive: { color: "#fff", fontWeight: "600" },
   });

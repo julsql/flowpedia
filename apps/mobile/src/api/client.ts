@@ -5,6 +5,12 @@ import type { Locale } from "../i18n";
 // LAN IP instead of localhost (e.g. http://192.168.1.20:3000/api).
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api";
 
+// Temporary anonymous user id, attached to every signal. Set by UserProvider.
+let currentUserId: string | undefined;
+export function setCurrentUserId(id: string): void {
+  currentUserId = id;
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`);
   if (!res.ok) {
@@ -18,6 +24,7 @@ export function fetchFeed(
   locale: Locale,
   cursor?: string,
   seeds: string[] = [],
+  seed?: number,
 ): Promise<FeedResponse> {
   const params = new URLSearchParams({ tab, lang: locale });
   if (cursor) {
@@ -25,6 +32,9 @@ export function fetchFeed(
   }
   if (seeds.length) {
     params.set("seeds", seeds.join(","));
+  }
+  if (seed) {
+    params.set("seed", String(seed));
   }
   return getJson<FeedResponse>(`/feed?${params.toString()}`);
 }
@@ -45,9 +55,10 @@ export async function fetchTrending(locale: Locale): Promise<Article[]> {
 
 /** Fire-and-forget signal ingestion; failures must never break the UI. */
 export function sendEvents(events: InteractionEvent[]): void {
+  const withUser = events.map((e) => ({ ...e, userId: currentUserId }));
   void fetch(`${BASE_URL}/events`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ events }),
+    body: JSON.stringify({ events: withUser }),
   }).catch(() => undefined);
 }

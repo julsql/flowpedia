@@ -75,6 +75,20 @@ EXPO_PUBLIC_API_URL=http://192.168.1.20:3000/api pnpm mobile
 
 ## What works now
 
+- **Infinite, always-varied feeds.** Every source is a large pool shuffled per
+  session (so reloads/pull-to-refresh bring new content) and never runs out
+  (random-article fallback past the pool). Tabs differ by source:
+  - **For you** (default landing) — content-based "more like" your liked/saved
+    interests; falls back to popular until you have signals.
+  - **Popular** — global most-viewed (reshuffled each session).
+  - **News** — Wikimedia current events + most-read of the day.
+  - **Flow** — immersive full-screen "discover": your interests blended with
+    popular, serendipitous and endless.
+  - **Explore** — trending grid with continuous (infinite) scroll + search.
+- **Temporary unique user** generated on first launch (persisted); attached to
+  every signal (Postgres `userId`).
+- **Profile** (handoff-style): avatar + name + bio, stats (Read / Liked / Saved),
+  derived interest chips, a saved grid, and compact theme + language controls.
 - **Theming:** light / dark / system, switchable in the profile and persisted
   (AsyncStorage); amber accent kept across both palettes.
 - **Explore (handoff screen 5):** search (live Wikipedia full-text) + a

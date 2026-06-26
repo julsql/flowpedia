@@ -29,5 +29,9 @@
   "theme.system": "System",
   "theme.light": "Hell",
   "theme.dark": "Dunkel",
-  "profile.saved": "Gespeichert"
+  "profile.saved": "Gespeichert",
+  "profile.read": "Gelesen",
+  "profile.liked": "Gefällt mir",
+  "profile.interests": "Interessen",
+  "profile.bio": "Wikipedia entdecken, Artikel für Artikel."
 }

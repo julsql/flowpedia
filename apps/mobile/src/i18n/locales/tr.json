@@ -29,5 +29,9 @@
   "theme.system": "Sistem",
   "theme.light": "Açık",
   "theme.dark": "Koyu",
-  "profile.saved": "Kaydedilenler"
+  "profile.saved": "Kaydedilenler",
+  "profile.read": "Okunan",
+  "profile.liked": "Beğenilen",
+  "profile.interests": "İlgi alanları",
+  "profile.bio": "Wikipedia’yı tek tek keşfediyorum."
 }

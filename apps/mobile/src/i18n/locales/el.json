@@ -29,5 +29,9 @@
   "theme.system": "Σύστημα",
   "theme.light": "Φωτεινό",
   "theme.dark": "Σκοτεινό",
-  "profile.saved": "Αποθηκευμένα"
+  "profile.saved": "Αποθηκευμένα",
+  "profile.read": "Διαβασμένα",
+  "profile.liked": "Αρέσει",
+  "profile.interests": "Ενδιαφέροντα",
+  "profile.bio": "Εξερευνώ τη Wikipedia, ένα άρθρο τη φορά."
 }

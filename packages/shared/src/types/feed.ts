@@ -1,7 +1,10 @@
 import type { Article } from "./article";
 
-/** Feed tabs — see handoff screen 1. Displayed labels are localized in the app. */
-export type FeedTab = "forYou" | "popular" | "news";
+/**
+ * Feed sources. forYou/popular/news are the home tabs; "discover" backs the
+ * immersive Flow screen. Displayed labels are localized in the app.
+ */
+export type FeedTab = "forYou" | "popular" | "news" | "discover";
 
 export interface FeedResponse {
   items: Article[];

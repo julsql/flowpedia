@@ -29,5 +29,9 @@
   "theme.system": "跟随系统",
   "theme.light": "浅色",
   "theme.dark": "深色",
-  "profile.saved": "已保存"
+  "profile.saved": "已保存",
+  "profile.read": "已读",
+  "profile.liked": "喜欢",
+  "profile.interests": "兴趣",
+  "profile.bio": "一篇一篇地探索维基百科。"
 }

@@ -29,5 +29,9 @@
   "theme.system": "시스템",
   "theme.light": "라이트",
   "theme.dark": "다크",
-  "profile.saved": "저장됨"
+  "profile.saved": "저장됨",
+  "profile.read": "읽음",
+  "profile.liked": "좋아요",
+  "profile.interests": "관심사",
+  "profile.bio": "위키백과를 한 편씩 탐험 중."
 }

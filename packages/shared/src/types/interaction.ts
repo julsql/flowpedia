@@ -18,6 +18,8 @@ export interface InteractionEvent {
   type: InteractionType;
   /** Client-side epoch ms. */
   ts: number;
+  /** Temporary anonymous user id (attached by the client). */
+  userId?: string;
 }
 
 export interface IngestEventsRequest {

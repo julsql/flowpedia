@@ -7,6 +7,10 @@ export class Interaction {
   id!: string;
 
   @Index()
+  @Column({ type: "varchar", nullable: true })
+  userId!: string | null;
+
+  @Index()
   @Column()
   articleId!: string;
 

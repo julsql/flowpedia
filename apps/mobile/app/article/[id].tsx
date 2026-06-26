@@ -30,7 +30,7 @@ export default function ArticleScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useLocale();
-  const { isSaved, toggleSave } = useLibrary();
+  const { isSaved, toggleSave, markRead } = useLibrary();
   const { openShare } = useShare();
   const { id } = useLocalSearchParams<{ id: string }>();
   const articleId = decodeURIComponent(id ?? "");
@@ -50,6 +50,7 @@ export default function ArticleScreen() {
       const data = await fetchArticle(articleId, locale);
       setArticle(data);
       setActiveSection(data.sections[0]?.id ?? null);
+      markRead(data);
       sendEvents([{ articleId: data.id, type: "openFull", ts: Date.now() }]);
     } catch {
       setError(true);

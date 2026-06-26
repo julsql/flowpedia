@@ -6,6 +6,7 @@ import { sendEvents } from "../api/client";
 const LIKED_KEY = "flowpedia.liked";
 const SAVED_KEY = "flowpedia.saved";
 const SHARED_KEY = "flowpedia.shared";
+const READ_KEY = "flowpedia.read";
 
 interface LibraryValue {
   isLiked: (id: string) => boolean;
@@ -14,54 +15,65 @@ interface LibraryValue {
   toggleSave: (article: Article) => void;
   /** Record an article as shared (local history for the Shared tab). */
   recordShare: (article: Article) => void;
-  /** Liked article ids, most recent first (used as recommendation seeds). */
+  /** Record an article as read (opened) — feeds the profile "Read" stat. */
+  markRead: (article: Article) => void;
+  /** Liked article ids, most recent first (recommendation seeds). */
   likedIds: string[];
-  /** Saved articles, most recent first. */
+  liked: Article[];
   saved: Article[];
-  /** Shared articles, most recent first (deduplicated). */
   shared: Article[];
+  read: Article[];
 }
 
 const LibraryContext = createContext<LibraryValue | null>(null);
 
-/** Drop the heavy fields before persisting a saved article. */
+/** Drop heavy fields before persisting. */
 function compact(article: Article): Article {
   return { ...article, sections: [], links: [] };
 }
 
+/** Parse a persisted Article[] list, tolerating the old string[] format. */
+function parseArticles(raw: string | null): Article[] {
+  if (!raw) {
+    return [];
+  }
+  const parsed = JSON.parse(raw) as unknown;
+  if (Array.isArray(parsed) && parsed.every((item) => typeof item === "object" && item !== null)) {
+    return parsed as Article[];
+  }
+  return [];
+}
+
 export function LibraryProvider({ children }: { children: ReactNode }) {
-  const [likedIds, setLikedIds] = useState<string[]>([]);
+  const [liked, setLiked] = useState<Article[]>([]);
   const [saved, setSaved] = useState<Article[]>([]);
   const [shared, setShared] = useState<Article[]>([]);
+  const [read, setRead] = useState<Article[]>([]);
 
   useEffect(() => {
     void (async () => {
-      const [liked, savedRaw, sharedRaw] = await Promise.all([
+      const [likedRaw, savedRaw, sharedRaw, readRaw] = await Promise.all([
         AsyncStorage.getItem(LIKED_KEY),
         AsyncStorage.getItem(SAVED_KEY),
         AsyncStorage.getItem(SHARED_KEY),
+        AsyncStorage.getItem(READ_KEY),
       ]);
-      if (liked) {
-        setLikedIds(JSON.parse(liked) as string[]);
-      }
-      if (savedRaw) {
-        setSaved(JSON.parse(savedRaw) as Article[]);
-      }
-      if (sharedRaw) {
-        setShared(JSON.parse(sharedRaw) as Article[]);
-      }
+      setLiked(parseArticles(likedRaw));
+      setSaved(parseArticles(savedRaw));
+      setShared(parseArticles(sharedRaw));
+      setRead(parseArticles(readRaw));
     })();
   }, []);
 
   const value = useMemo<LibraryValue>(() => {
-    const isLiked = (id: string) => likedIds.includes(id);
+    const isLiked = (id: string) => liked.some((a) => a.id === id);
     const isSaved = (id: string) => saved.some((a) => a.id === id);
 
     const toggleLike = (article: Article) => {
-      setLikedIds((prev) => {
-        const next = prev.includes(article.id)
-          ? prev.filter((id) => id !== article.id)
-          : [article.id, ...prev];
+      setLiked((prev) => {
+        const next = prev.some((a) => a.id === article.id)
+          ? prev.filter((a) => a.id !== article.id)
+          : [compact(article), ...prev];
         void AsyncStorage.setItem(LIKED_KEY, JSON.stringify(next));
         return next;
       });
@@ -87,8 +99,31 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       });
     };
 
-    return { isLiked, isSaved, toggleLike, toggleSave, recordShare, likedIds, saved, shared };
-  }, [likedIds, saved, shared]);
+    const markRead = (article: Article) => {
+      setRead((prev) => {
+        if (prev.some((a) => a.id === article.id)) {
+          return prev;
+        }
+        const next = [compact(article), ...prev];
+        void AsyncStorage.setItem(READ_KEY, JSON.stringify(next));
+        return next;
+      });
+    };
+
+    return {
+      isLiked,
+      isSaved,
+      toggleLike,
+      toggleSave,
+      recordShare,
+      markRead,
+      likedIds: liked.map((a) => a.id),
+      liked,
+      saved,
+      shared,
+      read,
+    };
+  }, [liked, saved, shared, read]);
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
 }

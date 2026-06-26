@@ -29,5 +29,9 @@
   "theme.system": "Sistema",
   "theme.light": "Chiaro",
   "theme.dark": "Scuro",
-  "profile.saved": "Salvati"
+  "profile.saved": "Salvati",
+  "profile.read": "Letti",
+  "profile.liked": "Mi piace",
+  "profile.interests": "Interessi",
+  "profile.bio": "Esploro Wikipedia, un articolo alla volta."
 }

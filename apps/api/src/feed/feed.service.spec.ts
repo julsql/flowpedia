@@ -16,36 +16,48 @@ function fakeArticle(id: string): Article {
   };
 }
 
-// 12 fake titles → 3 pages of 5 / 5 / 2.
 const TITLES = Array.from({ length: 12 }, (_, i) => `Title_${i}`);
 
-function makeWikipediaMock(getSummary: jest.Mock, titles: string[] = TITLES) {
+function makeWikipediaMock(getSummary: jest.Mock, pool: string[] = TITLES) {
   return {
     getSummary,
-    getPopularTitles: jest.fn(async () => titles),
     normalizeLang: (lang?: string) => (lang === "en" ? "en" : "fr"),
+    getPopularTitles: jest.fn(async () => pool),
+    getNewsTitles: jest.fn(async () => pool),
+    getRelatedTitles: jest.fn(async () => pool),
+    getDiscoverTitles: jest.fn(async () => pool),
+    getRandomTitles: jest.fn(async (_lang: string, n: number) =>
+      Array.from({ length: n }, (_, i) => `Random_${i}`),
+    ),
   };
 }
 
 describe("FeedService", () => {
-  it("returns a first page of 5 articles with a cursor", async () => {
+  it("returns a first page of 5 articles with a cursor (no shuffle when seed=0)", async () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
-    const service = new FeedService(makeWikipediaMock(getSummary) as never);
+    const wiki = makeWikipediaMock(getSummary);
+    const service = new FeedService(wiki as never);
 
     const res = await service.getFeed("popular", "en");
 
     expect(res.items).toHaveLength(5);
     expect(res.nextCursor).toBe("5");
-    expect(getSummary).toHaveBeenCalledTimes(5);
+    expect(getSummary).toHaveBeenCalledWith(TITLES[0], "en");
   });
 
-  it("fetches summaries for the popular titles in the requested language", async () => {
+  it("selects the pool by tab", async () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
-    const service = new FeedService(makeWikipediaMock(getSummary) as never);
+    const wiki = makeWikipediaMock(getSummary);
+    const service = new FeedService(wiki as never);
 
-    await service.getFeed("popular", "ja");
+    await service.getFeed("news", "en");
+    expect(wiki.getNewsTitles).toHaveBeenCalled();
 
-    expect(getSummary).toHaveBeenCalledWith(TITLES[0], "ja");
+    await service.getFeed("forYou", "en", undefined, ["Seed"]);
+    expect(wiki.getRelatedTitles).toHaveBeenCalled();
+
+    await service.getFeed("discover", "en", undefined, ["Seed"]);
+    expect(wiki.getDiscoverTitles).toHaveBeenCalled();
   });
 
   it("skips articles whose fetch fails", async () => {
@@ -60,24 +72,27 @@ describe("FeedService", () => {
     expect(res.items).toHaveLength(4);
   });
 
-  it("returns no cursor on the last page", async () => {
+  it("falls back to random articles past the end of the pool (infinite)", async () => {
+    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const wiki = makeWikipediaMock(getSummary);
+    const service = new FeedService(wiki as never);
+
+    const res = await service.getFeed("popular", "en", "20"); // beyond 12-item pool
+
+    expect(wiki.getRandomTitles).toHaveBeenCalled();
+    expect(res.items.length).toBeGreaterThan(0);
+    expect(res.nextCursor).toBe("25"); // always a cursor
+  });
+
+  it("reorders deterministically with a seed", async () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
     const service = new FeedService(makeWikipediaMock(getSummary) as never);
 
-    const res = await service.getFeed("popular", "en", "10");
+    const first = (await service.getFeed("popular", "en", undefined, [], 123)).items.map((a) => a.id);
+    const same = (await service.getFeed("popular", "en", undefined, [], 123)).items.map((a) => a.id);
+    const other = (await service.getFeed("popular", "en", undefined, [], 999)).items.map((a) => a.id);
 
-    expect(res.items).toHaveLength(2);
-    expect(res.nextCursor).toBeUndefined();
-  });
-
-  it("returns an empty feed when no popular titles are available", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
-    const service = new FeedService(makeWikipediaMock(getSummary, []) as never);
-
-    const res = await service.getFeed("popular", "en");
-
-    expect(res.items).toHaveLength(0);
-    expect(res.nextCursor).toBeUndefined();
-    expect(getSummary).not.toHaveBeenCalled();
+    expect(same).toEqual(first); // same seed → same order
+    expect(other).not.toEqual(first); // different seed → different order
   });
 });

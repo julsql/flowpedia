@@ -48,6 +48,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       try {
         await this.repo.insert(
           events.map((e) => ({
+            userId: e.userId ?? null,
             articleId: e.articleId,
             type: e.type,
             value: e.value ?? null,

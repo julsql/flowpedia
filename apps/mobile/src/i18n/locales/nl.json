@@ -29,5 +29,9 @@
   "theme.system": "Systeem",
   "theme.light": "Licht",
   "theme.dark": "Donker",
-  "profile.saved": "Opgeslagen"
+  "profile.saved": "Opgeslagen",
+  "profile.read": "Gelezen",
+  "profile.liked": "Leuk",
+  "profile.interests": "Interesses",
+  "profile.bio": "Wikipedia ontdekken, artikel voor artikel."
 }

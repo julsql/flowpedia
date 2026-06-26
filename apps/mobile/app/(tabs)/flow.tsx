@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -24,13 +24,21 @@ import { useLocale } from "../../src/i18n";
 export default function FlowScreen() {
   const { locale } = useLocale();
   const { colors } = useTheme();
+  const { likedIds, saved } = useLibrary();
   const [articles, setArticles] = useState<Article[]>([]);
   const [cursor, setCursor] = useState<string | undefined>();
   const [height, setHeight] = useState(0);
 
+  const seedRef = useRef<number>(Math.floor(Math.random() * 1_000_000_000));
+  const seedsRef = useRef<string[]>([]);
+  seedsRef.current = useMemo(
+    () => Array.from(new Set([...likedIds, ...saved.map((a) => a.id)])).slice(0, 6),
+    [likedIds, saved],
+  );
+
   const load = useCallback(async () => {
     try {
-      const res = await fetchFeed("popular", locale);
+      const res = await fetchFeed("discover", locale, undefined, seedsRef.current, seedRef.current);
       setArticles(res.items);
       setCursor(res.nextCursor);
     } catch {
@@ -47,7 +55,7 @@ export default function FlowScreen() {
       return;
     }
     try {
-      const res = await fetchFeed("popular", locale, cursor);
+      const res = await fetchFeed("discover", locale, cursor, seedsRef.current, seedRef.current);
       setArticles((prev) => [...prev, ...res.items]);
       setCursor(res.nextCursor);
     } catch {

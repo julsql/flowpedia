@@ -29,5 +29,9 @@
   "theme.system": "Системная",
   "theme.light": "Светлая",
   "theme.dark": "Тёмная",
-  "profile.saved": "Сохранённое"
+  "profile.saved": "Сохранённое",
+  "profile.read": "Прочитано",
+  "profile.liked": "Нравится",
+  "profile.interests": "Интересы",
+  "profile.bio": "Исследую Википедию, статья за статьёй."
 }

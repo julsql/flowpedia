@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -43,18 +43,22 @@ export default function FeedScreen() {
     [router],
   );
 
-  const [tab, setTab] = useState<FeedTab>("popular");
+  const [tab, setTab] = useState<FeedTab>("forYou");
   const [articles, setArticles] = useState<Article[]>([]);
   const [cursor, setCursor] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+
+  // New shuffle seed per session → reloads bring fresh content.
+  const seedRef = useRef<number>(Math.floor(Math.random() * 1_000_000_000));
 
   const load = useCallback(
     async (nextTab: FeedTab) => {
       setLoading(true);
       setError(false);
       try {
-        const res = await fetchFeed(nextTab, locale, undefined, seedsFor(nextTab));
+        const res = await fetchFeed(nextTab, locale, undefined, seedsFor(nextTab), seedRef.current);
         setArticles(res.items);
         setCursor(res.nextCursor);
       } catch {
@@ -70,12 +74,19 @@ export default function FeedScreen() {
     void load(tab);
   }, [load, tab]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    seedRef.current = Math.floor(Math.random() * 1_000_000_000);
+    await load(tab);
+    setRefreshing(false);
+  }, [load, tab]);
+
   const loadMore = useCallback(async () => {
     if (!cursor || loading) {
       return;
     }
     try {
-      const res = await fetchFeed(tab, locale, cursor, seedsFor(tab));
+      const res = await fetchFeed(tab, locale, cursor, seedsFor(tab), seedRef.current);
       setArticles((prev) => [...prev, ...res.items]);
       setCursor(res.nextCursor);
     } catch {
@@ -122,6 +133,14 @@ export default function FeedScreen() {
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           onEndReached={loadMore}
           onEndReachedThreshold={0.6}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
+            />
+          }
         />
       )}
     </ScreenContainer>

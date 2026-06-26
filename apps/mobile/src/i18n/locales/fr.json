@@ -29,5 +29,9 @@
   "theme.system": "Système",
   "theme.light": "Clair",
   "theme.dark": "Sombre",
-  "profile.saved": "Gardés"
+  "profile.saved": "Gardés",
+  "profile.read": "Lus",
+  "profile.liked": "Aimés",
+  "profile.interests": "Centres d’intérêt",
+  "profile.bio": "J’explore Wikipédia, un article à la fois."
 }

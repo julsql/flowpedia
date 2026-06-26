@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import "../src/web/hideScrollbars";
 import i18n from "../src/i18n";
 import { ThemeProvider, useTheme } from "../src/theme";
+import { UserProvider } from "../src/user/UserProvider";
 import { LibraryProvider } from "../src/library/LibraryProvider";
 import { ShareSheetProvider } from "../src/share/ShareSheetProvider";
 
@@ -39,11 +40,13 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <I18nextProvider i18n={i18n}>
         <ThemeProvider>
-          <LibraryProvider>
-            <ShareSheetProvider>
-              <ThemedNavigation />
-            </ShareSheetProvider>
-          </LibraryProvider>
+          <UserProvider>
+            <LibraryProvider>
+              <ShareSheetProvider>
+                <ThemedNavigation />
+              </ShareSheetProvider>
+            </LibraryProvider>
+          </UserProvider>
         </ThemeProvider>
       </I18nextProvider>
     </SafeAreaProvider>

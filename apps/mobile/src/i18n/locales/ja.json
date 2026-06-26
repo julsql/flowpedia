@@ -29,5 +29,9 @@
   "theme.system": "システム",
   "theme.light": "ライト",
   "theme.dark": "ダーク",
-  "profile.saved": "保存済み"
+  "profile.saved": "保存済み",
+  "profile.read": "既読",
+  "profile.liked": "いいね",
+  "profile.interests": "興味",
+  "profile.bio": "ウィキペディアを一記事ずつ探索中。"
 }
