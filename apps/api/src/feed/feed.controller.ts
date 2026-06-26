@@ -15,12 +15,14 @@ export class FeedController {
     @Query("cursor") cursor?: string,
     @Query("seeds") seeds?: string,
     @Query("seed") seed?: string,
+    @Query("exclude") exclude?: string,
   ): Promise<FeedResponse> {
     const safeTab: FeedTab = VALID_TABS.includes(tab as FeedTab)
       ? (tab as FeedTab)
       : "popular";
     const seedList = seeds ? seeds.split(",").filter(Boolean) : [];
     const seedNum = seed ? Number(seed) || 0 : 0;
-    return this.feed.getFeed(safeTab, lang, cursor, seedList, seedNum);
+    const excludeList = exclude ? exclude.split(",").filter(Boolean) : [];
+    return this.feed.getFeed(safeTab, lang, cursor, seedList, seedNum, excludeList);
   }
 }

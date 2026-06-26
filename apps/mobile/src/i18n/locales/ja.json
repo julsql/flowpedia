@@ -33,5 +33,7 @@
   "profile.read": "既読",
   "profile.liked": "いいね",
   "profile.interests": "興味",
-  "profile.bio": "ウィキペディアを一記事ずつ探索中。"
+  "profile.bio": "ウィキペディアを一記事ずつ探索中。",
+  "article.openOriginal": "Wikipediaで見る",
+  "profile.emptyList": "まだページがありません"
 }

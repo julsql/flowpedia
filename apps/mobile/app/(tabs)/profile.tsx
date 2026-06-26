@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Article } from "@flowpedia/shared";
@@ -43,15 +44,20 @@ export default function ProfileScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale, setLocale } = useLocale();
   const user = useUser();
-  const { read, liked, saved } = useLibrary();
+  const { read, liked, saved, mutedInterests, muteInterest } = useLibrary();
 
-  const interests = useMemo(
-    () => deriveInterests([...read, ...liked, ...saved]),
-    [read, liked, saved],
-  );
+  // Which list (liked / saved) is expanded under the stats, if any.
+  const [openList, setOpenList] = useState<"liked" | "saved" | null>(null);
+
+  const interests = useMemo(() => {
+    const muted = new Set(mutedInterests);
+    return deriveInterests([...read, ...liked, ...saved]).filter((i) => !muted.has(i));
+  }, [read, liked, saved, mutedInterests]);
 
   const openArticle = (id: string) =>
     router.push({ pathname: "/article/[id]", params: { id: encodeURIComponent(id) } });
+
+  const listArticles = openList === "liked" ? liked : openList === "saved" ? saved : [];
 
   return (
     <ScreenContainer style={{ paddingTop: insets.top + 16 }}>
@@ -65,48 +71,73 @@ export default function ProfileScreen() {
           <Text style={styles.bio}>{t("profile.bio")}</Text>
         </View>
 
-        {/* Stats */}
+        {/* Stats — Liked / Saved are tappable to reveal their pages. */}
         <View style={styles.stats}>
           <Stat styles={styles} value={read.length} label={t("profile.read")} />
           <View style={styles.statDivider} />
-          <Stat styles={styles} value={liked.length} label={t("profile.liked")} />
+          <Stat
+            styles={styles}
+            colors={colors}
+            value={liked.length}
+            label={t("profile.liked")}
+            icon="favorite"
+            active={openList === "liked"}
+            onPress={() => setOpenList((v) => (v === "liked" ? null : "liked"))}
+          />
           <View style={styles.statDivider} />
-          <Stat styles={styles} value={saved.length} label={t("profile.saved")} />
+          <Stat
+            styles={styles}
+            colors={colors}
+            value={saved.length}
+            label={t("profile.saved")}
+            icon="bookmark"
+            active={openList === "saved"}
+            onPress={() => setOpenList((v) => (v === "saved" ? null : "saved"))}
+          />
         </View>
 
-        {/* Interests */}
+        {/* Liked / saved list (toggled from the stats above). */}
+        {openList ? (
+          <View style={styles.section}>
+            {listArticles.length === 0 ? (
+              <Text style={styles.emptyList}>{t("profile.emptyList")}</Text>
+            ) : (
+              <View style={styles.savedGrid}>
+                {listArticles.map((article) => (
+                  <Pressable
+                    key={article.id}
+                    style={styles.savedCell}
+                    onPress={() => openArticle(article.id)}
+                  >
+                    {article.image ? (
+                      <Image source={{ uri: article.image }} style={styles.savedImage} />
+                    ) : (
+                      <View style={[styles.savedImage, styles.savedPlaceholder]} />
+                    )}
+                    <Text style={styles.savedCaption} numberOfLines={2}>
+                      {article.title}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        ) : null}
+
+        {/* Interests — removable chips steer the recommendation algorithm. */}
         {interests.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>{t("profile.interests")}</Text>
             <View style={styles.chips}>
               {interests.map((interest) => (
-                <View key={interest} style={styles.interestChip}>
-                  <Text style={styles.interestChipText}>{interest}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        {/* Saved grid */}
-        {saved.length > 0 ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>{t("profile.saved")}</Text>
-            <View style={styles.savedGrid}>
-              {saved.map((article) => (
                 <Pressable
-                  key={article.id}
-                  style={styles.savedCell}
-                  onPress={() => openArticle(article.id)}
+                  key={interest}
+                  style={styles.interestChip}
+                  onPress={() => muteInterest(interest)}
+                  hitSlop={6}
                 >
-                  {article.image ? (
-                    <Image source={{ uri: article.image }} style={styles.savedImage} />
-                  ) : (
-                    <View style={[styles.savedImage, styles.savedPlaceholder]} />
-                  )}
-                  <Text style={styles.savedCaption} numberOfLines={2}>
-                    {article.title}
-                  </Text>
+                  <Text style={styles.interestChipText}>{interest}</Text>
+                  <MaterialIcons name="close" size={15} color={colors.interestChipText} />
                 </Pressable>
               ))}
             </View>
@@ -166,17 +197,44 @@ function Stat({
   value,
   label,
   styles,
+  colors,
+  icon,
+  active,
+  onPress,
 }: {
   value: number;
   label: string;
   styles: ReturnType<typeof makeStyles>;
+  colors?: ThemeColors;
+  icon?: "favorite" | "bookmark";
+  active?: boolean;
+  onPress?: () => void;
 }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
+  const content = (
+    <>
+      <View style={styles.statValueRow}>
+        {icon ? (
+          <MaterialIcons
+            name={icon}
+            size={16}
+            color={active ? colors?.accent : colors?.textPrimary}
+          />
+        ) : null}
+        <Text style={[styles.statValue, active && colors ? { color: colors.accent } : null]}>
+          {value}
+        </Text>
+      </View>
       <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    </>
   );
+  if (onPress) {
+    return (
+      <Pressable style={styles.stat} onPress={onPress}>
+        {content}
+      </Pressable>
+    );
+  }
+  return <View style={styles.stat}>{content}</View>;
 }
 
 const makeStyles = (colors: ThemeColors) =>
@@ -203,8 +261,10 @@ const makeStyles = (colors: ThemeColors) =>
       borderColor: colors.separator,
     },
     stat: { flex: 1, alignItems: "center" },
+    statValueRow: { flexDirection: "row", alignItems: "center", gap: 5 },
     statValue: { color: colors.textPrimary, fontSize: 20, fontWeight: "700" },
     statLabel: { color: colors.textTertiary, fontSize: 12, marginTop: 2 },
+    emptyList: { color: colors.textTertiary, fontSize: 14, textAlign: "center", paddingVertical: 12 },
     statDivider: { width: 1, height: 32, backgroundColor: colors.separator },
     section: { marginTop: 26 },
     sectionLabel: {
@@ -217,6 +277,9 @@ const makeStyles = (colors: ThemeColors) =>
     },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     interestChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
       paddingHorizontal: 14,
       paddingVertical: 7,
       borderRadius: radii.pill,

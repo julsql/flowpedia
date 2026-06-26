@@ -33,5 +33,7 @@
   "profile.read": "Прочитано",
   "profile.liked": "Нравится",
   "profile.interests": "Интересы",
-  "profile.bio": "Исследую Википедию, статья за статьёй."
+  "profile.bio": "Исследую Википедию, статья за статьёй.",
+  "article.openOriginal": "Открыть в Википедии",
+  "profile.emptyList": "Пока нет страниц"
 }

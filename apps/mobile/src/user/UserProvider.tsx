@@ -9,28 +9,12 @@ export interface TempUser {
   name: string;
 }
 
-const ADJECTIVES = [
-  "Curious",
-  "Wandering",
-  "Cosmic",
-  "Quiet",
-  "Bright",
-  "Wild",
-  "Clever",
-  "Gentle",
-  "Bold",
-  "Lucid",
-];
-const NOUNS = ["Otter", "Comet", "Fox", "Manta", "Heron", "Lynx", "Falcon", "Koi", "Ibex", "Moth"];
-
-function pick<T>(list: T[]): T {
-  return list[Math.floor(Math.random() * list.length)];
-}
+const DEFAULT_NAME = "Jul SQL";
 
 function createUser(): TempUser {
   const id =
     Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6);
-  return { id, name: `${pick(ADJECTIVES)} ${pick(NOUNS)}` };
+  return { id, name: DEFAULT_NAME };
 }
 
 const UserContext = createContext<TempUser | null>(null);
@@ -43,9 +27,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const stored = await AsyncStorage.getItem(USER_KEY);
       if (stored) {
+        // Keep the persisted id, but always use the current display name.
         const parsed = JSON.parse(stored) as TempUser;
-        setUser(parsed);
-        setCurrentUserId(parsed.id);
+        const reconciled = { id: parsed.id, name: DEFAULT_NAME };
+        setUser(reconciled);
+        setCurrentUserId(reconciled.id);
+        if (parsed.name !== DEFAULT_NAME) {
+          await AsyncStorage.setItem(USER_KEY, JSON.stringify(reconciled));
+        }
       } else {
         await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
         setCurrentUserId(user.id);

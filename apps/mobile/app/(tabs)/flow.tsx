@@ -17,6 +17,7 @@ import type { Article } from "@flowpedia/shared";
 import { fetchFeed, sendEvents } from "../../src/api/client";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
 import { useLibrary } from "../../src/library/LibraryProvider";
+import { useSeen } from "../../src/seen/SeenProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
 import { useTheme } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
@@ -24,23 +25,41 @@ import { useLocale } from "../../src/i18n";
 export default function FlowScreen() {
   const { locale } = useLocale();
   const { colors } = useTheme();
-  const { likedIds, saved } = useLibrary();
+  const { liked, saved, mutedInterests } = useLibrary();
+  const { seenIds, markSeen } = useSeen();
   const [articles, setArticles] = useState<Article[]>([]);
   const [cursor, setCursor] = useState<string | undefined>();
   const [height, setHeight] = useState(0);
 
   const seedRef = useRef<number>(Math.floor(Math.random() * 1_000_000_000));
   const seedsRef = useRef<string[]>([]);
-  seedsRef.current = useMemo(
-    () => Array.from(new Set([...likedIds, ...saved.map((a) => a.id)])).slice(0, 6),
-    [likedIds, saved],
-  );
+  seedsRef.current = useMemo(() => {
+    const muted = new Set(mutedInterests);
+    const ids = [...liked, ...saved]
+      .filter((a) => !(a.category && muted.has(a.category)))
+      .map((a) => a.id);
+    return Array.from(new Set(ids)).slice(0, 6);
+  }, [liked, saved, mutedInterests]);
+  const excludeRef = useRef<string[]>([]);
+  const seenIdsRef = useRef<string[]>([]);
+  seenIdsRef.current = seenIds;
+  const markSeenRef = useRef(markSeen);
+  markSeenRef.current = markSeen;
 
   const load = useCallback(async () => {
+    excludeRef.current = seenIdsRef.current;
     try {
-      const res = await fetchFeed("discover", locale, undefined, seedsRef.current, seedRef.current);
+      const res = await fetchFeed(
+        "discover",
+        locale,
+        undefined,
+        seedsRef.current,
+        seedRef.current,
+        excludeRef.current,
+      );
       setArticles(res.items);
       setCursor(res.nextCursor);
+      markSeenRef.current(res.items.map((a) => a.id));
     } catch {
       // immersive view stays empty on failure
     }
@@ -55,9 +74,17 @@ export default function FlowScreen() {
       return;
     }
     try {
-      const res = await fetchFeed("discover", locale, cursor, seedsRef.current, seedRef.current);
+      const res = await fetchFeed(
+        "discover",
+        locale,
+        cursor,
+        seedsRef.current,
+        seedRef.current,
+        excludeRef.current,
+      );
       setArticles((prev) => [...prev, ...res.items]);
       setCursor(res.nextCursor);
+      markSeenRef.current(res.items.map((a) => a.id));
     } catch {
       // keep current items
     }

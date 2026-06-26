@@ -33,5 +33,7 @@
   "profile.read": "Gelezen",
   "profile.liked": "Leuk",
   "profile.interests": "Interesses",
-  "profile.bio": "Wikipedia ontdekken, artikel voor artikel."
+  "profile.bio": "Wikipedia ontdekken, artikel voor artikel.",
+  "article.openOriginal": "Bekijk op Wikipedia",
+  "profile.emptyList": "Nog geen pagina's"
 }

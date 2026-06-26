@@ -33,5 +33,7 @@
   "profile.read": "Διαβασμένα",
   "profile.liked": "Αρέσει",
   "profile.interests": "Ενδιαφέροντα",
-  "profile.bio": "Εξερευνώ τη Wikipedia, ένα άρθρο τη φορά."
+  "profile.bio": "Εξερευνώ τη Wikipedia, ένα άρθρο τη φορά.",
+  "article.openOriginal": "Προβολή στη Βικιπαίδεια",
+  "profile.emptyList": "Δεν υπάρχουν σελίδες ακόμη"
 }

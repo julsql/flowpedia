@@ -119,6 +119,16 @@ describe("FeedService", () => {
     expect(ids.some((id) => id.startsWith("Interest_"))).toBe(true);
   });
 
+  it("excludes already-seen articles from the pool", async () => {
+    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const service = new FeedService(makeWikipediaMock(getSummary) as never);
+
+    const seen = [TITLES[0], TITLES[1], TITLES[2]];
+    const res = await service.getFeed("popular", "en", undefined, [], 0, seen);
+
+    expect(res.items.map((a) => a.id)).toEqual([TITLES[3], TITLES[4], TITLES[5], TITLES[6], TITLES[7]]);
+  });
+
   it("reorders deterministically with a seed", async () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
     const service = new FeedService(makeWikipediaMock(getSummary) as never);

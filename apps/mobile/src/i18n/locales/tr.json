@@ -33,5 +33,7 @@
   "profile.read": "Okunan",
   "profile.liked": "Beğenilen",
   "profile.interests": "İlgi alanları",
-  "profile.bio": "Wikipedia’yı tek tek keşfediyorum."
+  "profile.bio": "Wikipedia’yı tek tek keşfediyorum.",
+  "article.openOriginal": "Wikipedia'da görüntüle",
+  "profile.emptyList": "Henüz sayfa yok"
 }

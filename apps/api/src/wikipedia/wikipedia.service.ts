@@ -40,6 +40,14 @@ const SEARCH_PAGE_SIZE = 10;
 const POPULAR_LIMIT = 150; // large pool so the shuffled feed stays varied
 const ARTICLE_LINKS_LIMIT = 40;
 const RELATED_SEED_LIMIT = 6;
+const CATEGORY_TTL_MS = 60 * 60 * 1000;
+const CATEGORY_PICK = 5; // how many of the page's categories to draw from
+const CATEGORY_MEMBERS_PER_CAT = 12;
+
+// Categories that are organisational/maintenance rather than topical — poor
+// "more from this world" suggestions. Matched on the (de-prefixed) name.
+const SKIP_CATEGORY =
+  /wikip|wikis|porta|stub|ébauch|ebauch|disambig|homonym|begriffskl|maintenance|article|page|liste|list of|index|modèle|template|catégor|categor|sourc|référenc|referenc/i;
 
 // Localized label for the intro section (no heading in the source HTML).
 const SUMMARY_LABEL: Record<SupportedLang, string> = {
@@ -72,6 +80,7 @@ export class WikipediaService {
   private readonly newsCache = new Map<SupportedLang, TitlesCacheEntry>();
   private readonly relatedCache = new Map<string, TitlesCacheEntry>();
   private readonly searchCache = new Map<string, TitlesCacheEntry>();
+  private readonly categoryCache = new Map<string, TitlesCacheEntry>();
 
   constructor(private readonly config: ConfigService) {}
 
@@ -158,11 +167,14 @@ export class WikipediaService {
       sections = [{ id: "section-0", title: leadTitle, paragraphs: [{ runs: [{ text: summary.summary }] }] }];
     }
 
-    const article: Article = {
-      ...summary,
-      sections,
-      links: collectLinks(sections).slice(0, ARTICLE_LINKS_LIMIT),
-    };
+    // "Keep exploring" = pages from the same categories/portals; fall back to
+    // inline links if the page has no usable topical category.
+    let links = await this.getRelatedByCategory(summary.title, language).catch(() => []);
+    if (!links.length) {
+      links = collectLinks(sections).slice(0, ARTICLE_LINKS_LIMIT);
+    }
+
+    const article: Article = { ...summary, sections, links };
     this.articleCache.set(key, { article, expiresAt: nowMs() + this.ttlMs });
     return article;
   }
@@ -386,6 +398,106 @@ export class WikipediaService {
     }
   }
 
+  /**
+   * "Keep exploring" suggestions drawn from the page's own categories &
+   * portals: for a French actress, this surfaces other French actresses of the
+   * same period rather than whatever happened to be linked inline. Round-robins
+   * across a few topical categories for variety. Cached per page.
+   */
+  async getRelatedByCategory(
+    title: string,
+    lang?: string,
+  ): Promise<{ label: string; targetId: string }[]> {
+    const language = this.normalizeLang(lang);
+    const key = `${language}:${title}`;
+    const cached = this.categoryCache.get(key);
+    if (cached && cached.expiresAt > nowMs()) {
+      return cached.titles.map((targetId) => ({ label: targetId, targetId }));
+    }
+
+    const categories = await this.fetchCategories(title, language);
+    const topical = categories
+      .map((c) => ({ full: c, name: stripCategoryPrefix(c) }))
+      .filter((c) => c.name.length > 0 && !SKIP_CATEGORY.test(c.name))
+      .slice(0, CATEGORY_PICK);
+    if (!topical.length) {
+      return [];
+    }
+
+    const memberLists = await Promise.all(
+      topical.map((c) => this.fetchCategoryMembers(c.full, language)),
+    );
+    // Round-robin across categories so the suggestions stay diverse.
+    const merged: string[] = [];
+    const seen = new Set<string>([title]);
+    const maxLen = Math.max(0, ...memberLists.map((m) => m.length));
+    for (let i = 0; i < maxLen && merged.length < ARTICLE_LINKS_LIMIT; i += 1) {
+      for (const list of memberLists) {
+        const member = list[i];
+        if (member && !seen.has(member) && !isExcludedTitle(member)) {
+          seen.add(member);
+          merged.push(member);
+          if (merged.length >= ARTICLE_LINKS_LIMIT) {
+            break;
+          }
+        }
+      }
+    }
+
+    if (merged.length) {
+      this.categoryCache.set(key, { titles: merged, expiresAt: nowMs() + CATEGORY_TTL_MS });
+    }
+    return merged.map((targetId) => ({ label: targetId, targetId }));
+  }
+
+  /** Non-hidden categories a page belongs to (with localized prefix). */
+  private async fetchCategories(title: string, language: SupportedLang): Promise<string[]> {
+    const url =
+      `https://${language}.wikipedia.org/w/api.php?action=query&prop=categories` +
+      `&clshow=!hidden&cllimit=max&titles=${encodeURIComponent(title)}&format=json&origin=*`;
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
+      });
+      if (!res.ok) {
+        return [];
+      }
+      const data = (await res.json()) as {
+        query?: { pages?: Record<string, { categories?: { title: string }[] }> };
+      };
+      const pages = data.query?.pages ?? {};
+      const first = Object.values(pages)[0];
+      return (first?.categories ?? []).map((c) => c.title);
+    } catch (err) {
+      this.logger.warn(`categories fetch failed for ${title}: ${String(err)}`);
+      return [];
+    }
+  }
+
+  /** Article-namespace members of a category. */
+  private async fetchCategoryMembers(
+    category: string,
+    language: SupportedLang,
+  ): Promise<string[]> {
+    const url =
+      `https://${language}.wikipedia.org/w/api.php?action=query&list=categorymembers` +
+      `&cmtitle=${encodeURIComponent(category)}&cmnamespace=0&cmtype=page` +
+      `&cmlimit=${CATEGORY_MEMBERS_PER_CAT}&format=json&origin=*`;
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
+      });
+      if (!res.ok) {
+        return [];
+      }
+      const data = (await res.json()) as { query?: { categorymembers?: { title: string }[] } };
+      return (data.query?.categorymembers ?? []).map((m) => m.title);
+    } catch (err) {
+      this.logger.warn(`category members fetch failed for ${category}: ${String(err)}`);
+      return [];
+    }
+  }
+
   /** Random article titles — serendipity + the infinite-scroll fallback. */
   async getRandomTitles(lang: string | undefined, count: number): Promise<string[]> {
     const language = this.normalizeLang(lang);
@@ -450,6 +562,12 @@ const MAIN_PAGES = new Set<string>([
   "メインページ", // ja
   "Anasayfa", // tr
 ]);
+
+/** "Catégorie:Actrice française" → "Actrice française" (any localized prefix). */
+function stripCategoryPrefix(category: string): string {
+  const colon = category.indexOf(":");
+  return colon >= 0 ? category.slice(colon + 1).trim() : category.trim();
+}
 
 /** Drop main pages, placeholders and namespaced pages (Special:, Portal:…). */
 function isExcludedTitle(title: string): boolean {

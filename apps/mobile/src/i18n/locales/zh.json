@@ -33,5 +33,7 @@
   "profile.read": "已读",
   "profile.liked": "喜欢",
   "profile.interests": "兴趣",
-  "profile.bio": "一篇一篇地探索维基百科。"
+  "profile.bio": "一篇一篇地探索维基百科。",
+  "article.openOriginal": "在维基百科查看",
+  "profile.emptyList": "暂无页面"
 }

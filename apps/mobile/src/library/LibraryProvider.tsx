@@ -7,6 +7,7 @@ const LIKED_KEY = "flowpedia.liked";
 const SAVED_KEY = "flowpedia.saved";
 const SHARED_KEY = "flowpedia.shared";
 const READ_KEY = "flowpedia.read";
+const MUTED_KEY = "flowpedia.mutedInterests";
 
 interface LibraryValue {
   isLiked: (id: string) => boolean;
@@ -23,6 +24,9 @@ interface LibraryValue {
   saved: Article[];
   shared: Article[];
   read: Article[];
+  /** Interest categories the user muted to steer the algorithm away from them. */
+  mutedInterests: string[];
+  muteInterest: (category: string) => void;
 }
 
 const LibraryContext = createContext<LibraryValue | null>(null);
@@ -49,19 +53,27 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [saved, setSaved] = useState<Article[]>([]);
   const [shared, setShared] = useState<Article[]>([]);
   const [read, setRead] = useState<Article[]>([]);
+  const [mutedInterests, setMutedInterests] = useState<string[]>([]);
 
   useEffect(() => {
     void (async () => {
-      const [likedRaw, savedRaw, sharedRaw, readRaw] = await Promise.all([
+      const [likedRaw, savedRaw, sharedRaw, readRaw, mutedRaw] = await Promise.all([
         AsyncStorage.getItem(LIKED_KEY),
         AsyncStorage.getItem(SAVED_KEY),
         AsyncStorage.getItem(SHARED_KEY),
         AsyncStorage.getItem(READ_KEY),
+        AsyncStorage.getItem(MUTED_KEY),
       ]);
       setLiked(parseArticles(likedRaw));
       setSaved(parseArticles(savedRaw));
       setShared(parseArticles(sharedRaw));
       setRead(parseArticles(readRaw));
+      if (mutedRaw) {
+        const parsed = JSON.parse(mutedRaw) as unknown;
+        if (Array.isArray(parsed)) {
+          setMutedInterests(parsed.filter((x): x is string => typeof x === "string"));
+        }
+      }
     })();
   }, []);
 
@@ -110,6 +122,17 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       });
     };
 
+    const muteInterest = (category: string) => {
+      setMutedInterests((prev) => {
+        if (prev.includes(category)) {
+          return prev;
+        }
+        const next = [...prev, category];
+        void AsyncStorage.setItem(MUTED_KEY, JSON.stringify(next));
+        return next;
+      });
+    };
+
     return {
       isLiked,
       isSaved,
@@ -122,8 +145,10 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       saved,
       shared,
       read,
+      mutedInterests,
+      muteInterest,
     };
-  }, [liked, saved, shared, read]);
+  }, [liked, saved, shared, read, mutedInterests]);
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
 }

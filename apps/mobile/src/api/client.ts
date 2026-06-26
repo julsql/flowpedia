@@ -25,6 +25,7 @@ export function fetchFeed(
   cursor?: string,
   seeds: string[] = [],
   seed?: number,
+  exclude: string[] = [],
 ): Promise<FeedResponse> {
   const params = new URLSearchParams({ tab, lang: locale });
   if (cursor) {
@@ -35,6 +36,9 @@ export function fetchFeed(
   }
   if (seed) {
     params.set("seed", String(seed));
+  }
+  if (exclude.length) {
+    params.set("exclude", exclude.join(","));
   }
   return getJson<FeedResponse>(`/feed?${params.toString()}`);
 }

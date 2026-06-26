@@ -33,5 +33,7 @@
   "profile.read": "Letti",
   "profile.liked": "Mi piace",
   "profile.interests": "Interessi",
-  "profile.bio": "Esploro Wikipedia, un articolo alla volta."
+  "profile.bio": "Esploro Wikipedia, un articolo alla volta.",
+  "article.openOriginal": "Vedi su Wikipedia",
+  "profile.emptyList": "Ancora nessuna pagina"
 }

@@ -33,5 +33,7 @@
   "profile.read": "Lidos",
   "profile.liked": "Curtidos",
   "profile.interests": "Interesses",
-  "profile.bio": "Explorando a Wikipédia, um artigo de cada vez."
+  "profile.bio": "Explorando a Wikipédia, um artigo de cada vez.",
+  "article.openOriginal": "Ver na Wikipédia",
+  "profile.emptyList": "Nenhuma página ainda"
 }

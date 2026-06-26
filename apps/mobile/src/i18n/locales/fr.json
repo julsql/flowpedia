@@ -33,5 +33,7 @@
   "profile.read": "Lus",
   "profile.liked": "Aimés",
   "profile.interests": "Centres d’intérêt",
-  "profile.bio": "J’explore Wikipédia, un article à la fois."
+  "profile.bio": "J’explore Wikipédia, un article à la fois.",
+  "article.openOriginal": "Voir sur Wikipédia",
+  "profile.emptyList": "Aucune page pour l'instant"
 }

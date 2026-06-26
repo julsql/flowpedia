@@ -33,5 +33,7 @@
   "profile.read": "Przeczytane",
   "profile.liked": "Polubione",
   "profile.interests": "Zainteresowania",
-  "profile.bio": "Odkrywam Wikipedię, artykuł po artykule."
+  "profile.bio": "Odkrywam Wikipedię, artykuł po artykule.",
+  "article.openOriginal": "Zobacz na Wikipedii",
+  "profile.emptyList": "Brak stron"
 }

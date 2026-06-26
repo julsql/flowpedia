@@ -10,6 +10,7 @@ import { ScreenContainer } from "../../src/components/ScreenContainer";
 import { fetchFeed } from "../../src/api/client";
 import { useShare } from "../../src/share/ShareSheetProvider";
 import { useLibrary } from "../../src/library/LibraryProvider";
+import { useSeen } from "../../src/seen/SeenProvider";
 import { spacing, typography, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale, type TranslationKey } from "../../src/i18n";
 
@@ -23,19 +24,32 @@ export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { openShare } = useShare();
-  const { likedIds, saved } = useLibrary();
+  const { liked, saved, mutedInterests } = useLibrary();
+  const { seenIds, markSeen } = useSeen();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useLocale();
 
-  // Recommendation seeds for the "For you" tab (read via ref to avoid reloads
-  // on unrelated tabs when the library changes).
+  // Recommendation seeds for the "For you" tab — liked/saved articles, minus
+  // any whose category the user muted (steers the algorithm away from it). Read
+  // via ref to avoid reloads on unrelated tabs when the library changes.
   const seedsRef = useRef<string[]>([]);
-  seedsRef.current = useMemo(
-    () => Array.from(new Set([...likedIds, ...saved.map((a) => a.id)])).slice(0, 6),
-    [likedIds, saved],
-  );
+  seedsRef.current = useMemo(() => {
+    const muted = new Set(mutedInterests);
+    const ids = [...liked, ...saved]
+      .filter((a) => !(a.category && muted.has(a.category)))
+      .map((a) => a.id);
+    return Array.from(new Set(ids)).slice(0, 6);
+  }, [liked, saved, mutedInterests]);
   const seedsFor = (feedTab: FeedTab) => (feedTab === "forYou" ? seedsRef.current : []);
+
+  // Snapshot of recently-seen ids, frozen per load so pagination stays stable.
+  const excludeRef = useRef<string[]>([]);
+  // Read seen state via refs so marking items seen never re-triggers load().
+  const seenIdsRef = useRef<string[]>([]);
+  seenIdsRef.current = seenIds;
+  const markSeenRef = useRef(markSeen);
+  markSeenRef.current = markSeen;
 
   const openArticle = useCallback(
     (article: Article) => {
@@ -64,10 +78,21 @@ export default function FeedScreen() {
         setArticles([]);
         setCursor(undefined);
       }
+      // Freeze the seen-snapshot for this load so paging doesn't shift as new
+      // items get marked seen.
+      excludeRef.current = seenIdsRef.current;
       try {
-        const res = await fetchFeed(nextTab, locale, undefined, seedsFor(nextTab), seedRef.current);
+        const res = await fetchFeed(
+          nextTab,
+          locale,
+          undefined,
+          seedsFor(nextTab),
+          seedRef.current,
+          excludeRef.current,
+        );
         setArticles(res.items);
         setCursor(res.nextCursor);
+        markSeenRef.current(res.items.map((a) => a.id));
       } catch {
         setError(true);
       } finally {
@@ -93,9 +118,17 @@ export default function FeedScreen() {
       return;
     }
     try {
-      const res = await fetchFeed(tab, locale, cursor, seedsFor(tab), seedRef.current);
+      const res = await fetchFeed(
+        tab,
+        locale,
+        cursor,
+        seedsFor(tab),
+        seedRef.current,
+        excludeRef.current,
+      );
       setArticles((prev) => [...prev, ...res.items]);
       setCursor(res.nextCursor);
+      markSeenRef.current(res.items.map((a) => a.id));
     } catch {
       // keep the current list on pagination failure
     }

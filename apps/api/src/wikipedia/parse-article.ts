@@ -2,49 +2,137 @@ import { parse, type HTMLElement, type Node } from "node-html-parser";
 import type { ArticleSection, TextRun } from "@flowpedia/shared";
 
 const TEXT_NODE = 3;
-const MAX_SECTIONS = 12;
+const MAX_SECTIONS = 40;
+const MAX_PARAGRAPHS_PER_SECTION = 80;
 
-// Wrappers whose paragraphs are chrome, not article prose.
+// Wrappers whose content is chrome, not article prose. Lists (ul/ol) are kept
+// now so that bulleted sections like a filmography come through; reference lists
+// are still dropped via the "reference" class below.
 const SKIP_ANCESTOR_CLASS =
-  /infobox|navbox|reference|hatnote|metadata|mw-empty-elt|thumb|gallery|ambox|sidebar|noprint|mbox/i;
-const SKIP_ANCESTOR_TAG = new Set(["figure", "table", "ol", "ul", "style", "sup"]);
+  /infobox|navbox|reference|hatnote|metadata|mw-empty-elt|thumb|gallery|ambox|sidebar|noprint|mbox|toc/i;
+const SKIP_ANCESTOR_TAG = new Set(["figure", "table", "style"]);
+
+// Section headings to drop entirely (citations + external links), per the
+// supported languages. Compared on the lowercased, trimmed heading text.
+const EXCLUDED_SECTION_TITLES = new Set<string>(
+  [
+    // notes / references
+    "references",
+    "reference",
+    "notes",
+    "notes and references",
+    "footnotes",
+    "citations",
+    "notes et références",
+    "références",
+    "referencias",
+    "notas",
+    "einzelnachweise",
+    "quellen",
+    "anmerkungen",
+    "fußnoten",
+    "note",
+    "riferimenti",
+    "referências",
+    "referenties",
+    "voetnoten",
+    "bronnen",
+    "noten",
+    "przypisy",
+    "примечания",
+    "παραπομπές",
+    "σημειώσεις",
+    "参考文献",
+    "参考资料",
+    "注释",
+    "脚注",
+    "出典",
+    "각주",
+    "참고 문헌",
+    "참고문헌",
+    "kaynakça",
+    "notlar",
+    "dipnotlar",
+    // external links
+    "external links",
+    "liens externes",
+    "enlaces externos",
+    "weblinks",
+    "collegamenti esterni",
+    "ligações externas",
+    "links externos",
+    "externe links",
+    "linki zewnętrzne",
+    "ссылки",
+    "εξωτερικοί σύνδεσμοι",
+    "外部链接",
+    "外部連結",
+    "外部リンク",
+    "외부 링크",
+    "dış bağlantılar",
+  ].map((s) => s.toLowerCase()),
+);
+
+function isExcludedSection(title: string): boolean {
+  return EXCLUDED_SECTION_TITLES.has(collapseWhitespace(title).trim().toLowerCase());
+}
 
 /**
- * Parse Parsoid/Wikipedia article HTML into clean sections of paragraphs,
- * preserving internal links as runs (the rabbit-hole mechanism). Reference
- * lists, infoboxes and other chrome are dropped. `leadTitle` labels the
+ * Parse Parsoid/Wikipedia article HTML into clean sections, preserving the page
+ * structure (all sections, including list-based ones like a filmography) and
+ * internal links as runs (the rabbit-hole mechanism). Citation/external-link
+ * sections, infoboxes and other chrome are dropped. `leadTitle` labels the
  * intro section (it has no heading in the source).
  */
 export function parseArticleSections(html: string, leadTitle: string): ArticleSection[] {
   const root = parse(html, { comment: false });
-  const flow = root.querySelectorAll("h2, h3, p");
+  const flow = root.querySelectorAll("h2, h3, h4, p, li");
 
   const sections: ArticleSection[] = [];
   let current: ArticleSection = { id: "section-0", title: leadTitle, paragraphs: [] };
+  // Whether the current h2 (and so its sub-headings) is an excluded section.
+  let excludedH2 = false;
+  // Whether the current heading's content should be skipped.
+  let skip = false;
+
+  const flush = () => {
+    if (current.paragraphs.length) {
+      sections.push(current);
+    }
+  };
 
   for (const node of flow) {
     const tag = node.rawTagName?.toLowerCase();
-    if (tag === "h2" || tag === "h3") {
-      if (current.paragraphs.length) {
-        sections.push(current);
-      }
+    if (tag === "h2" || tag === "h3" || tag === "h4") {
+      flush();
       const title = collapseWhitespace(node.text).trim();
+      if (tag === "h2") {
+        excludedH2 = isExcludedSection(title);
+        skip = excludedH2;
+      } else {
+        skip = excludedH2 || isExcludedSection(title);
+      }
       current = { id: `section-${sections.length + 1}`, title, paragraphs: [] };
-    } else if (tag === "p" && isContentParagraph(node)) {
-      const runs = normalizeRuns(buildRuns(node));
+    } else if (!skip && (tag === "p" || tag === "li") && isContentNode(node)) {
+      if (current.paragraphs.length >= MAX_PARAGRAPHS_PER_SECTION) {
+        continue;
+      }
+      const runs = normalizeRuns(buildRuns(node, tag === "li"));
       if (runs.length) {
+        // Prefix list items with a bullet so they read as a list.
+        if (tag === "li") {
+          runs.unshift({ text: "•  " });
+        }
         current.paragraphs.push({ runs });
       }
     }
   }
-  if (current.paragraphs.length) {
-    sections.push(current);
-  }
+  flush();
 
   return sections.filter((s) => s.title.length > 0 || s.id === "section-0").slice(0, MAX_SECTIONS);
 }
 
-/** Collect distinct internal links across sections (for "keep exploring" UIs). */
+/** Collect distinct internal links across sections (fallback "keep exploring"). */
 export function collectLinks(sections: ArticleSection[]): { label: string; targetId: string }[] {
   const seen = new Set<string>();
   const links: { label: string; targetId: string }[] = [];
@@ -61,12 +149,15 @@ export function collectLinks(sections: ArticleSection[]): { label: string; targe
   return links;
 }
 
-function isContentParagraph(p: HTMLElement): boolean {
+function isContentNode(p: HTMLElement): boolean {
   let el: HTMLElement | null = p.parentNode as HTMLElement | null;
   while (el && el.rawTagName) {
-    if (SKIP_ANCESTOR_TAG.has(el.rawTagName.toLowerCase())) {
+    const tag = el.rawTagName.toLowerCase();
+    if (SKIP_ANCESTOR_TAG.has(tag)) {
       return false;
     }
+    // A list item nested in another list item is emitted on its own; don't also
+    // let it bubble up as part of the parent.
     if (SKIP_ANCESTOR_CLASS.test(el.getAttribute("class") ?? "")) {
       return false;
     }
@@ -75,7 +166,7 @@ function isContentParagraph(p: HTMLElement): boolean {
   return true;
 }
 
-function buildRuns(paragraph: HTMLElement): TextRun[] {
+function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
   const runs: TextRun[] = [];
 
   const walk = (node: Node): void => {
@@ -87,6 +178,11 @@ function buildRuns(paragraph: HTMLElement): TextRun[] {
       const el = child as HTMLElement;
       const tag = el.rawTagName?.toLowerCase();
       if (!tag) {
+        continue;
+      }
+      // For a list item, nested lists are emitted as their own entries — don't
+      // recurse into them here (avoids duplicating their text).
+      if (isListItem && (tag === "ul" || tag === "ol")) {
         continue;
       }
       if (tag === "sup") {

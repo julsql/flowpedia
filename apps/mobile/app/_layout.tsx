@@ -8,6 +8,7 @@ import i18n from "../src/i18n";
 import { ThemeProvider, useTheme } from "../src/theme";
 import { UserProvider } from "../src/user/UserProvider";
 import { LibraryProvider } from "../src/library/LibraryProvider";
+import { SeenProvider } from "../src/seen/SeenProvider";
 import { ShareSheetProvider } from "../src/share/ShareSheetProvider";
 
 function ThemedNavigation() {
@@ -42,9 +43,11 @@ export default function RootLayout() {
         <ThemeProvider>
           <UserProvider>
             <LibraryProvider>
-              <ShareSheetProvider>
-                <ThemedNavigation />
-              </ShareSheetProvider>
+              <SeenProvider>
+                <ShareSheetProvider>
+                  <ThemedNavigation />
+                </ShareSheetProvider>
+              </SeenProvider>
             </LibraryProvider>
           </UserProvider>
         </ThemeProvider>

@@ -64,3 +64,42 @@ describe("parseArticleSections", () => {
     expect(links.map((l) => l.targetId)).toEqual(["Octopus", "Mollusc", "Ocean"]);
   });
 });
+
+const LIST_HTML = `
+<html><body>
+  <section data-mw-section-id="0"><p>Intro.</p></section>
+  <section data-mw-section-id="1">
+    <h2>Filmographie</h2>
+    <ul>
+      <li>2019 : <a rel="mw:WikiLink" href="./Film_A">Film A</a></li>
+      <li>2021 : <a rel="mw:WikiLink" href="./Film_B">Film B</a></li>
+    </ul>
+  </section>
+  <section data-mw-section-id="2">
+    <h2>Liens externes</h2>
+    <ul><li><a rel="mw:ExtLink" href="https://imdb.com">IMDb</a></li></ul>
+  </section>
+  <section data-mw-section-id="3">
+    <h2>Notes et références</h2>
+    <ol class="references"><li>cite</li></ol>
+  </section>
+</body></html>
+`;
+
+describe("parseArticleSections — lists & excluded sections", () => {
+  const sections = parseArticleSections(LIST_HTML, "Résumé");
+
+  it("keeps list-based sections like a filmography (as bulleted paragraphs)", () => {
+    const filmo = sections.find((s) => s.title === "Filmographie");
+    expect(filmo).toBeDefined();
+    const text = filmo!.paragraphs.flatMap((p) => p.runs.map((r) => r.text)).join("");
+    expect(text).toContain("Film A");
+    expect(text).toContain("Film B");
+    expect(text).toContain("•");
+  });
+
+  it("drops external-links and notes/references sections", () => {
+    expect(sections.find((s) => s.title === "Liens externes")).toBeUndefined();
+    expect(sections.find((s) => s.title === "Notes et références")).toBeUndefined();
+  });
+});

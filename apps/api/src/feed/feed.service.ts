@@ -32,14 +32,19 @@ export class FeedService {
     cursor?: string,
     seeds: string[] = [],
     seed = 0,
+    exclude: string[] = [],
   ): Promise<FeedResponse> {
-    const ordered = await this.buildPool(tab, lang, seeds, seed);
+    const built = await this.buildPool(tab, lang, seeds, seed);
+    // Drop articles the user has already been shown recently, so the flow keeps
+    // moving forward instead of re-serving the same pages.
+    const excluded = new Set(exclude);
+    const ordered = excluded.size ? built.filter((title) => !excluded.has(title)) : built;
     const offset = cursor ? Number(cursor) : 0;
 
     const slice =
       offset < ordered.length
         ? ordered.slice(offset, offset + PAGE_SIZE)
-        : await this.wikipedia.getRandomTitles(lang, PAGE_SIZE);
+        : (await this.wikipedia.getRandomTitles(lang, PAGE_SIZE)).filter((t) => !excluded.has(t));
 
     const settled = await Promise.allSettled(
       slice.map((title) => this.wikipedia.getSummary(title, lang)),

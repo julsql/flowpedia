@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -42,6 +43,15 @@ export default function ArticleScreen() {
 
   const scrollRef = useRef<ScrollView>(null);
   const sectionY = useRef<Record<string, number>>({});
+  // The chips strip scrolls to follow the active section as the reader advances.
+  const chipsScrollRef = useRef<ScrollView>(null);
+  const chipLayout = useRef<Record<string, { x: number; width: number }>>({});
+
+  const openOriginal = useCallback(() => {
+    if (article?.sourceUrl) {
+      void Linking.openURL(article.sourceUrl);
+    }
+  }, [article]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -104,6 +114,17 @@ export default function ArticleScreen() {
     [article, activeSection],
   );
 
+  // Keep the active chip in view as the active section changes.
+  useEffect(() => {
+    if (!activeSection) {
+      return;
+    }
+    const pos = chipLayout.current[activeSection];
+    if (pos) {
+      chipsScrollRef.current?.scrollTo({ x: Math.max(0, pos.x - 16), animated: true });
+    }
+  }, [activeSection]);
+
   return (
     <ScreenContainer style={{ paddingTop: insets.top }}>
       <View style={styles.header}>
@@ -111,6 +132,9 @@ export default function ArticleScreen() {
           <MaterialIcons name="arrow-back" size={26} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.headerActions}>
+          <Pressable onPress={openOriginal} hitSlop={8} disabled={!article}>
+            <MaterialIcons name="open-in-new" size={23} color={colors.textPrimary} />
+          </Pressable>
           <Pressable onPress={() => article && toggleSave(article)} hitSlop={8}>
             <MaterialIcons
               name={article && isSaved(article.id) ? "bookmark" : "bookmark-border"}
@@ -140,6 +164,7 @@ export default function ArticleScreen() {
           {article.sections.length > 1 ? (
             <View style={styles.chipsBar}>
               <ScrollView
+                ref={chipsScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.chipsRow}
@@ -149,6 +174,12 @@ export default function ArticleScreen() {
                   return (
                     <Pressable
                       key={section.id}
+                      onLayout={(e) => {
+                        chipLayout.current[section.id] = {
+                          x: e.nativeEvent.layout.x,
+                          width: e.nativeEvent.layout.width,
+                        };
+                      }}
                       onPress={() => jumpToSection(section.id)}
                       style={[styles.chip, active && styles.chipActive]}
                     >
@@ -204,6 +235,10 @@ export default function ArticleScreen() {
               </View>
             ) : null}
 
+            <Pressable onPress={openOriginal} style={styles.originalBtn}>
+              <MaterialIcons name="open-in-new" size={18} color={colors.accentLinkText} />
+              <Text style={styles.originalBtnText}>{t("article.openOriginal")}</Text>
+            </Pressable>
             <Text style={styles.source}>{t("common.source")}</Text>
           </ScrollView>
         </>
@@ -326,5 +361,17 @@ const makeStyles = (colors: ThemeColors) =>
     backgroundColor: colors.field,
   },
   exploreChipText: { color: colors.accentLinkText, fontSize: 14 },
-  source: { color: colors.mutedLight, fontSize: 12, marginTop: 24 },
+  originalBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    alignSelf: "flex-start",
+    marginTop: 28,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.field,
+  },
+  originalBtnText: { color: colors.accentLinkText, fontSize: 14, fontWeight: "600" },
+  source: { color: colors.mutedLight, fontSize: 12, marginTop: 16 },
 });
