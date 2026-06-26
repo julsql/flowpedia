@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+build/
+*.tsbuildinfo
+
+# expo
+.expo/
+.expo-shared/
+web-build/
+
+# env
+.env
+.env.*.local
+
+# logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# os / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# temp / handoff extraction
+maquettes_extract/
+*.zip

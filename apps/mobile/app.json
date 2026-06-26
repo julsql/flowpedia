@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Flowpedia",
+    "slug": "flowpedia",
+    "scheme": "flowpedia",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.flowpedia.mobile"
+    },
+    "android": {
+      "package": "app.flowpedia.mobile"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router", "expo-localization"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

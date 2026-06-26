@@ -1,0 +1,25 @@
+/**
+ * User signals logged from the MVP on (even while the recommendation stays
+ * "simple"), to feed the content-based algorithm later. Invisible in the UI.
+ */
+export type InteractionType =
+  | "dwell" // time spent on the article (ms in `value`)
+  | "scrollDepth" // reading depth (0..1 in `value`)
+  | "linkClick" // click on an internal link
+  | "like"
+  | "share"
+  | "save"
+  | "openFull"; // opened the full article
+
+export interface InteractionEvent {
+  articleId: string;
+  /** Optional numeric value depending on the type (ms, ratio…). */
+  value?: number;
+  type: InteractionType;
+  /** Client-side epoch ms. */
+  ts: number;
+}
+
+export interface IngestEventsRequest {
+  events: InteractionEvent[];
+}
