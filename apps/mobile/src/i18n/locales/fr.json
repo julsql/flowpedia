@@ -8,6 +8,7 @@
   "feed.popular": "Populaire",
   "feed.news": "Actualité",
   "article.readMore": "Lire la suite",
+  "article.showLess": "Réduire",
   "article.minRead": "lecture {{count}} min",
   "common.retry": "Réessayer",
   "common.loadError": "Impossible de charger le flux.",

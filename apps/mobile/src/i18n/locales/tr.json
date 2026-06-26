@@ -8,6 +8,7 @@
   "feed.popular": "Popüler",
   "feed.news": "Haberler",
   "article.readMore": "Devamını oku",
+  "article.showLess": "Daha az göster",
   "article.minRead": "{{count}} dk okuma",
   "common.retry": "Tekrar dene",
   "common.loadError": "Akış yüklenemedi.",

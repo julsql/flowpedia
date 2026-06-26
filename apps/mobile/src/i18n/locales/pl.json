@@ -8,6 +8,7 @@
   "feed.popular": "Popularne",
   "feed.news": "Aktualności",
   "article.readMore": "Czytaj więcej",
+  "article.showLess": "Pokaż mniej",
   "article.minRead": "{{count}} min czytania",
   "common.retry": "Spróbuj ponownie",
   "common.loadError": "Nie udało się załadować kanału.",

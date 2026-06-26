@@ -8,6 +8,7 @@
   "feed.popular": "Популярное",
   "feed.news": "Новости",
   "article.readMore": "Читать далее",
+  "article.showLess": "Свернуть",
   "article.minRead": "{{count}} мин чтения",
   "common.retry": "Повторить",
   "common.loadError": "Не удалось загрузить ленту.",

@@ -8,6 +8,7 @@
   "feed.popular": "Popular",
   "feed.news": "News",
   "article.readMore": "Read more",
+  "article.showLess": "Show less",
   "article.minRead": "{{count}} min read",
   "common.retry": "Retry",
   "common.loadError": "Could not load the feed.",

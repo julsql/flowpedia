@@ -8,6 +8,7 @@
   "feed.popular": "热门",
   "feed.news": "新闻",
   "article.readMore": "阅读更多",
+  "article.showLess": "收起",
   "article.minRead": "阅读 {{count}} 分钟",
   "common.retry": "重试",
   "common.loadError": "无法加载信息流。",

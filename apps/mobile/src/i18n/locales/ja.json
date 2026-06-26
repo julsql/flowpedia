@@ -8,6 +8,7 @@
   "feed.popular": "人気",
   "feed.news": "ニュース",
   "article.readMore": "続きを読む",
+  "article.showLess": "折りたたむ",
   "article.minRead": "読了 {{count}} 分",
   "common.retry": "再試行",
   "common.loadError": "フィードを読み込めませんでした。",

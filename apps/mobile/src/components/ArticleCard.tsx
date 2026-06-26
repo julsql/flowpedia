@@ -1,9 +1,19 @@
 import { useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type NativeSyntheticEvent,
+  type TextLayoutEventData,
+} from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import type { Article } from "@flowpedia/shared";
 import { colors, radii, spacing } from "../theme";
 import { useLocale } from "../i18n";
+
+const COLLAPSED_LINES = 3;
 
 interface ArticleCardProps {
   article: Article;
@@ -17,6 +27,15 @@ interface ArticleCardProps {
 export function ArticleCard({ article, onLike, onShare, onSave, onOpen }: ArticleCardProps) {
   const { t } = useLocale();
   const [expanded, setExpanded] = useState(false);
+  // Total line count, measured once while the summary is rendered unclamped.
+  const [lineCount, setLineCount] = useState(0);
+  const canExpand = lineCount > COLLAPSED_LINES;
+
+  const handleTextLayout = (e: NativeSyntheticEvent<TextLayoutEventData>) => {
+    if (lineCount === 0) {
+      setLineCount(e.nativeEvent.lines.length);
+    }
+  };
 
   return (
     <View style={styles.card}>
@@ -36,20 +55,29 @@ export function ArticleCard({ article, onLike, onShare, onSave, onOpen }: Articl
       )}
 
       <Text style={styles.title}>{article.title}</Text>
-      <Text style={styles.summary} numberOfLines={expanded ? undefined : 3}>
+      <Text
+        style={styles.summary}
+        // Unclamped until measured so handleTextLayout sees the true line count.
+        numberOfLines={expanded || lineCount === 0 ? undefined : COLLAPSED_LINES}
+        onTextLayout={handleTextLayout}
+      >
         {article.summary}
       </Text>
 
-      <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={8}>
-        <View style={styles.readMoreRow}>
-          <Text style={styles.readMore}>{t("article.readMore")}</Text>
-          <MaterialIcons
-            name={expanded ? "keyboard-arrow-up" : "keyboard-arrow-down"}
-            size={18}
-            color={colors.accent}
-          />
-        </View>
-      </Pressable>
+      {canExpand ? (
+        <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={8}>
+          <View style={styles.readMoreRow}>
+            <Text style={styles.readMore}>
+              {expanded ? t("article.showLess") : t("article.readMore")}
+            </Text>
+            <MaterialIcons
+              name={expanded ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+              size={18}
+              color={colors.accent}
+            />
+          </View>
+        </Pressable>
+      ) : null}
 
       <View style={styles.actions}>
         <View style={styles.actionsLeft}>

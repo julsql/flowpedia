@@ -102,7 +102,6 @@ export default function FeedScreen() {
         <FlashList
           data={articles}
           keyExtractor={(item) => item.id}
-          estimatedItemSize={420}
           renderItem={({ item }) => <ArticleCard article={item} onLike={toggleLike} />}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           onEndReached={loadMore}

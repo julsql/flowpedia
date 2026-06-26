@@ -8,6 +8,7 @@
   "feed.popular": "Δημοφιλή",
   "feed.news": "Ειδήσεις",
   "article.readMore": "Διαβάστε περισσότερα",
+  "article.showLess": "Εμφάνιση λιγότερων",
   "article.minRead": "{{count}} λεπτά ανάγνωσης",
   "common.retry": "Επανάληψη",
   "common.loadError": "Δεν ήταν δυνατή η φόρτωση της ροής.",

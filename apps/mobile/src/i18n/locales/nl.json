@@ -8,6 +8,7 @@
   "feed.popular": "Populair",
   "feed.news": "Nieuws",
   "article.readMore": "Meer lezen",
+  "article.showLess": "Minder tonen",
   "article.minRead": "{{count}} min lezen",
   "common.retry": "Opnieuw",
   "common.loadError": "Kan de feed niet laden.",
