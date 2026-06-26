@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider, DarkTheme } from "@react-navigation/native";
 import { I18nextProvider } from "react-i18next";
+import "../src/web/hideScrollbars";
 import i18n from "../src/i18n";
 import { colors } from "../src/theme";
 import { LibraryProvider } from "../src/library/LibraryProvider";
