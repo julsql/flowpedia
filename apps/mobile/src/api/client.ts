@@ -25,6 +25,16 @@ export function fetchArticle(id: string, locale: Locale): Promise<Article> {
   return getJson<Article>(`/articles/${encodeURIComponent(id)}?lang=${locale}`);
 }
 
+export function fetchSearch(query: string, locale: Locale): Promise<Article[]> {
+  return getJson<Article[]>(`/search?q=${encodeURIComponent(query)}&lang=${locale}`);
+}
+
+/** Trending = the popular feed, used as the Explore default state. */
+export async function fetchTrending(locale: Locale): Promise<Article[]> {
+  const res = await getJson<FeedResponse>(`/feed?tab=popular&lang=${locale}`);
+  return res.items;
+}
+
 /** Fire-and-forget signal ingestion; failures must never break the UI. */
 export function sendEvents(events: InteractionEvent[]): void {
   void fetch(`${BASE_URL}/events`, {

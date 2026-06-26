@@ -7,6 +7,10 @@
   "feed.forYou": "おすすめ",
   "feed.popular": "人気",
   "feed.news": "ニュース",
+  "explore.searchPlaceholder": "トピックを検索…",
+  "explore.trending": "今日のトレンド",
+  "explore.noResults": "結果なし",
+  "shared.empty": "共有した記事はここに表示されます。",
   "flow.swipeHint": "スワイプして読む",
   "article.readMore": "続きを読む",
   "article.showLess": "折りたたむ",
@@ -21,5 +25,9 @@
   "share.more": "その他",
   "share.linkCopied": "リンクをコピーしました",
   "settings.language": "言語",
+  "settings.theme": "テーマ",
+  "theme.system": "システム",
+  "theme.light": "ライト",
+  "theme.dark": "ダーク",
   "profile.saved": "保存済み"
 }

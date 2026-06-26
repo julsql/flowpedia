@@ -75,7 +75,11 @@ EXPO_PUBLIC_API_URL=http://192.168.1.20:3000/api pnpm mobile
 
 ## What works now
 
-- **Dark theme** across the app (amber accent kept).
+- **Theming:** light / dark / system, switchable in the profile and persisted
+  (AsyncStorage); amber accent kept across both palettes.
+- **Explore (handoff screen 5):** search (live Wikipedia full-text) + a
+  "Trending today" 2-column grid.
+- **Shared (handoff screen 6 area):** local history of the articles you've shared.
 - Card feed (handoff screen 1) fed by the live Wikipedia REST API, with caching.
 - **Article detail (handoff screen 3):** section chips that jump/track on scroll,
   body text with **tappable internal links** that push the target article (the

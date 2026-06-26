@@ -5,14 +5,19 @@ import { sendEvents } from "../api/client";
 
 const LIKED_KEY = "flowpedia.liked";
 const SAVED_KEY = "flowpedia.saved";
+const SHARED_KEY = "flowpedia.shared";
 
 interface LibraryValue {
   isLiked: (id: string) => boolean;
   isSaved: (id: string) => boolean;
   toggleLike: (article: Article) => void;
   toggleSave: (article: Article) => void;
+  /** Record an article as shared (local history for the Shared tab). */
+  recordShare: (article: Article) => void;
   /** Saved articles, most recent first. */
   saved: Article[];
+  /** Shared articles, most recent first (deduplicated). */
+  shared: Article[];
 }
 
 const LibraryContext = createContext<LibraryValue | null>(null);
@@ -25,18 +30,23 @@ function compact(article: Article): Article {
 export function LibraryProvider({ children }: { children: ReactNode }) {
   const [likedIds, setLikedIds] = useState<string[]>([]);
   const [saved, setSaved] = useState<Article[]>([]);
+  const [shared, setShared] = useState<Article[]>([]);
 
   useEffect(() => {
     void (async () => {
-      const [liked, savedRaw] = await Promise.all([
+      const [liked, savedRaw, sharedRaw] = await Promise.all([
         AsyncStorage.getItem(LIKED_KEY),
         AsyncStorage.getItem(SAVED_KEY),
+        AsyncStorage.getItem(SHARED_KEY),
       ]);
       if (liked) {
         setLikedIds(JSON.parse(liked) as string[]);
       }
       if (savedRaw) {
         setSaved(JSON.parse(savedRaw) as Article[]);
+      }
+      if (sharedRaw) {
+        setShared(JSON.parse(sharedRaw) as Article[]);
       }
     })();
   }, []);
@@ -67,8 +77,16 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       sendEvents([{ articleId: article.id, type: "save", ts: Date.now() }]);
     };
 
-    return { isLiked, isSaved, toggleLike, toggleSave, saved };
-  }, [likedIds, saved]);
+    const recordShare = (article: Article) => {
+      setShared((prev) => {
+        const next = [compact(article), ...prev.filter((a) => a.id !== article.id)];
+        void AsyncStorage.setItem(SHARED_KEY, JSON.stringify(next));
+        return next;
+      });
+    };
+
+    return { isLiked, isSaved, toggleLike, toggleSave, recordShare, saved, shared };
+  }, [likedIds, saved, shared]);
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
 }

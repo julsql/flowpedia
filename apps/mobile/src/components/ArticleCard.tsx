@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Image,
   Pressable,
@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import type { Article } from "@flowpedia/shared";
-import { colors, radii, spacing } from "../theme";
+import { radii, spacing, useTheme, type ThemeColors } from "../theme";
 import { useLocale } from "../i18n";
 import { useLibrary } from "../library/LibraryProvider";
 
@@ -25,6 +25,8 @@ interface ArticleCardProps {
 /** Feed card — handoff screen 1. Like/save state comes from the local library. */
 export function ArticleCard({ article, onShare, onOpen }: ArticleCardProps) {
   const { t } = useLocale();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { isLiked, isSaved, toggleLike, toggleSave } = useLibrary();
   const liked = isLiked(article.id);
   const saved = isSaved(article.id);
@@ -109,40 +111,40 @@ export function ArticleCard({ article, onShare, onOpen }: ArticleCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.bg,
-    paddingHorizontal: spacing.screenPadding,
-    paddingVertical: 16,
-  },
-  metaRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  category: {
-    color: colors.accentDark,
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-  },
-  meta: { color: colors.mutedLight, fontSize: 12 },
-  image: { width: "100%", height: 186, borderRadius: radii.media, backgroundColor: colors.field },
-  imagePlaceholder: { backgroundColor: colors.separatorThick },
-  title: {
-    color: colors.textPrimary,
-    fontSize: 21,
-    fontWeight: "600",
-    lineHeight: 25,
-    marginTop: 12,
-  },
-  summary: { color: colors.textSecondary, fontSize: 15, lineHeight: 23, marginTop: 8 },
-  readMoreRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
-  readMore: { color: colors.accent, fontSize: 15, fontWeight: "600" },
-  actions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 14,
-  },
-  actionsLeft: { flexDirection: "row", alignItems: "center", gap: 18 },
-  actionBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
-  count: { color: colors.textTertiary, fontSize: 13 },
-  source: { color: colors.mutedLight, fontSize: 12, marginTop: 12 },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.bg,
+      paddingHorizontal: spacing.screenPadding,
+      paddingVertical: 16,
+    },
+    metaRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+    category: {
+      color: colors.accentDark,
+      fontSize: 11,
+      fontWeight: "700",
+      letterSpacing: 0.8,
+    },
+    meta: { color: colors.mutedLight, fontSize: 12 },
+    image: { width: "100%", height: 186, borderRadius: radii.media, backgroundColor: colors.field },
+    imagePlaceholder: { backgroundColor: colors.separatorThick },
+    title: {
+      color: colors.textPrimary,
+      fontSize: 21,
+      fontWeight: "600",
+      lineHeight: 25,
+      marginTop: 12,
+    },
+    summary: { color: colors.textSecondary, fontSize: 15, lineHeight: 23, marginTop: 8 },
+    readMoreRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
+    readMore: { color: colors.accent, fontSize: 15, fontWeight: "600" },
+    actions: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: 14,
+    },
+    actionsLeft: { flexDirection: "row", alignItems: "center", gap: 18 },
+    actionBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
+    source: { color: colors.mutedLight, fontSize: 12, marginTop: 12 },
+  });

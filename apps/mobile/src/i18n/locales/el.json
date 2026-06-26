@@ -7,6 +7,10 @@
   "feed.forYou": "Για εσένα",
   "feed.popular": "Δημοφιλή",
   "feed.news": "Ειδήσεις",
+  "explore.searchPlaceholder": "Αναζήτηση θέματος…",
+  "explore.trending": "Δημοφιλή σήμερα",
+  "explore.noResults": "Κανένα αποτέλεσμα",
+  "shared.empty": "Τα άρθρα που μοιράζεστε θα εμφανίζονται εδώ.",
   "flow.swipeHint": "Σύρετε για ανάγνωση",
   "article.readMore": "Διαβάστε περισσότερα",
   "article.showLess": "Εμφάνιση λιγότερων",
@@ -21,5 +25,9 @@
   "share.more": "Περισσότερα",
   "share.linkCopied": "Ο σύνδεσμος αντιγράφηκε",
   "settings.language": "Γλώσσα",
+  "settings.theme": "Θέμα",
+  "theme.system": "Σύστημα",
+  "theme.light": "Φωτεινό",
+  "theme.dark": "Σκοτεινό",
   "profile.saved": "Αποθηκευμένα"
 }

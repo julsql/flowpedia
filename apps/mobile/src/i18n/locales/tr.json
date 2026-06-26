@@ -7,6 +7,10 @@
   "feed.forYou": "Senin için",
   "feed.popular": "Popüler",
   "feed.news": "Haberler",
+  "explore.searchPlaceholder": "Konu ara…",
+  "explore.trending": "Bugün gündemde",
+  "explore.noResults": "Sonuç yok",
+  "shared.empty": "Paylaştığın makaleler burada görünür.",
   "flow.swipeHint": "Okumak için kaydır",
   "article.readMore": "Devamını oku",
   "article.showLess": "Daha az göster",
@@ -21,5 +25,9 @@
   "share.more": "Daha fazla",
   "share.linkCopied": "Bağlantı kopyalandı",
   "settings.language": "Dil",
+  "settings.theme": "Tema",
+  "theme.system": "Sistem",
+  "theme.light": "Açık",
+  "theme.dark": "Koyu",
   "profile.saved": "Kaydedilenler"
 }

@@ -7,6 +7,10 @@
   "feed.forYou": "For you",
   "feed.popular": "Popular",
   "feed.news": "News",
+  "explore.searchPlaceholder": "Search a topic…",
+  "explore.trending": "Trending today",
+  "explore.noResults": "No results",
+  "shared.empty": "Articles you share will appear here.",
   "flow.swipeHint": "Swipe up to read",
   "article.readMore": "Read more",
   "article.showLess": "Show less",
@@ -21,5 +25,9 @@
   "share.more": "More",
   "share.linkCopied": "Link copied",
   "settings.language": "Language",
+  "settings.theme": "Theme",
+  "theme.system": "System",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
   "profile.saved": "Saved"
 }

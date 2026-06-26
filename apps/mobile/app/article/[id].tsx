@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -19,7 +19,7 @@ import { fetchArticle, sendEvents } from "../../src/api/client";
 import { ScreenContainer } from "../../src/components/ScreenContainer";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
-import { colors, radii, spacing } from "../../src/theme";
+import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
 
 const SCROLL_OFFSET = 12;
@@ -27,6 +27,8 @@ const SCROLL_OFFSET = 12;
 export default function ArticleScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useLocale();
   const { isSaved, toggleSave } = useLibrary();
   const { openShare } = useShare();
@@ -176,6 +178,7 @@ export default function ArticleScreen() {
                 key={section.id}
                 section={section}
                 showHeading={index > 0}
+                styles={styles}
                 onLayoutTop={(y) => {
                   sectionY.current[section.id] = y;
                 }}
@@ -211,11 +214,12 @@ export default function ArticleScreen() {
 interface SectionBlockProps {
   section: ArticleSection;
   showHeading: boolean;
+  styles: ReturnType<typeof makeStyles>;
   onLayoutTop: (y: number) => void;
   onLinkPress: (targetId: string) => void;
 }
 
-function SectionBlock({ section, showHeading, onLayoutTop, onLinkPress }: SectionBlockProps) {
+function SectionBlock({ section, showHeading, styles, onLayoutTop, onLinkPress }: SectionBlockProps) {
   const onLayout = (e: LayoutChangeEvent) => onLayoutTop(e.nativeEvent.layout.y);
   return (
     <View style={styles.section} onLayout={onLayout}>
@@ -241,7 +245,8 @@ function SectionBlock({ section, showHeading, onLayoutTop, onLinkPress }: Sectio
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",

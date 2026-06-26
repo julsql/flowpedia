@@ -1,9 +1,30 @@
 /**
- * Design tokens — dark theme, warm near-black with the amber accent kept from
- * Direction A (Pépite/Flowpedia handoff). Visual source of truth: design/README.md.
- * Semantic token names so screens stay theme-agnostic.
+ * Design tokens — light & dark palettes sharing the same keys, with the amber
+ * accent from Direction A (Pépite/Flowpedia handoff). Semantic names so screens
+ * stay theme-agnostic. `radii`, `spacing`, `typography` are theme-independent.
  */
-export const colors = {
+export interface ThemeColors {
+  bg: string;
+  surface: string;
+  textPrimary: string;
+  textSecondary: string;
+  textTertiary: string;
+  muted: string;
+  mutedLight: string;
+  separator: string;
+  separatorThick: string;
+  field: string;
+  accent: string;
+  accentDark: string;
+  accentLinkText: string;
+  accentLinkUnderline: string;
+  interestChipBg: string;
+  interestChipText: string;
+  like: string;
+  immersiveBg: string;
+}
+
+export const darkColors: ThemeColors = {
   bg: "#121110", // app background (warm near-black)
   surface: "#1b1916", // raised surfaces: cards, sheets
   textPrimary: "#f4efe8",
@@ -21,8 +42,32 @@ export const colors = {
   interestChipBg: "rgba(217, 130, 43, 0.18)",
   interestChipText: "#e7ab68",
   like: "#e85c45", // filled heart, intentionally NOT the accent
-  immersiveBg: "#000000", // full-screen "flow" screen
-} as const;
+  immersiveBg: "#000000", // full-screen "flow" screen (always dark)
+};
+
+export const lightColors: ThemeColors = {
+  bg: "#ffffff",
+  surface: "#f7f5f1",
+  textPrimary: "#16140f",
+  textSecondary: "#5c574e",
+  textTertiary: "#6b665d",
+  muted: "#9a948a",
+  mutedLight: "#bdb8af",
+  separator: "#f1eee9",
+  separatorThick: "#f4f2ee",
+  field: "#f4f2ee",
+  accent: "#c56a1e", // oklch(0.62 0.17 55)
+  accentDark: "#9a4f12",
+  accentLinkText: "#a85a18",
+  accentLinkUnderline: "#d6a878",
+  interestChipBg: "rgba(214, 142, 56, 0.14)",
+  interestChipText: "#8a4d18",
+  like: "#d24a2e",
+  immersiveBg: "#0c0b0a", // full-screen media stays dark even in light theme
+};
+
+/** Default palette for non-reactive contexts. */
+export const colors: ThemeColors = darkColors;
 
 export const radii = {
   media: 14,

@@ -7,6 +7,10 @@
   "feed.forYou": "Dla ciebie",
   "feed.popular": "Popularne",
   "feed.news": "Aktualności",
+  "explore.searchPlaceholder": "Szukaj tematu…",
+  "explore.trending": "Popularne dziś",
+  "explore.noResults": "Brak wyników",
+  "shared.empty": "Udostępnione artykuły pojawią się tutaj.",
   "flow.swipeHint": "Przesuń, aby przeczytać",
   "article.readMore": "Czytaj więcej",
   "article.showLess": "Pokaż mniej",
@@ -21,5 +25,9 @@
   "share.more": "Więcej",
   "share.linkCopied": "Link skopiowany",
   "settings.language": "Język",
+  "settings.theme": "Motyw",
+  "theme.system": "Systemowy",
+  "theme.light": "Jasny",
+  "theme.dark": "Ciemny",
   "profile.saved": "Zapisane"
 }

@@ -1,18 +1,19 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  Animated,
-  Image,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { Animated, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import type { Article } from "@flowpedia/shared";
-import { colors, radii, spacing } from "../theme";
+import { radii, spacing, useTheme, type ThemeColors } from "../theme";
 import { useLocale } from "../i18n";
+import { useLibrary } from "../library/LibraryProvider";
 import { sendEvents } from "../api/client";
 
 interface ShareSheetValue {
@@ -33,6 +34,9 @@ const SHEET_HEIGHT = 420;
 
 export function ShareSheetProvider({ children }: { children: ReactNode }) {
   const { t } = useLocale();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { recordShare } = useLibrary();
   const [article, setArticle] = useState<Article | null>(null);
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -65,6 +69,7 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
   const shareWith = () => {
     if (article) {
       sendEvents([{ articleId: article.id, type: "share", ts: Date.now() }]);
+      recordShare(article);
     }
     close();
   };
@@ -73,6 +78,7 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
     if (article) {
       await Clipboard.setStringAsync(article.sourceUrl);
       sendEvents([{ articleId: article.id, type: "share", ts: Date.now() }]);
+      recordShare(article);
       setCopied(true);
     }
   };
@@ -151,7 +157,8 @@ export function useShare(): ShareSheetValue {
   return ctx;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.55)" },
   sheet: {
     position: "absolute",

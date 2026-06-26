@@ -1,15 +1,24 @@
+import { useMemo } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radii, spacing } from "../../src/theme";
+import { radii, spacing, useTheme, type ThemeColors, type ThemeMode } from "../../src/theme";
 import { ScreenContainer } from "../../src/components/ScreenContainer";
 import { useLibrary } from "../../src/library/LibraryProvider";
-import { LOCALE_LABELS, SUPPORTED_LOCALES, useLocale } from "../../src/i18n";
+import { LOCALE_LABELS, SUPPORTED_LOCALES, useLocale, type TranslationKey } from "../../src/i18n";
+
+const THEME_OPTIONS: { mode: ThemeMode; label: TranslationKey }[] = [
+  { mode: "system", label: "theme.system" },
+  { mode: "light", label: "theme.light" },
+  { mode: "dark", label: "theme.dark" },
+];
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { colors, mode, setMode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale, setLocale } = useLocale();
   const { saved } = useLibrary();
 
@@ -20,9 +29,27 @@ export default function ProfileScreen() {
       <Text style={styles.title}>{t("tab.profile")}</Text>
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        <Text style={styles.sectionLabel}>{t("settings.theme")}</Text>
+        <View style={styles.segment}>
+          {THEME_OPTIONS.map(({ mode: optionMode, label }) => {
+            const active = optionMode === mode;
+            return (
+              <Pressable
+                key={optionMode}
+                onPress={() => setMode(optionMode)}
+                style={[styles.segmentItem, active && styles.segmentItemActive]}
+              >
+                <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                  {t(label)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         {saved.length > 0 ? (
           <>
-            <Text style={styles.sectionLabel}>{t("profile.saved")}</Text>
+            <Text style={[styles.sectionLabel, styles.sectionSpacing]}>{t("profile.saved")}</Text>
             {saved.map((article) => (
               <Pressable
                 key={article.id}
@@ -70,37 +97,49 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  title: { fontSize: 24, fontWeight: "600", color: colors.textPrimary, marginBottom: 24 },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 12,
-  },
-  sectionSpacing: { marginTop: 28 },
-  list: { paddingBottom: 24 },
-  savedRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
-  },
-  savedThumb: { width: 48, height: 48, borderRadius: 10, backgroundColor: colors.field },
-  savedPlaceholder: { backgroundColor: colors.separatorThick },
-  savedText: { flex: 1 },
-  savedTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "500" },
-  savedCategory: { color: colors.textTertiary, fontSize: 12, marginTop: 2 },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.separator,
-  },
-  rowLabel: { fontSize: 16, color: colors.textSecondary },
-  rowLabelActive: { color: colors.textPrimary, fontWeight: "600" },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    title: { fontSize: 24, fontWeight: "600", color: colors.textPrimary, marginBottom: 24 },
+    sectionLabel: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.muted,
+      textTransform: "uppercase",
+      letterSpacing: 0.6,
+      marginBottom: 12,
+    },
+    sectionSpacing: { marginTop: 28 },
+    list: { paddingBottom: 24 },
+    segment: {
+      flexDirection: "row",
+      backgroundColor: colors.field,
+      borderRadius: radii.pill,
+      padding: 4,
+      gap: 4,
+    },
+    segmentItem: {
+      flex: 1,
+      alignItems: "center",
+      paddingVertical: 9,
+      borderRadius: radii.pill,
+    },
+    segmentItemActive: { backgroundColor: colors.accent },
+    segmentText: { color: colors.textSecondary, fontSize: 14, fontWeight: "500" },
+    segmentTextActive: { color: "#fff", fontWeight: "600" },
+    savedRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
+    savedThumb: { width: 48, height: 48, borderRadius: 10, backgroundColor: colors.field },
+    savedPlaceholder: { backgroundColor: colors.separatorThick },
+    savedText: { flex: 1 },
+    savedTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "500" },
+    savedCategory: { color: colors.textTertiary, fontSize: 12, marginTop: 2 },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.separator,
+    },
+    rowLabel: { fontSize: 16, color: colors.textSecondary },
+    rowLabelActive: { color: colors.textPrimary, fontWeight: "600" },
+  });

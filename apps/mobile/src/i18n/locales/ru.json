@@ -7,6 +7,10 @@
   "feed.forYou": "Для вас",
   "feed.popular": "Популярное",
   "feed.news": "Новости",
+  "explore.searchPlaceholder": "Поиск темы…",
+  "explore.trending": "В тренде сегодня",
+  "explore.noResults": "Ничего не найдено",
+  "shared.empty": "Статьи, которыми вы поделитесь, появятся здесь.",
   "flow.swipeHint": "Смахните, чтобы читать",
   "article.readMore": "Читать далее",
   "article.showLess": "Свернуть",
@@ -21,5 +25,9 @@
   "share.more": "Ещё",
   "share.linkCopied": "Ссылка скопирована",
   "settings.language": "Язык",
+  "settings.theme": "Тема",
+  "theme.system": "Системная",
+  "theme.light": "Светлая",
+  "theme.dark": "Тёмная",
   "profile.saved": "Сохранённое"
 }

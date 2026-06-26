@@ -1,6 +1,6 @@
 import { Platform, StyleSheet, View, type ViewStyle } from "react-native";
 import type { ReactNode } from "react";
-import { colors } from "../theme";
+import { useTheme } from "../theme";
 
 // On wide screens (web) the content is constrained to a centered column,
 // like Instagram's web feed. On phones it just fills the screen.
@@ -13,9 +13,16 @@ interface ScreenContainerProps {
 }
 
 export function ScreenContainer({ children, style }: ScreenContainerProps) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.outer}>
-      <View style={[styles.inner, Platform.OS === "web" && styles.innerWeb, style]}>
+    <View style={[styles.outer, { backgroundColor: colors.bg }]}>
+      <View
+        style={[
+          styles.inner,
+          Platform.OS === "web" && { borderColor: colors.separator, ...styles.innerWeb },
+          style,
+        ]}
+      >
         {children}
       </View>
     </View>
@@ -23,11 +30,7 @@ export function ScreenContainer({ children, style }: ScreenContainerProps) {
 }
 
 const styles = StyleSheet.create({
-  outer: { flex: 1, backgroundColor: colors.bg, alignItems: "center" },
+  outer: { flex: 1, alignItems: "center" },
   inner: { flex: 1, width: "100%", maxWidth: CONTENT_MAX_WIDTH },
-  innerWeb: {
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: colors.separator,
-  },
+  innerWeb: { borderLeftWidth: 1, borderRightWidth: 1 },
 });

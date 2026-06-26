@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,7 +8,7 @@ import { ArticleCard } from "../../src/components/ArticleCard";
 import { ScreenContainer } from "../../src/components/ScreenContainer";
 import { fetchFeed } from "../../src/api/client";
 import { useShare } from "../../src/share/ShareSheetProvider";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing, typography, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale, type TranslationKey } from "../../src/i18n";
 
 const TABS: { key: FeedTab; label: TranslationKey }[] = [
@@ -21,6 +21,8 @@ export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { openShare } = useShare();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useLocale();
 
   const openArticle = useCallback(
@@ -115,38 +117,39 @@ export default function FeedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.screenPadding, paddingVertical: 12 },
-  brand: {
-    fontFamily: typography.brandFamily,
-    fontSize: typography.brandSize,
-    fontWeight: "600",
-    color: colors.textPrimary,
-  },
-  tabsRow: {
-    flexDirection: "row",
-    gap: 20,
-    paddingHorizontal: spacing.screenPadding,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.separator,
-  },
-  tabItem: { paddingBottom: 10 },
-  tabLabel: { fontSize: 15, fontWeight: "500", color: colors.muted },
-  tabLabelActive: { color: colors.textPrimary, fontWeight: "600" },
-  tabUnderline: {
-    height: 2,
-    backgroundColor: colors.accent,
-    borderRadius: 2,
-    marginTop: 8,
-  },
-  separator: { height: spacing.cardGap, backgroundColor: colors.separatorThick },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  errorText: { color: colors.textSecondary, fontSize: 15 },
-  retryBtn: {
-    backgroundColor: colors.field,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  retryText: { color: colors.accent, fontWeight: "600" },
-});
+const makeStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    header: { paddingHorizontal: spacing.screenPadding, paddingVertical: 12 },
+    brand: {
+      fontFamily: typography.brandFamily,
+      fontSize: typography.brandSize,
+      fontWeight: "600",
+      color: colors.textPrimary,
+    },
+    tabsRow: {
+      flexDirection: "row",
+      gap: 20,
+      paddingHorizontal: spacing.screenPadding,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.separator,
+    },
+    tabItem: { paddingBottom: 10 },
+    tabLabel: { fontSize: 15, fontWeight: "500", color: colors.muted },
+    tabLabelActive: { color: colors.textPrimary, fontWeight: "600" },
+    tabUnderline: {
+      height: 2,
+      backgroundColor: colors.accent,
+      borderRadius: 2,
+      marginTop: 8,
+    },
+    separator: { height: spacing.cardGap, backgroundColor: colors.separatorThick },
+    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+    errorText: { color: colors.textSecondary, fontSize: 15 },
+    retryBtn: {
+      backgroundColor: colors.field,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 999,
+    },
+    retryText: { color: colors.accent, fontWeight: "600" },
+  });

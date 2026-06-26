@@ -172,6 +172,37 @@ export class WikipediaService {
     return res.text();
   }
 
+  /** Full-text search → article summaries for the Explore screen. */
+  async search(query: string, lang?: string): Promise<Article[]> {
+    const language = this.normalizeLang(lang);
+    const q = query.trim();
+    if (!q) {
+      return [];
+    }
+    const url =
+      `https://${language}.wikipedia.org/w/api.php?action=query&list=search` +
+      `&srsearch=${encodeURIComponent(q)}&srlimit=12&srnamespace=0&format=json&origin=*`;
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
+      });
+      if (!res.ok) {
+        return [];
+      }
+      const data = (await res.json()) as { query?: { search?: { title: string }[] } };
+      const titles = (data.query?.search ?? []).map((s) => s.title);
+      const settled = await Promise.allSettled(
+        titles.map((title) => this.getSummary(title, language)),
+      );
+      return settled
+        .filter((r): r is PromiseFulfilledResult<Article> => r.status === "fulfilled")
+        .map((r) => r.value);
+    } catch (err) {
+      this.logger.warn(`search failed for "${q}": ${String(err)}`);
+      return [];
+    }
+  }
+
   /**
    * Most-viewed article titles for a language (Wikimedia pageviews "top" API),
    * cached per language. Language-agnostic source for the "popular" feed.

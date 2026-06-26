@@ -7,6 +7,10 @@
   "feed.forYou": "为你推荐",
   "feed.popular": "热门",
   "feed.news": "新闻",
+  "explore.searchPlaceholder": "搜索主题…",
+  "explore.trending": "今日热门",
+  "explore.noResults": "无结果",
+  "shared.empty": "你分享的文章会显示在这里。",
   "flow.swipeHint": "上滑阅读",
   "article.readMore": "阅读更多",
   "article.showLess": "收起",
@@ -21,5 +25,9 @@
   "share.more": "更多",
   "share.linkCopied": "链接已复制",
   "settings.language": "语言",
+  "settings.theme": "主题",
+  "theme.system": "跟随系统",
+  "theme.light": "浅色",
+  "theme.dark": "深色",
   "profile.saved": "已保存"
 }

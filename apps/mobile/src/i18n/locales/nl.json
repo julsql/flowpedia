@@ -7,6 +7,10 @@
   "feed.forYou": "Voor jou",
   "feed.popular": "Populair",
   "feed.news": "Nieuws",
+  "explore.searchPlaceholder": "Zoek een onderwerp…",
+  "explore.trending": "Trending vandaag",
+  "explore.noResults": "Geen resultaten",
+  "shared.empty": "Gedeelde artikelen verschijnen hier.",
   "flow.swipeHint": "Veeg om te lezen",
   "article.readMore": "Meer lezen",
   "article.showLess": "Minder tonen",
@@ -21,5 +25,9 @@
   "share.more": "Meer",
   "share.linkCopied": "Link gekopieerd",
   "settings.language": "Taal",
+  "settings.theme": "Thema",
+  "theme.system": "Systeem",
+  "theme.light": "Licht",
+  "theme.dark": "Donker",
   "profile.saved": "Opgeslagen"
 }

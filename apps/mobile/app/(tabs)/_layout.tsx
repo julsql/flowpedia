@@ -1,11 +1,12 @@
 import { Tabs } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
-import { colors } from "../../src/theme";
+import { useTheme } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
 
 // Bottom tab bar — handoff: home, search, bolt (flow), forum (shared), person.
 export default function TabsLayout() {
   const { t } = useLocale();
+  const { colors } = useTheme();
 
   return (
     <Tabs

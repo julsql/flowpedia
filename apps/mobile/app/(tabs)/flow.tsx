@@ -16,11 +16,12 @@ import type { Article } from "@flowpedia/shared";
 import { fetchFeed, sendEvents } from "../../src/api/client";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
-import { colors } from "../../src/theme";
+import { useTheme } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
 
 export default function FlowScreen() {
   const { locale } = useLocale();
+  const { colors } = useTheme();
   const [articles, setArticles] = useState<Article[]>([]);
   const [cursor, setCursor] = useState<string | undefined>();
   const [height, setHeight] = useState(0);
@@ -55,7 +56,7 @@ export default function FlowScreen() {
   const onLayout = (e: LayoutChangeEvent) => setHeight(e.nativeEvent.layout.height);
 
   return (
-    <View style={styles.screen} onLayout={onLayout}>
+    <View style={[styles.screen, { backgroundColor: colors.immersiveBg }]} onLayout={onLayout}>
       {height === 0 || articles.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.accent} />
@@ -79,6 +80,7 @@ export default function FlowScreen() {
 function FlowItem({ article, height }: { article: Article; height: number }) {
   const router = useRouter();
   const { t } = useLocale();
+  const { colors } = useTheme();
   const { isLiked, isSaved, toggleLike, toggleSave } = useLibrary();
   const { openShare } = useShare();
 
@@ -139,7 +141,7 @@ function FlowItem({ article, height }: { article: Article; height: number }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.immersiveBg },
+  screen: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   item: { width: "100%", justifyContent: "flex-end" },
   image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
