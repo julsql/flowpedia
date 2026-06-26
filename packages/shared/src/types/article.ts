@@ -1,11 +1,26 @@
+/**
+ * A run of text inside a paragraph. When `linkTargetId` is set, the run is an
+ * internal link to another article — the "bounce" mechanism at the core of the
+ * product (tap to open the target article).
+ */
+export interface TextRun {
+  text: string;
+  linkTargetId?: string;
+}
+
+/** A paragraph, made of plain-text and internal-link runs. */
+export interface ArticleParagraph {
+  runs: TextRun[];
+}
+
 /** An article section (Summary, Habitat, Intelligence…) — see handoff screen 3. */
 export interface ArticleSection {
   id: string;
   title: string;
-  body: string;
+  paragraphs: ArticleParagraph[];
 }
 
-/** Internal link to another article — the "bounce" mechanism at the core of the product. */
+/** A distinct internal link found in the article (for "keep exploring" lists). */
 export interface ArticleLink {
   /** Displayed text (link label). */
   label: string;

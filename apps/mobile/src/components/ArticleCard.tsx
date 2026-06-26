@@ -48,13 +48,14 @@ export function ArticleCard({ article, onLike, onShare, onSave, onOpen }: Articl
         ) : null}
       </View>
 
-      {article.image ? (
-        <Image source={{ uri: article.image }} style={styles.image} resizeMode="cover" />
-      ) : (
-        <View style={[styles.image, styles.imagePlaceholder]} />
-      )}
-
-      <Text style={styles.title}>{article.title}</Text>
+      <Pressable onPress={() => onOpen?.(article)}>
+        {article.image ? (
+          <Image source={{ uri: article.image }} style={styles.image} resizeMode="cover" />
+        ) : (
+          <View style={[styles.image, styles.imagePlaceholder]} />
+        )}
+        <Text style={styles.title}>{article.title}</Text>
+      </Pressable>
       <Text
         style={styles.summary}
         // Unclamped until measured so handleTextLayout sees the true line count.
@@ -102,9 +103,7 @@ export function ArticleCard({ article, onLike, onShare, onSave, onOpen }: Articl
         </Pressable>
       </View>
 
-      <Pressable onPress={() => onOpen?.(article)} hitSlop={4}>
-        <Text style={styles.source}>{t("common.source")}</Text>
-      </Pressable>
+      <Text style={styles.source}>{t("common.source")}</Text>
     </View>
   );
 }

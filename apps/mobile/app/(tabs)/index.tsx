@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import type { Article, FeedTab } from "@flowpedia/shared";
 import { ArticleCard } from "../../src/components/ArticleCard";
 import { fetchFeed, sendEvents } from "../../src/api/client";
@@ -16,7 +17,15 @@ const TABS: { key: FeedTab; label: TranslationKey }[] = [
 
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { t, locale } = useLocale();
+
+  const openArticle = useCallback(
+    (article: Article) => {
+      router.push({ pathname: "/article/[id]", params: { id: encodeURIComponent(article.id) } });
+    },
+    [router],
+  );
 
   const [tab, setTab] = useState<FeedTab>("popular");
   const [articles, setArticles] = useState<Article[]>([]);
@@ -102,7 +111,9 @@ export default function FeedScreen() {
         <FlashList
           data={articles}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ArticleCard article={item} onLike={toggleLike} />}
+          renderItem={({ item }) => (
+            <ArticleCard article={item} onLike={toggleLike} onOpen={openArticle} />
+          )}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           onEndReached={loadMore}
           onEndReachedThreshold={0.6}

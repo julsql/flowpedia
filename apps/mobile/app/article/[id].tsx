@@ -1,0 +1,280 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MaterialIcons } from "@expo/vector-icons";
+import type { Article, ArticleSection } from "@flowpedia/shared";
+import { fetchArticle, sendEvents } from "../../src/api/client";
+import { colors, radii, spacing } from "../../src/theme";
+import { useLocale } from "../../src/i18n";
+
+const SCROLL_OFFSET = 12;
+
+export default function ArticleScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { t, locale } = useLocale();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const articleId = decodeURIComponent(id ?? "");
+
+  const [article, setArticle] = useState<Article | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const sectionY = useRef<Record<string, number>>({});
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const data = await fetchArticle(articleId, locale);
+      setArticle(data);
+      setActiveSection(data.sections[0]?.id ?? null);
+      sendEvents([{ articleId: data.id, type: "openFull", ts: Date.now() }]);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [articleId, locale]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // Log dwell time when leaving the article.
+  useEffect(() => {
+    const start = Date.now();
+    return () => {
+      sendEvents([{ articleId, type: "dwell", value: Date.now() - start, ts: Date.now() }]);
+    };
+  }, [articleId]);
+
+  const openLink = useCallback(
+    (targetId: string) => {
+      sendEvents([{ articleId, type: "linkClick", ts: Date.now() }]);
+      router.push({ pathname: "/article/[id]", params: { id: encodeURIComponent(targetId) } });
+    },
+    [articleId, router],
+  );
+
+  const jumpToSection = useCallback((sectionId: string) => {
+    const y = sectionY.current[sectionId];
+    if (y !== undefined) {
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - SCROLL_OFFSET), animated: true });
+    }
+    setActiveSection(sectionId);
+  }, []);
+
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const y = e.nativeEvent.contentOffset.y + SCROLL_OFFSET + 1;
+      let current: string | null = article?.sections[0]?.id ?? null;
+      for (const section of article?.sections ?? []) {
+        const top = sectionY.current[section.id];
+        if (top !== undefined && top <= y) {
+          current = section.id;
+        }
+      }
+      if (current !== activeSection) {
+        setActiveSection(current);
+      }
+    },
+    [article, activeSection],
+  );
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} hitSlop={8}>
+          <MaterialIcons name="arrow-back" size={26} color={colors.textPrimary} />
+        </Pressable>
+        <View style={styles.headerActions}>
+          <MaterialIcons name="bookmark-border" size={24} color={colors.textPrimary} />
+          <MaterialIcons name="send" size={22} color={colors.textPrimary} />
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      ) : error || !article ? (
+        <View style={styles.center}>
+          <Text style={styles.errorText}>{t("common.loadError")}</Text>
+          <Pressable onPress={load} style={styles.retryBtn}>
+            <Text style={styles.retryText}>{t("common.retry")}</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <>
+          {article.sections.length > 1 ? (
+            <View style={styles.chipsBar}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipsRow}
+              >
+                {article.sections.map((section) => {
+                  const active = section.id === activeSection;
+                  return (
+                    <Pressable
+                      key={section.id}
+                      onPress={() => jumpToSection(section.id)}
+                      style={[styles.chip, active && styles.chipActive]}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {section.title}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          <ScrollView
+            ref={scrollRef}
+            scrollEventThrottle={16}
+            onScroll={onScroll}
+            contentContainerStyle={styles.content}
+          >
+            {article.image ? (
+              <Image source={{ uri: article.image }} style={styles.lead} resizeMode="cover" />
+            ) : null}
+            <Text style={styles.category}>{article.category.toUpperCase()}</Text>
+            <Text style={styles.title}>{article.title}</Text>
+
+            {article.sections.map((section, index) => (
+              <SectionBlock
+                key={section.id}
+                section={section}
+                showHeading={index > 0}
+                onLayoutTop={(y) => {
+                  sectionY.current[section.id] = y;
+                }}
+                onLinkPress={openLink}
+              />
+            ))}
+
+            <Text style={styles.source}>{t("common.source")}</Text>
+          </ScrollView>
+        </>
+      )}
+    </View>
+  );
+}
+
+interface SectionBlockProps {
+  section: ArticleSection;
+  showHeading: boolean;
+  onLayoutTop: (y: number) => void;
+  onLinkPress: (targetId: string) => void;
+}
+
+function SectionBlock({ section, showHeading, onLayoutTop, onLinkPress }: SectionBlockProps) {
+  const onLayout = (e: LayoutChangeEvent) => onLayoutTop(e.nativeEvent.layout.y);
+  return (
+    <View style={styles.section} onLayout={onLayout}>
+      {showHeading ? <Text style={styles.sectionTitle}>{section.title}</Text> : null}
+      {section.paragraphs.map((paragraph, pIndex) => (
+        <Text key={pIndex} style={styles.paragraph}>
+          {paragraph.runs.map((run, rIndex) =>
+            run.linkTargetId ? (
+              <Text
+                key={rIndex}
+                style={styles.link}
+                onPress={() => onLinkPress(run.linkTargetId as string)}
+              >
+                {run.text}
+              </Text>
+            ) : (
+              <Text key={rIndex}>{run.text}</Text>
+            ),
+          )}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.screenPadding,
+    paddingVertical: 10,
+  },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 18 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+  errorText: { color: colors.textSecondary, fontSize: 15 },
+  retryBtn: {
+    backgroundColor: colors.field,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
+  },
+  retryText: { color: colors.accent, fontWeight: "600" },
+  chipsBar: { borderBottomWidth: 1, borderBottomColor: colors.separator },
+  chipsRow: { paddingHorizontal: spacing.screenPadding, paddingVertical: 10, gap: 8 },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radii.pill,
+    backgroundColor: colors.field,
+  },
+  chipActive: { backgroundColor: colors.accent },
+  chipText: { fontSize: 14, color: colors.textSecondary },
+  chipTextActive: { color: colors.bg, fontWeight: "600" },
+  content: { paddingHorizontal: spacing.screenPadding, paddingBottom: 48 },
+  lead: {
+    width: "100%",
+    height: 200,
+    borderRadius: radii.media,
+    backgroundColor: colors.field,
+    marginTop: 8,
+  },
+  category: {
+    color: colors.accentDark,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    marginTop: 16,
+  },
+  title: {
+    color: colors.textPrimary,
+    fontSize: 25,
+    fontWeight: "600",
+    lineHeight: 30,
+    marginTop: 6,
+  },
+  section: { marginTop: 20 },
+  sectionTitle: {
+    color: colors.textPrimary,
+    fontSize: 19,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  paragraph: { color: colors.textSecondary, fontSize: 16, lineHeight: 26, marginBottom: 12 },
+  link: {
+    color: colors.accentLinkText,
+    textDecorationLine: "underline",
+    textDecorationColor: colors.accentLinkUnderline,
+  },
+  source: { color: colors.mutedLight, fontSize: 12, marginTop: 24 },
+});

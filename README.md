@@ -73,10 +73,16 @@ Over Wi-Fi instead of USB, skip `adb reverse` and set the machine LAN IP:
 EXPO_PUBLIC_API_URL=http://192.168.1.20:3000/api pnpm mobile
 ```
 
-## What works now (step 1)
+## What works now
 
 - Card feed (handoff screen 1) fed by the live Wikipedia REST API, with caching.
-- `GET /feed`, `GET /articles/:id`, `POST /events` (signal ingestion, logged for now).
+- **Article detail (handoff screen 3):** open a card to read the full article —
+  section chips that jump/track on scroll, body text with **tappable internal
+  links** that push the target article (the rabbit-hole bounce), localized
+  section labels. Parsed server-side from Wikipedia HTML (infoboxes, references
+  and other chrome stripped).
+- `GET /feed`, `GET /articles/:id` (parsed sections + inline links),
+  `POST /events` (dwell, openFull, linkClick, like… logged for now).
 - Bottom tab bar (home / explore / flow / shared / profile), language switcher.
 - Optimistic like + signal logging groundwork.
 

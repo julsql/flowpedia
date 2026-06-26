@@ -6,9 +6,9 @@ import { WikipediaService } from "../wikipedia/wikipedia.service";
 export class ArticlesController {
   constructor(private readonly wikipedia: WikipediaService) {}
 
-  /** Article detail (summary for now; sections/links at step 3). */
+  /** Article detail: parsed sections with inline internal links. */
   @Get(":id")
   getArticle(@Param("id") id: string, @Query("lang") lang?: string): Promise<Article> {
-    return this.wikipedia.getSummary(decodeURIComponent(id), lang);
+    return this.wikipedia.getArticle(decodeURIComponent(id), lang);
   }
 }

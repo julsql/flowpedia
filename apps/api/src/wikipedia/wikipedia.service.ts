@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Article } from "@flowpedia/shared";
+import { collectLinks, parseArticleSections } from "./parse-article";
 
 // Keep in sync with the mobile SUPPORTED_LOCALES.
 const SUPPORTED_LANGS = [
@@ -33,6 +34,25 @@ interface TitlesCacheEntry {
 
 const POPULAR_TTL_MS = 6 * 60 * 60 * 1000;
 const POPULAR_LIMIT = 40;
+const ARTICLE_LINKS_LIMIT = 40;
+
+// Localized label for the intro section (no heading in the source HTML).
+const SUMMARY_LABEL: Record<SupportedLang, string> = {
+  en: "Summary",
+  fr: "Résumé",
+  es: "Resumen",
+  de: "Zusammenfassung",
+  it: "Riassunto",
+  pt: "Resumo",
+  nl: "Samenvatting",
+  pl: "Podsumowanie",
+  ru: "Сводка",
+  el: "Περίληψη",
+  zh: "摘要",
+  ja: "概要",
+  ko: "요약",
+  tr: "Özet",
+};
 
 /**
  * Proxy + lightweight cache in front of the Wikimedia REST API.
@@ -42,6 +62,7 @@ const POPULAR_LIMIT = 40;
 export class WikipediaService {
   private readonly logger = new Logger(WikipediaService.name);
   private readonly cache = new Map<string, CacheEntry>();
+  private readonly articleCache = new Map<string, CacheEntry>();
   private readonly popularCache = new Map<SupportedLang, TitlesCacheEntry>();
 
   constructor(private readonly config: ConfigService) {}
@@ -102,6 +123,56 @@ export class WikipediaService {
   }
 
   /**
+   * Full article for the detail screen: summary metadata (image, category…)
+   * plus parsed sections with inline internal links. Cached per language.
+   */
+  async getArticle(title: string, lang?: string): Promise<Article> {
+    const language = this.normalizeLang(lang);
+    const key = `${language}:${title}`;
+    const cached = this.articleCache.get(key);
+    if (cached && cached.expiresAt > nowMs()) {
+      return cached.article;
+    }
+
+    const summary = await this.getSummary(title, language);
+    const leadTitle = SUMMARY_LABEL[language];
+
+    let sections = summary.sections;
+    try {
+      const html = await this.fetchArticleHtml(summary.title, language);
+      sections = parseArticleSections(html, leadTitle);
+    } catch (err) {
+      this.logger.warn(`article HTML parse failed for ${title}: ${String(err)}`);
+    }
+
+    // Fallback so the screen is never empty if HTML/parse fails.
+    if (!sections.length && summary.summary) {
+      sections = [{ id: "section-0", title: leadTitle, paragraphs: [{ runs: [{ text: summary.summary }] }] }];
+    }
+
+    const article: Article = {
+      ...summary,
+      sections,
+      links: collectLinks(sections).slice(0, ARTICLE_LINKS_LIMIT),
+    };
+    this.articleCache.set(key, { article, expiresAt: nowMs() + this.ttlMs });
+    return article;
+  }
+
+  private async fetchArticleHtml(title: string, language: SupportedLang): Promise<string> {
+    const url = `https://${language}.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(
+      title,
+    )}`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
+    });
+    if (!res.ok) {
+      throw new Error(`Wikipedia HTML ${res.status} for ${title}`);
+    }
+    return res.text();
+  }
+
+  /**
    * Most-viewed article titles for a language (Wikimedia pageviews "top" API),
    * cached per language. Language-agnostic source for the "popular" feed.
    */
@@ -159,8 +230,8 @@ export class WikipediaService {
       summary: data.extract ?? "",
       image: data.thumbnail?.source ?? data.originalimage?.source,
       readingMinutes: estimateReadingMinutes(data.extract ?? ""),
-      // Sections & internal links are enriched later (article detail screen).
-      sections: [{ id: "summary", title: data.title, body: data.extract ?? "" }],
+      // Sections & internal links are filled by getArticle (detail screen only).
+      sections: [],
       links: [],
       likes: 0,
       liked: false,
