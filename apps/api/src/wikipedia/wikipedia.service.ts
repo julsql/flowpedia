@@ -2,13 +2,37 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Article } from "@flowpedia/shared";
 
-type SupportedLang = "en" | "fr";
-const SUPPORTED_LANGS: SupportedLang[] = ["en", "fr"];
+// Keep in sync with the mobile SUPPORTED_LOCALES.
+const SUPPORTED_LANGS = [
+  "en",
+  "fr",
+  "es",
+  "de",
+  "it",
+  "pt",
+  "nl",
+  "pl",
+  "ru",
+  "el",
+  "zh",
+  "ja",
+  "ko",
+  "tr",
+] as const;
+type SupportedLang = (typeof SUPPORTED_LANGS)[number];
 
 interface CacheEntry {
   article: Article;
   expiresAt: number;
 }
+
+interface TitlesCacheEntry {
+  titles: string[];
+  expiresAt: number;
+}
+
+const POPULAR_TTL_MS = 6 * 60 * 60 * 1000;
+const POPULAR_LIMIT = 40;
 
 /**
  * Proxy + lightweight cache in front of the Wikimedia REST API.
@@ -18,6 +42,7 @@ interface CacheEntry {
 export class WikipediaService {
   private readonly logger = new Logger(WikipediaService.name);
   private readonly cache = new Map<string, CacheEntry>();
+  private readonly popularCache = new Map<SupportedLang, TitlesCacheEntry>();
 
   constructor(private readonly config: ConfigService) {}
 
@@ -76,6 +101,56 @@ export class WikipediaService {
     return article;
   }
 
+  /**
+   * Most-viewed article titles for a language (Wikimedia pageviews "top" API),
+   * cached per language. Language-agnostic source for the "popular" feed.
+   */
+  async getPopularTitles(lang?: string): Promise<string[]> {
+    const language = this.normalizeLang(lang);
+    const cached = this.popularCache.get(language);
+    if (cached && cached.expiresAt > nowMs()) {
+      return cached.titles;
+    }
+
+    const titles = await this.fetchTopViewed(language);
+    if (titles.length) {
+      this.popularCache.set(language, { titles, expiresAt: nowMs() + POPULAR_TTL_MS });
+    }
+    return titles;
+  }
+
+  /** Try the last few days (the metrics endpoint lags by a day or two). */
+  private async fetchTopViewed(language: SupportedLang): Promise<string[]> {
+    for (let daysAgo = 1; daysAgo <= 3; daysAgo += 1) {
+      const date = new Date(nowMs() - daysAgo * 24 * 60 * 60 * 1000);
+      const yyyy = date.getUTCFullYear();
+      const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(date.getUTCDate()).padStart(2, "0");
+      const url = `https://wikimedia.org/api/rest_v1/metrics/pageviews/top/${language}.wikipedia/all-access/${yyyy}/${mm}/${dd}`;
+
+      try {
+        const res = await fetch(url, {
+          headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
+        });
+        if (!res.ok) {
+          continue;
+        }
+        const data = (await res.json()) as PageviewsTop;
+        const titles = (data.items?.[0]?.articles ?? [])
+          .map((a) => a.article)
+          .filter((title) => title && !isExcludedTitle(title))
+          .slice(0, POPULAR_LIMIT);
+        if (titles.length) {
+          return titles;
+        }
+      } catch (err) {
+        this.logger.warn(`pageviews fetch failed for ${language}: ${String(err)}`);
+      }
+    }
+    this.logger.warn(`No popular titles for ${language}, feed will be empty`);
+    return [];
+  }
+
   private toArticle(data: WikiSummary, language: SupportedLang): Article {
     return {
       id: data.titles?.canonical ?? data.title,
@@ -97,6 +172,22 @@ export class WikipediaService {
   }
 }
 
+// Localized main pages that have no namespace colon (the colon ones are caught
+// by the includes(":") check below).
+const MAIN_PAGES = new Set<string>([
+  "Main_Page", // en
+  "Pagina_principale", // it
+  "Hoofdpagina", // nl
+  "Заглавная_страница", // ru
+  "メインページ", // ja
+  "Anasayfa", // tr
+]);
+
+/** Drop main pages, placeholders and namespaced pages (Special:, Portal:…). */
+function isExcludedTitle(title: string): boolean {
+  return title === "-" || MAIN_PAGES.has(title) || title.includes(":");
+}
+
 function estimateReadingMinutes(text: string): number {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round(words / 200));
@@ -104,6 +195,10 @@ function estimateReadingMinutes(text: string): number {
 
 function nowMs(): number {
   return new Date().getTime();
+}
+
+interface PageviewsTop {
+  items?: { articles?: { article: string; rank: number; views: number }[] }[];
 }
 
 interface WikiSummary {

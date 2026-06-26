@@ -1,9 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radii, spacing } from "../../src/theme";
-import { LOCALES, useLocale } from "../../src/i18n";
-
-const LOCALE_LABELS: Record<string, string> = { en: "English", fr: "Français" };
+import { colors, spacing } from "../../src/theme";
+import { LOCALE_LABELS, SUPPORTED_LOCALES, useLocale } from "../../src/i18n";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -12,24 +11,21 @@ export default function ProfileScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 20 }]}>
       <Text style={styles.title}>{t("tab.profile")}</Text>
-
       <Text style={styles.sectionLabel}>{t("settings.language")}</Text>
-      <View style={styles.localeRow}>
-        {LOCALES.map((code) => {
+
+      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        {SUPPORTED_LOCALES.map((code) => {
           const active = code === locale;
           return (
-            <Pressable
-              key={code}
-              onPress={() => setLocale(code)}
-              style={[styles.chip, active && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
+            <Pressable key={code} onPress={() => setLocale(code)} style={styles.row}>
+              <Text style={[styles.rowLabel, active && styles.rowLabelActive]}>
                 {LOCALE_LABELS[code]}
               </Text>
+              {active ? <MaterialIcons name="check" size={20} color={colors.accent} /> : null}
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -43,16 +39,17 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textTransform: "uppercase",
     letterSpacing: 0.6,
-    marginBottom: 12,
+    marginBottom: 4,
   },
-  localeRow: { flexDirection: "row", gap: 10 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: radii.pill,
-    backgroundColor: colors.field,
+  list: { paddingBottom: 24 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.separator,
   },
-  chipActive: { backgroundColor: colors.accent },
-  chipText: { fontSize: 14, color: colors.textSecondary },
-  chipTextActive: { color: colors.bg, fontWeight: "600" },
+  rowLabel: { fontSize: 16, color: colors.textSecondary },
+  rowLabelActive: { color: colors.textPrimary, fontWeight: "600" },
 });

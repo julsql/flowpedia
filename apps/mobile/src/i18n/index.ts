@@ -1,2 +1,7 @@
-export { LocaleProvider, useLocale } from "./LocaleProvider";
-export { LOCALES, type Locale, type TranslationKey } from "./translations";
+import i18n from "./config";
+
+export { useLocale } from "./useLocale";
+export { SUPPORTED_LOCALES, LOCALE_LABELS, type Locale, type TranslationKey } from "./config";
+
+/** The initialized i18next instance (import for side-effect init + provider). */
+export default i18n;

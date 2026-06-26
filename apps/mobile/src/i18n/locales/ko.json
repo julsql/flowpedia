@@ -1,0 +1,16 @@
+{
+  "tab.home": "홈",
+  "tab.explore": "탐색",
+  "tab.flow": "플로우",
+  "tab.share": "공유됨",
+  "tab.profile": "프로필",
+  "feed.forYou": "추천",
+  "feed.popular": "인기",
+  "feed.news": "뉴스",
+  "article.readMore": "더 보기",
+  "article.minRead": "{{count}}분 읽기",
+  "common.retry": "다시 시도",
+  "common.loadError": "피드를 불러올 수 없습니다.",
+  "common.source": "출처: 위키백과",
+  "settings.language": "언어"
+}

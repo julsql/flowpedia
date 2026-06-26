@@ -1,0 +1,16 @@
+{
+  "tab.home": "Ana sayfa",
+  "tab.explore": "Keşfet",
+  "tab.flow": "Akış",
+  "tab.share": "Paylaşılanlar",
+  "tab.profile": "Profil",
+  "feed.forYou": "Senin için",
+  "feed.popular": "Popüler",
+  "feed.news": "Haberler",
+  "article.readMore": "Devamını oku",
+  "article.minRead": "{{count}} dk okuma",
+  "common.retry": "Tekrar dene",
+  "common.loadError": "Akış yüklenemedi.",
+  "common.source": "Kaynak: Vikipedi",
+  "settings.language": "Dil"
+}

@@ -1,5 +1,4 @@
 import { FeedService } from "./feed.service";
-import { SEED_TITLES_BY_LANG } from "./seed-titles";
 import type { Article } from "@flowpedia/shared";
 
 function fakeArticle(id: string): Article {
@@ -13,12 +12,19 @@ function fakeArticle(id: string): Article {
     likes: 0,
     liked: false,
     saved: false,
-    sourceUrl: `https://fr.wikipedia.org/wiki/${id}`,
+    sourceUrl: `https://en.wikipedia.org/wiki/${id}`,
   };
 }
 
-function makeWikipediaMock(getSummary: jest.Mock) {
-  return { getSummary, normalizeLang: (lang?: string) => (lang === "en" ? "en" : "fr") };
+// 12 fake titles → 3 pages of 5 / 5 / 2.
+const TITLES = Array.from({ length: 12 }, (_, i) => `Title_${i}`);
+
+function makeWikipediaMock(getSummary: jest.Mock, titles: string[] = TITLES) {
+  return {
+    getSummary,
+    getPopularTitles: jest.fn(async () => titles),
+    normalizeLang: (lang?: string) => (lang === "en" ? "en" : "fr"),
+  };
 }
 
 describe("FeedService", () => {
@@ -26,30 +32,30 @@ describe("FeedService", () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
     const service = new FeedService(makeWikipediaMock(getSummary) as never);
 
-    const res = await service.getFeed("popular", "fr");
+    const res = await service.getFeed("popular", "en");
 
     expect(res.items).toHaveLength(5);
     expect(res.nextCursor).toBe("5");
     expect(getSummary).toHaveBeenCalledTimes(5);
   });
 
-  it("uses the language-specific seed list", async () => {
+  it("fetches summaries for the popular titles in the requested language", async () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
     const service = new FeedService(makeWikipediaMock(getSummary) as never);
 
-    await service.getFeed("popular", "en");
+    await service.getFeed("popular", "ja");
 
-    expect(getSummary).toHaveBeenCalledWith(SEED_TITLES_BY_LANG.en[0], "en");
+    expect(getSummary).toHaveBeenCalledWith(TITLES[0], "ja");
   });
 
   it("skips articles whose fetch fails", async () => {
     const getSummary = jest.fn(async (t: string) => {
-      if (t === SEED_TITLES_BY_LANG.fr[1]) throw new Error("404");
+      if (t === TITLES[1]) throw new Error("404");
       return fakeArticle(t);
     });
     const service = new FeedService(makeWikipediaMock(getSummary) as never);
 
-    const res = await service.getFeed("popular", "fr");
+    const res = await service.getFeed("popular", "en");
 
     expect(res.items).toHaveLength(4);
   });
@@ -58,10 +64,20 @@ describe("FeedService", () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
     const service = new FeedService(makeWikipediaMock(getSummary) as never);
 
-    const total = SEED_TITLES_BY_LANG.fr.length;
-    const lastOffset = String(Math.floor((total - 1) / 5) * 5);
-    const res = await service.getFeed("popular", "fr", lastOffset);
+    const res = await service.getFeed("popular", "en", "10");
 
+    expect(res.items).toHaveLength(2);
     expect(res.nextCursor).toBeUndefined();
+  });
+
+  it("returns an empty feed when no popular titles are available", async () => {
+    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const service = new FeedService(makeWikipediaMock(getSummary, []) as never);
+
+    const res = await service.getFeed("popular", "en");
+
+    expect(res.items).toHaveLength(0);
+    expect(res.nextCursor).toBeUndefined();
+    expect(getSummary).not.toHaveBeenCalled();
   });
 });

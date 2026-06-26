@@ -1,0 +1,16 @@
+{
+  "tab.home": "Start",
+  "tab.explore": "Odkrywaj",
+  "tab.flow": "Strumień",
+  "tab.share": "Udostępnione",
+  "tab.profile": "Profil",
+  "feed.forYou": "Dla ciebie",
+  "feed.popular": "Popularne",
+  "feed.news": "Aktualności",
+  "article.readMore": "Czytaj więcej",
+  "article.minRead": "{{count}} min czytania",
+  "common.retry": "Spróbuj ponownie",
+  "common.loadError": "Nie udało się załadować kanału.",
+  "common.source": "Źródło: Wikipedia",
+  "settings.language": "Język"
+}

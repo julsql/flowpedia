@@ -1,0 +1,16 @@
+{
+  "tab.home": "Home",
+  "tab.explore": "Esplora",
+  "tab.flow": "Flusso",
+  "tab.share": "Condivisi",
+  "tab.profile": "Profilo",
+  "feed.forYou": "Per te",
+  "feed.popular": "Popolari",
+  "feed.news": "Notizie",
+  "article.readMore": "Leggi tutto",
+  "article.minRead": "{{count}} min di lettura",
+  "common.retry": "Riprova",
+  "common.loadError": "Impossibile caricare il feed.",
+  "common.source": "Fonte: Wikipedia",
+  "settings.language": "Lingua"
+}

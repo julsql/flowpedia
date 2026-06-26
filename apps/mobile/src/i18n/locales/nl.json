@@ -1,0 +1,16 @@
+{
+  "tab.home": "Start",
+  "tab.explore": "Ontdekken",
+  "tab.flow": "Stroom",
+  "tab.share": "Gedeeld",
+  "tab.profile": "Profiel",
+  "feed.forYou": "Voor jou",
+  "feed.popular": "Populair",
+  "feed.news": "Nieuws",
+  "article.readMore": "Meer lezen",
+  "article.minRead": "{{count}} min lezen",
+  "common.retry": "Opnieuw",
+  "common.loadError": "Kan de feed niet laden.",
+  "common.source": "Bron: Wikipedia",
+  "settings.language": "Taal"
+}

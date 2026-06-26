@@ -1,0 +1,16 @@
+{
+  "tab.home": "Главная",
+  "tab.explore": "Обзор",
+  "tab.flow": "Поток",
+  "tab.share": "Отправленные",
+  "tab.profile": "Профиль",
+  "feed.forYou": "Для вас",
+  "feed.popular": "Популярное",
+  "feed.news": "Новости",
+  "article.readMore": "Читать далее",
+  "article.minRead": "{{count}} мин чтения",
+  "common.retry": "Повторить",
+  "common.loadError": "Не удалось загрузить ленту.",
+  "common.source": "Источник: Википедия",
+  "settings.language": "Язык"
+}

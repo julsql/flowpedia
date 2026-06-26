@@ -1,0 +1,16 @@
+{
+  "tab.home": "ホーム",
+  "tab.explore": "探索",
+  "tab.flow": "フロー",
+  "tab.share": "共有",
+  "tab.profile": "プロフィール",
+  "feed.forYou": "おすすめ",
+  "feed.popular": "人気",
+  "feed.news": "ニュース",
+  "article.readMore": "続きを読む",
+  "article.minRead": "読了 {{count}} 分",
+  "common.retry": "再試行",
+  "common.loadError": "フィードを読み込めませんでした。",
+  "common.source": "出典：ウィキペディア",
+  "settings.language": "言語"
+}

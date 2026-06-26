@@ -1,0 +1,16 @@
+{
+  "tab.home": "Αρχική",
+  "tab.explore": "Εξερεύνηση",
+  "tab.flow": "Ροή",
+  "tab.share": "Κοινοποιημένα",
+  "tab.profile": "Προφίλ",
+  "feed.forYou": "Για εσένα",
+  "feed.popular": "Δημοφιλή",
+  "feed.news": "Ειδήσεις",
+  "article.readMore": "Διαβάστε περισσότερα",
+  "article.minRead": "{{count}} λεπτά ανάγνωσης",
+  "common.retry": "Επανάληψη",
+  "common.loadError": "Δεν ήταν δυνατή η φόρτωση της ροής.",
+  "common.source": "Πηγή: Wikipedia",
+  "settings.language": "Γλώσσα"
+}

@@ -11,6 +11,7 @@ build/
 .expo/
 .expo-shared/
 web-build/
+expo-env.d.ts
 
 # env
 .env

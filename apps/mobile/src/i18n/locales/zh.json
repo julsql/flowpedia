@@ -1,0 +1,16 @@
+{
+  "tab.home": "首页",
+  "tab.explore": "探索",
+  "tab.flow": "连续流",
+  "tab.share": "已分享",
+  "tab.profile": "我的",
+  "feed.forYou": "为你推荐",
+  "feed.popular": "热门",
+  "feed.news": "新闻",
+  "article.readMore": "阅读更多",
+  "article.minRead": "阅读 {{count}} 分钟",
+  "common.retry": "重试",
+  "common.loadError": "无法加载信息流。",
+  "common.source": "来源：维基百科",
+  "settings.language": "语言"
+}
