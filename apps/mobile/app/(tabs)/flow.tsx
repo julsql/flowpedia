@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -14,6 +15,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import type { Article } from "@flowpedia/shared";
 import { fetchFeed, sendEvents } from "../../src/api/client";
+import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
 import { useTheme } from "../../src/theme";
@@ -56,23 +58,34 @@ export default function FlowScreen() {
   const onLayout = (e: LayoutChangeEvent) => setHeight(e.nativeEvent.layout.height);
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.immersiveBg }]} onLayout={onLayout}>
-      {height === 0 || articles.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
-        </View>
-      ) : (
-        <FlashList
-          data={articles}
-          keyExtractor={(item) => item.id}
-          pagingEnabled
-          decelerationRate="fast"
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => <FlowItem article={item} height={height} />}
-          onEndReached={loadMore}
-          onEndReachedThreshold={1}
-        />
-      )}
+    <View
+      style={[
+        styles.screen,
+        { backgroundColor: colors.immersiveBg },
+        Platform.OS === "web" && styles.screenWeb,
+      ]}
+    >
+      <View
+        style={[styles.column, Platform.OS === "web" && styles.columnWeb]}
+        onLayout={onLayout}
+      >
+        {height === 0 || articles.length === 0 ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={colors.accent} />
+          </View>
+        ) : (
+          <FlashList
+            data={articles}
+            keyExtractor={(item) => item.id}
+            pagingEnabled
+            decelerationRate="fast"
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => <FlowItem article={item} height={height} />}
+            onEndReached={loadMore}
+            onEndReachedThreshold={1}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -142,6 +155,9 @@ function FlowItem({ article, height }: { article: Article; height: number }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  screenWeb: { alignItems: "center" },
+  column: { flex: 1, width: "100%" },
+  columnWeb: { maxWidth: CONTENT_MAX_WIDTH },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   item: { width: "100%", justifyContent: "flex-end" },
   image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },

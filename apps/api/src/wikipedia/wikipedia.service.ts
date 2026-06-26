@@ -33,8 +33,11 @@ interface TitlesCacheEntry {
 }
 
 const POPULAR_TTL_MS = 6 * 60 * 60 * 1000;
+const NEWS_TTL_MS = 60 * 60 * 1000;
+const RELATED_TTL_MS = 10 * 60 * 1000;
 const POPULAR_LIMIT = 40;
 const ARTICLE_LINKS_LIMIT = 40;
+const RELATED_SEED_LIMIT = 6;
 
 // Localized label for the intro section (no heading in the source HTML).
 const SUMMARY_LABEL: Record<SupportedLang, string> = {
@@ -64,6 +67,8 @@ export class WikipediaService {
   private readonly cache = new Map<string, CacheEntry>();
   private readonly articleCache = new Map<string, CacheEntry>();
   private readonly popularCache = new Map<SupportedLang, TitlesCacheEntry>();
+  private readonly newsCache = new Map<SupportedLang, TitlesCacheEntry>();
+  private readonly relatedCache = new Map<string, TitlesCacheEntry>();
 
   constructor(private readonly config: ConfigService) {}
 
@@ -253,6 +258,92 @@ export class WikipediaService {
     return [];
   }
 
+  /** Current-events article titles (Wikimedia featured "news"), per language. */
+  async getNewsTitles(lang?: string): Promise<string[]> {
+    const language = this.normalizeLang(lang);
+    const cached = this.newsCache.get(language);
+    if (cached && cached.expiresAt > nowMs()) {
+      return cached.titles;
+    }
+
+    const titles: string[] = [];
+    for (let daysAgo = 0; daysAgo <= 1 && titles.length === 0; daysAgo += 1) {
+      const date = new Date(nowMs() - daysAgo * 24 * 60 * 60 * 1000);
+      const yyyy = date.getUTCFullYear();
+      const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(date.getUTCDate()).padStart(2, "0");
+      const url = `https://api.wikimedia.org/feed/v1/wikipedia/${language}/featured/${yyyy}/${mm}/${dd}`;
+      try {
+        const res = await fetch(url, {
+          headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
+        });
+        if (!res.ok) {
+          continue;
+        }
+        const data = (await res.json()) as FeaturedFeed;
+        for (const item of data.news ?? []) {
+          for (const link of item.links ?? []) {
+            const title = link.titles?.canonical ?? link.title;
+            if (title && !isExcludedTitle(title)) {
+              titles.push(title);
+            }
+          }
+        }
+      } catch (err) {
+        this.logger.warn(`news fetch failed for ${language}: ${String(err)}`);
+      }
+    }
+
+    const unique = [...new Set(titles)].slice(0, POPULAR_LIMIT);
+    if (unique.length) {
+      this.newsCache.set(language, { titles: unique, expiresAt: nowMs() + NEWS_TTL_MS });
+    }
+    return unique;
+  }
+
+  /**
+   * Articles related to the user's seeds (liked/saved) — content-based "For you".
+   * Uses CirrusSearch "morelike" (the REST /page/related endpoint is deprecated).
+   */
+  async getRelatedTitles(seeds: string[], lang?: string): Promise<string[]> {
+    const language = this.normalizeLang(lang);
+    const trimmed = seeds.filter(Boolean).slice(0, RELATED_SEED_LIMIT);
+    if (!trimmed.length) {
+      return [];
+    }
+    const key = `${language}:${trimmed.join("|")}`;
+    const cached = this.relatedCache.get(key);
+    if (cached && cached.expiresAt > nowMs()) {
+      return cached.titles;
+    }
+
+    const srsearch = `morelike:${trimmed.join("|")}`;
+    const url =
+      `https://${language}.wikipedia.org/w/api.php?action=query&list=search` +
+      `&srsearch=${encodeURIComponent(srsearch)}&srlimit=40&srnamespace=0&format=json&origin=*`;
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
+      });
+      if (!res.ok) {
+        return [];
+      }
+      const data = (await res.json()) as { query?: { search?: { title: string }[] } };
+      const seedSet = new Set(trimmed);
+      const titles = (data.query?.search ?? [])
+        .map((s) => s.title)
+        .filter((title) => !seedSet.has(title) && !isExcludedTitle(title));
+      const unique = [...new Set(titles)].slice(0, POPULAR_LIMIT);
+      if (unique.length) {
+        this.relatedCache.set(key, { titles: unique, expiresAt: nowMs() + RELATED_TTL_MS });
+      }
+      return unique;
+    } catch (err) {
+      this.logger.warn(`related fetch failed for ${language}: ${String(err)}`);
+      return [];
+    }
+  }
+
   private toArticle(data: WikiSummary, language: SupportedLang): Article {
     return {
       id: data.titles?.canonical ?? data.title,
@@ -301,6 +392,10 @@ function nowMs(): number {
 
 interface PageviewsTop {
   items?: { articles?: { article: string; rank: number; views: number }[] }[];
+}
+
+interface FeaturedFeed {
+  news?: { links?: { title?: string; titles?: { canonical?: string } }[] }[];
 }
 
 interface WikiSummary {

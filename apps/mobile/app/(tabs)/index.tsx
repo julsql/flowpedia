@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,6 +8,7 @@ import { ArticleCard } from "../../src/components/ArticleCard";
 import { ScreenContainer } from "../../src/components/ScreenContainer";
 import { fetchFeed } from "../../src/api/client";
 import { useShare } from "../../src/share/ShareSheetProvider";
+import { useLibrary } from "../../src/library/LibraryProvider";
 import { spacing, typography, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale, type TranslationKey } from "../../src/i18n";
 
@@ -21,9 +22,19 @@ export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { openShare } = useShare();
+  const { likedIds, saved } = useLibrary();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useLocale();
+
+  // Recommendation seeds for the "For you" tab (read via ref to avoid reloads
+  // on unrelated tabs when the library changes).
+  const seedsRef = useRef<string[]>([]);
+  seedsRef.current = useMemo(
+    () => Array.from(new Set([...likedIds, ...saved.map((a) => a.id)])).slice(0, 6),
+    [likedIds, saved],
+  );
+  const seedsFor = (feedTab: FeedTab) => (feedTab === "forYou" ? seedsRef.current : []);
 
   const openArticle = useCallback(
     (article: Article) => {
@@ -43,7 +54,7 @@ export default function FeedScreen() {
       setLoading(true);
       setError(false);
       try {
-        const res = await fetchFeed(nextTab, locale);
+        const res = await fetchFeed(nextTab, locale, undefined, seedsFor(nextTab));
         setArticles(res.items);
         setCursor(res.nextCursor);
       } catch {
@@ -64,7 +75,7 @@ export default function FeedScreen() {
       return;
     }
     try {
-      const res = await fetchFeed(tab, locale, cursor);
+      const res = await fetchFeed(tab, locale, cursor, seedsFor(tab));
       setArticles((prev) => [...prev, ...res.items]);
       setCursor(res.nextCursor);
     } catch {

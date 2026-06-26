@@ -13,10 +13,12 @@ export class FeedController {
     @Query("tab") tab?: string,
     @Query("lang") lang?: string,
     @Query("cursor") cursor?: string,
+    @Query("seeds") seeds?: string,
   ): Promise<FeedResponse> {
     const safeTab: FeedTab = VALID_TABS.includes(tab as FeedTab)
       ? (tab as FeedTab)
       : "popular";
-    return this.feed.getFeed(safeTab, lang, cursor);
+    const seedList = seeds ? seeds.split(",").filter(Boolean) : [];
+    return this.feed.getFeed(safeTab, lang, cursor, seedList);
   }
 }

@@ -9,12 +9,18 @@ export class FeedService {
   constructor(private readonly wikipedia: WikipediaService) {}
 
   /**
-   * MVP: every source returns the most-viewed articles for the given language,
-   * paginated. `tab` is already threaded through to prepare the algorithm hook
-   * (forYou = personalized, popular/news = fallback).
+   * Picks the title source by tab, then paginates and resolves summaries:
+   * - forYou: related to the user's seeds (liked/saved); falls back to popular
+   * - news: current-events featured feed; falls back to popular
+   * - popular: most-viewed articles
    */
-  async getFeed(_tab: FeedTab, lang?: string, cursor?: string): Promise<FeedResponse> {
-    const titles = await this.wikipedia.getPopularTitles(lang);
+  async getFeed(
+    tab: FeedTab,
+    lang?: string,
+    cursor?: string,
+    seeds: string[] = [],
+  ): Promise<FeedResponse> {
+    const titles = await this.resolveTitles(tab, lang, seeds);
     const offset = cursor ? Number(cursor) : 0;
     const slice = titles.slice(offset, offset + PAGE_SIZE);
 
@@ -29,5 +35,17 @@ export class FeedService {
     const nextCursor = nextOffset < titles.length ? String(nextOffset) : undefined;
 
     return { items, nextCursor };
+  }
+
+  private async resolveTitles(tab: FeedTab, lang?: string, seeds: string[] = []): Promise<string[]> {
+    if (tab === "forYou") {
+      const related = await this.wikipedia.getRelatedTitles(seeds, lang);
+      return related.length ? related : this.wikipedia.getPopularTitles(lang);
+    }
+    if (tab === "news") {
+      const news = await this.wikipedia.getNewsTitles(lang);
+      return news.length ? news : this.wikipedia.getPopularTitles(lang);
+    }
+    return this.wikipedia.getPopularTitles(lang);
   }
 }

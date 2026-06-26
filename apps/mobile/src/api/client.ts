@@ -13,10 +13,18 @@ async function getJson<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function fetchFeed(tab: FeedTab, locale: Locale, cursor?: string): Promise<FeedResponse> {
+export function fetchFeed(
+  tab: FeedTab,
+  locale: Locale,
+  cursor?: string,
+  seeds: string[] = [],
+): Promise<FeedResponse> {
   const params = new URLSearchParams({ tab, lang: locale });
   if (cursor) {
     params.set("cursor", cursor);
+  }
+  if (seeds.length) {
+    params.set("seeds", seeds.join(","));
   }
   return getJson<FeedResponse>(`/feed?${params.toString()}`);
 }

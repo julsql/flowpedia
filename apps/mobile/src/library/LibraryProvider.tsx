@@ -14,6 +14,8 @@ interface LibraryValue {
   toggleSave: (article: Article) => void;
   /** Record an article as shared (local history for the Shared tab). */
   recordShare: (article: Article) => void;
+  /** Liked article ids, most recent first (used as recommendation seeds). */
+  likedIds: string[];
   /** Saved articles, most recent first. */
   saved: Article[];
   /** Shared articles, most recent first (deduplicated). */
@@ -85,7 +87,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       });
     };
 
-    return { isLiked, isSaved, toggleLike, toggleSave, recordShare, saved, shared };
+    return { isLiked, isSaved, toggleLike, toggleSave, recordShare, likedIds, saved, shared };
   }, [likedIds, saved, shared]);
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
