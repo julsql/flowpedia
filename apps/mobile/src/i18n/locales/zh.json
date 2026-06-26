@@ -7,11 +7,19 @@
   "feed.forYou": "为你推荐",
   "feed.popular": "热门",
   "feed.news": "新闻",
+  "flow.swipeHint": "上滑阅读",
   "article.readMore": "阅读更多",
   "article.showLess": "收起",
   "article.minRead": "阅读 {{count}} 分钟",
   "common.retry": "重试",
   "common.loadError": "无法加载信息流。",
   "common.source": "来源：维基百科",
-  "settings.language": "语言"
+  "article.keepExploring": "继续探索",
+  "share.sendTo": "发送给",
+  "share.copyLink": "复制链接",
+  "share.messages": "消息",
+  "share.more": "更多",
+  "share.linkCopied": "链接已复制",
+  "settings.language": "语言",
+  "profile.saved": "已保存"
 }

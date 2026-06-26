@@ -7,11 +7,19 @@
   "feed.forYou": "Για εσένα",
   "feed.popular": "Δημοφιλή",
   "feed.news": "Ειδήσεις",
+  "flow.swipeHint": "Σύρετε για ανάγνωση",
   "article.readMore": "Διαβάστε περισσότερα",
   "article.showLess": "Εμφάνιση λιγότερων",
   "article.minRead": "{{count}} λεπτά ανάγνωσης",
   "common.retry": "Επανάληψη",
   "common.loadError": "Δεν ήταν δυνατή η φόρτωση της ροής.",
   "common.source": "Πηγή: Wikipedia",
-  "settings.language": "Γλώσσα"
+  "article.keepExploring": "Συνεχίστε την εξερεύνηση",
+  "share.sendTo": "Αποστολή σε",
+  "share.copyLink": "Αντιγραφή συνδέσμου",
+  "share.messages": "Μηνύματα",
+  "share.more": "Περισσότερα",
+  "share.linkCopied": "Ο σύνδεσμος αντιγράφηκε",
+  "settings.language": "Γλώσσα",
+  "profile.saved": "Αποθηκευμένα"
 }

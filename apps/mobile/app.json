@@ -5,10 +5,11 @@
     "scheme": "flowpedia",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "backgroundColor": "#121110",
     "splash": {
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#121110"
     },
     "ios": {
       "supportsTablet": true,

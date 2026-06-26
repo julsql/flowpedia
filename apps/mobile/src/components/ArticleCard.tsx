@@ -12,20 +12,22 @@ import { MaterialIcons } from "@expo/vector-icons";
 import type { Article } from "@flowpedia/shared";
 import { colors, radii, spacing } from "../theme";
 import { useLocale } from "../i18n";
+import { useLibrary } from "../library/LibraryProvider";
 
 const COLLAPSED_LINES = 3;
 
 interface ArticleCardProps {
   article: Article;
-  onLike?: (article: Article) => void;
   onShare?: (article: Article) => void;
-  onSave?: (article: Article) => void;
   onOpen?: (article: Article) => void;
 }
 
-/** Feed card — handoff screen 1 (Direction A "Clair & épuré"). */
-export function ArticleCard({ article, onLike, onShare, onSave, onOpen }: ArticleCardProps) {
+/** Feed card — handoff screen 1. Like/save state comes from the local library. */
+export function ArticleCard({ article, onShare, onOpen }: ArticleCardProps) {
   const { t } = useLocale();
+  const { isLiked, isSaved, toggleLike, toggleSave } = useLibrary();
+  const liked = isLiked(article.id);
+  const saved = isSaved(article.id);
   const [expanded, setExpanded] = useState(false);
   // Total line count, measured once while the summary is rendered unclamped.
   const [lineCount, setLineCount] = useState(0);
@@ -82,23 +84,22 @@ export function ArticleCard({ article, onLike, onShare, onSave, onOpen }: Articl
 
       <View style={styles.actions}>
         <View style={styles.actionsLeft}>
-          <Pressable style={styles.actionBtn} onPress={() => onLike?.(article)} hitSlop={8}>
+          <Pressable style={styles.actionBtn} onPress={() => toggleLike(article)} hitSlop={8}>
             <MaterialIcons
-              name={article.liked ? "favorite" : "favorite-border"}
+              name={liked ? "favorite" : "favorite-border"}
               size={24}
-              color={article.liked ? colors.like : colors.textPrimary}
+              color={liked ? colors.like : colors.textPrimary}
             />
-            <Text style={styles.count}>{article.likes}</Text>
           </Pressable>
           <Pressable style={styles.actionBtn} onPress={() => onShare?.(article)} hitSlop={8}>
             <MaterialIcons name="send" size={22} color={colors.textPrimary} />
           </Pressable>
         </View>
-        <Pressable onPress={() => onSave?.(article)} hitSlop={8}>
+        <Pressable onPress={() => toggleSave(article)} hitSlop={8}>
           <MaterialIcons
-            name={article.saved ? "bookmark" : "bookmark-border"}
+            name={saved ? "bookmark" : "bookmark-border"}
             size={24}
-            color={colors.textPrimary}
+            color={saved ? colors.accent : colors.textPrimary}
           />
         </Pressable>
       </View>

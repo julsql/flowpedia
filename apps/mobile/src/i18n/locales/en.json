@@ -7,11 +7,19 @@
   "feed.forYou": "For you",
   "feed.popular": "Popular",
   "feed.news": "News",
+  "flow.swipeHint": "Swipe up to read",
   "article.readMore": "Read more",
   "article.showLess": "Show less",
   "article.minRead": "{{count}} min read",
   "common.retry": "Retry",
   "common.loadError": "Could not load the feed.",
   "common.source": "Source: Wikipedia",
-  "settings.language": "Language"
+  "article.keepExploring": "Keep exploring",
+  "share.sendTo": "Send to",
+  "share.copyLink": "Copy link",
+  "share.messages": "Messages",
+  "share.more": "More",
+  "share.linkCopied": "Link copied",
+  "settings.language": "Language",
+  "profile.saved": "Saved"
 }

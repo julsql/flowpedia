@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { persistLocale } from "./config";
 import type { Locale, TranslationKey } from "./config";
 
 interface UseLocaleResult {
@@ -16,6 +17,7 @@ export function useLocale(): UseLocaleResult {
     locale: i18n.language as Locale,
     setLocale: (locale) => {
       void i18n.changeLanguage(locale);
+      persistLocale(locale);
     },
     t: (key, params) => t(key, params),
   };

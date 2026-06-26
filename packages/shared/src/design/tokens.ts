@@ -1,26 +1,27 @@
 /**
- * Design tokens — Direction A "Clair & épuré" (Pépite/Flowpedia handoff).
- * Visual source of truth: design/README.md. Accent = amber (hue ~55–60 oklch).
- * Hex/rgba values (equivalents of the handoff oklch) for React Native.
+ * Design tokens — dark theme, warm near-black with the amber accent kept from
+ * Direction A (Pépite/Flowpedia handoff). Visual source of truth: design/README.md.
+ * Semantic token names so screens stay theme-agnostic.
  */
 export const colors = {
-  bg: "#ffffff",
-  textPrimary: "#16140f",
-  textSecondary: "#5c574e",
-  textTertiary: "#6b665d",
-  muted: "#9a948a",
-  mutedLight: "#bdb8af",
-  separator: "#f1eee9",
-  separatorThick: "#f4f2ee",
-  field: "#f4f2ee", // search bar, chips, share buttons
-  accent: "#c56a1e", // oklch(0.62 0.17 55) — active tab, links, CTA
-  accentDark: "#9a4f12", // oklch(0.5 0.15 55) — category labels
-  accentLinkText: "#a85a18", // oklch(0.55 0.16 55)
-  accentLinkUnderline: "#d6a878", // oklch(0.78 0.1 60)
-  interestChipBg: "rgba(214, 142, 56, 0.14)", // oklch(0.7 0.18 60 / .14)
-  interestChipText: "#8a4d18", // oklch(0.45 0.13 55)
-  like: "#d24a2e", // oklch(0.62 0.18 28) — filled heart, intentionally NOT the accent
-  immersiveBg: "#0c0b0a", // full-screen "flow" screen
+  bg: "#121110", // app background (warm near-black)
+  surface: "#1b1916", // raised surfaces: cards, sheets
+  textPrimary: "#f4efe8",
+  textSecondary: "#b3aca1",
+  textTertiary: "#8c857b",
+  muted: "#6f6962",
+  mutedLight: "#6a635b", // inactive icons / meta
+  separator: "#2a2723", // hairline borders
+  separatorThick: "#1e1c19", // thick separator band between feed cards
+  field: "#211f1b", // search bar, chips, share buttons
+  accent: "#d9822b", // amber — active tab, links, CTA
+  accentDark: "#e3a05a", // category labels (lighter amber on dark)
+  accentLinkText: "#e3a05a", // internal links
+  accentLinkUnderline: "#6e4d2c",
+  interestChipBg: "rgba(217, 130, 43, 0.18)",
+  interestChipText: "#e7ab68",
+  like: "#e85c45", // filled heart, intentionally NOT the accent
+  immersiveBg: "#000000", // full-screen "flow" screen
 } as const;
 
 export const radii = {

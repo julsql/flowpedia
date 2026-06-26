@@ -1,6 +1,7 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { getLocales } from "expo-localization";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import en from "./locales/en.json";
 import fr from "./locales/fr.json";
@@ -76,12 +77,19 @@ const resources = {
   tr: { translation: tr },
 };
 
+const STORAGE_KEY = "flowpedia.locale";
+
 function detectDeviceLocale(): Locale {
   const code = getLocales()[0]?.languageCode ?? "en";
   return (SUPPORTED_LOCALES as readonly string[]).includes(code) ? (code as Locale) : "en";
 }
 
-// TODO(persistence): restore the user's saved choice (AsyncStorage) before init.
+function isLocale(value: string | null): value is Locale {
+  return value !== null && (SUPPORTED_LOCALES as readonly string[]).includes(value);
+}
+
+// Init synchronously with the device locale so the first render is localized,
+// then asynchronously restore the user's saved choice if any.
 void i18n.use(initReactI18next).init({
   resources,
   lng: detectDeviceLocale(),
@@ -89,5 +97,16 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
   returnNull: false,
 });
+
+void AsyncStorage.getItem(STORAGE_KEY).then((saved) => {
+  if (isLocale(saved) && saved !== i18n.language) {
+    void i18n.changeLanguage(saved);
+  }
+});
+
+/** Persist the chosen locale so it survives app restarts. */
+export function persistLocale(locale: Locale): void {
+  void AsyncStorage.setItem(STORAGE_KEY, locale);
+}
 
 export default i18n;

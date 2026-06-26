@@ -6,7 +6,8 @@ import { useRouter } from "expo-router";
 import type { Article, FeedTab } from "@flowpedia/shared";
 import { ArticleCard } from "../../src/components/ArticleCard";
 import { ScreenContainer } from "../../src/components/ScreenContainer";
-import { fetchFeed, sendEvents } from "../../src/api/client";
+import { fetchFeed } from "../../src/api/client";
+import { useShare } from "../../src/share/ShareSheetProvider";
 import { colors, spacing, typography } from "../../src/theme";
 import { useLocale, type TranslationKey } from "../../src/i18n";
 
@@ -19,6 +20,7 @@ const TABS: { key: FeedTab; label: TranslationKey }[] = [
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { openShare } = useShare();
   const { t, locale } = useLocale();
 
   const openArticle = useCallback(
@@ -68,17 +70,6 @@ export default function FeedScreen() {
     }
   }, [cursor, loading, tab, locale]);
 
-  const toggleLike = useCallback((article: Article) => {
-    setArticles((prev) =>
-      prev.map((a) =>
-        a.id === article.id
-          ? { ...a, liked: !a.liked, likes: a.likes + (a.liked ? -1 : 1) }
-          : a,
-      ),
-    );
-    sendEvents([{ articleId: article.id, type: "like", ts: new Date().getTime() }]);
-  }, []);
-
   return (
     <ScreenContainer style={{ paddingTop: insets.top }}>
       <View style={styles.header}>
@@ -113,7 +104,7 @@ export default function FeedScreen() {
           data={articles}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ArticleCard article={item} onLike={toggleLike} onOpen={openArticle} />
+            <ArticleCard article={item} onOpen={openArticle} onShare={openShare} />
           )}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           onEndReached={loadMore}

@@ -1,21 +1,18 @@
-import { Body, Controller, Logger, Post } from "@nestjs/common";
+import { Body, Controller, Post } from "@nestjs/common";
 import type { IngestEventsRequest } from "@flowpedia/shared";
+import { EventsService } from "./events.service";
 
 /**
- * Ingests user signals (dwell, scrollDepth, link clicks, like/share/save…).
- * MVP: log only. Next step: persist to Postgres (interactions table)
- * to feed the content-based recommendation.
+ * Ingests user signals (dwell, scrollDepth, link clicks, like/share/save…)
+ * for the recommendation algorithm. Persisted to Postgres when available.
  */
 @Controller("events")
 export class EventsController {
-  private readonly logger = new Logger(EventsController.name);
+  constructor(private readonly events: EventsService) {}
 
   @Post()
-  ingest(@Body() body: IngestEventsRequest): { accepted: number } {
-    const events = body?.events ?? [];
-    for (const e of events) {
-      this.logger.debug(`signal ${e.type} article=${e.articleId} value=${e.value ?? "-"}`);
-    }
-    return { accepted: events.length };
+  async ingest(@Body() body: IngestEventsRequest): Promise<{ accepted: number }> {
+    const accepted = await this.events.ingest(body?.events ?? []);
+    return { accepted };
   }
 }

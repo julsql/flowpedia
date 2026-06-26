@@ -7,11 +7,19 @@
   "feed.forYou": "おすすめ",
   "feed.popular": "人気",
   "feed.news": "ニュース",
+  "flow.swipeHint": "スワイプして読む",
   "article.readMore": "続きを読む",
   "article.showLess": "折りたたむ",
   "article.minRead": "読了 {{count}} 分",
   "common.retry": "再試行",
   "common.loadError": "フィードを読み込めませんでした。",
   "common.source": "出典：ウィキペディア",
-  "settings.language": "言語"
+  "article.keepExploring": "さらに探索",
+  "share.sendTo": "送信先",
+  "share.copyLink": "リンクをコピー",
+  "share.messages": "メッセージ",
+  "share.more": "その他",
+  "share.linkCopied": "リンクをコピーしました",
+  "settings.language": "言語",
+  "profile.saved": "保存済み"
 }

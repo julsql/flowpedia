@@ -13,7 +13,11 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.mutedLight,
-        tabBarStyle: { height: 60, borderTopColor: colors.separator },
+        tabBarStyle: {
+          height: 60,
+          backgroundColor: colors.bg,
+          borderTopColor: colors.separator,
+        },
       }}
     >
       <Tabs.Screen

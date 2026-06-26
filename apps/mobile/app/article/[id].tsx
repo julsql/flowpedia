@@ -17,6 +17,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import type { Article, ArticleSection } from "@flowpedia/shared";
 import { fetchArticle, sendEvents } from "../../src/api/client";
 import { ScreenContainer } from "../../src/components/ScreenContainer";
+import { useLibrary } from "../../src/library/LibraryProvider";
+import { useShare } from "../../src/share/ShareSheetProvider";
 import { colors, radii, spacing } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
 
@@ -26,6 +28,8 @@ export default function ArticleScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t, locale } = useLocale();
+  const { isSaved, toggleSave } = useLibrary();
+  const { openShare } = useShare();
   const { id } = useLocalSearchParams<{ id: string }>();
   const articleId = decodeURIComponent(id ?? "");
 
@@ -104,8 +108,16 @@ export default function ArticleScreen() {
           <MaterialIcons name="arrow-back" size={26} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.headerActions}>
-          <MaterialIcons name="bookmark-border" size={24} color={colors.textPrimary} />
-          <MaterialIcons name="send" size={22} color={colors.textPrimary} />
+          <Pressable onPress={() => article && toggleSave(article)} hitSlop={8}>
+            <MaterialIcons
+              name={article && isSaved(article.id) ? "bookmark" : "bookmark-border"}
+              size={24}
+              color={article && isSaved(article.id) ? colors.accent : colors.textPrimary}
+            />
+          </Pressable>
+          <Pressable onPress={() => article && openShare(article)} hitSlop={8}>
+            <MaterialIcons name="send" size={22} color={colors.textPrimary} />
+          </Pressable>
         </View>
       </View>
 
@@ -170,6 +182,23 @@ export default function ArticleScreen() {
                 onLinkPress={openLink}
               />
             ))}
+
+            {article.links.length ? (
+              <View style={styles.explore}>
+                <Text style={styles.exploreTitle}>{t("article.keepExploring")}</Text>
+                <View style={styles.exploreChips}>
+                  {article.links.map((link) => (
+                    <Pressable
+                      key={link.targetId}
+                      onPress={() => openLink(link.targetId)}
+                      style={styles.exploreChip}
+                    >
+                      <Text style={styles.exploreChipText}>{link.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
 
             <Text style={styles.source}>{t("common.source")}</Text>
           </ScrollView>
@@ -276,5 +305,20 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
     textDecorationColor: colors.accentLinkUnderline,
   },
+  explore: { marginTop: 28 },
+  exploreTitle: {
+    color: colors.textPrimary,
+    fontSize: 17,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  exploreChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  exploreChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
+    backgroundColor: colors.field,
+  },
+  exploreChipText: { color: colors.accentLinkText, fontSize: 14 },
   source: { color: colors.mutedLight, fontSize: 12, marginTop: 24 },
 });

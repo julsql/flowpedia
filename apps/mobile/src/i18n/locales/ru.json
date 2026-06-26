@@ -7,11 +7,19 @@
   "feed.forYou": "Для вас",
   "feed.popular": "Популярное",
   "feed.news": "Новости",
+  "flow.swipeHint": "Смахните, чтобы читать",
   "article.readMore": "Читать далее",
   "article.showLess": "Свернуть",
   "article.minRead": "{{count}} мин чтения",
   "common.retry": "Повторить",
   "common.loadError": "Не удалось загрузить ленту.",
   "common.source": "Источник: Википедия",
-  "settings.language": "Язык"
+  "article.keepExploring": "Продолжить изучение",
+  "share.sendTo": "Отправить",
+  "share.copyLink": "Копировать ссылку",
+  "share.messages": "Сообщения",
+  "share.more": "Ещё",
+  "share.linkCopied": "Ссылка скопирована",
+  "settings.language": "Язык",
+  "profile.saved": "Сохранённое"
 }

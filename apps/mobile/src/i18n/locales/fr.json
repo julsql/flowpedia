@@ -7,11 +7,19 @@
   "feed.forYou": "Pour toi",
   "feed.popular": "Populaire",
   "feed.news": "Actualité",
+  "flow.swipeHint": "Glisser pour lire",
   "article.readMore": "Lire la suite",
   "article.showLess": "Réduire",
   "article.minRead": "lecture {{count}} min",
   "common.retry": "Réessayer",
   "common.loadError": "Impossible de charger le flux.",
   "common.source": "Source : Wikipédia",
-  "settings.language": "Langue"
+  "article.keepExploring": "Continuer à explorer",
+  "share.sendTo": "Envoyer à",
+  "share.copyLink": "Copier le lien",
+  "share.messages": "Messages",
+  "share.more": "Plus",
+  "share.linkCopied": "Lien copié",
+  "settings.language": "Langue",
+  "profile.saved": "Gardés"
 }

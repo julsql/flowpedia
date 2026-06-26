@@ -7,11 +7,19 @@
   "feed.forYou": "Senin için",
   "feed.popular": "Popüler",
   "feed.news": "Haberler",
+  "flow.swipeHint": "Okumak için kaydır",
   "article.readMore": "Devamını oku",
   "article.showLess": "Daha az göster",
   "article.minRead": "{{count}} dk okuma",
   "common.retry": "Tekrar dene",
   "common.loadError": "Akış yüklenemedi.",
   "common.source": "Kaynak: Vikipedi",
-  "settings.language": "Dil"
+  "article.keepExploring": "Keşfetmeye devam et",
+  "share.sendTo": "Gönder",
+  "share.copyLink": "Bağlantıyı kopyala",
+  "share.messages": "Mesajlar",
+  "share.more": "Daha fazla",
+  "share.linkCopied": "Bağlantı kopyalandı",
+  "settings.language": "Dil",
+  "profile.saved": "Kaydedilenler"
 }

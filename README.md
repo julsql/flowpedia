@@ -75,16 +75,25 @@ EXPO_PUBLIC_API_URL=http://192.168.1.20:3000/api pnpm mobile
 
 ## What works now
 
+- **Dark theme** across the app (amber accent kept).
 - Card feed (handoff screen 1) fed by the live Wikipedia REST API, with caching.
-- **Article detail (handoff screen 3):** open a card to read the full article —
-  section chips that jump/track on scroll, body text with **tappable internal
-  links** that push the target article (the rabbit-hole bounce), localized
-  section labels. Parsed server-side from Wikipedia HTML (infoboxes, references
-  and other chrome stripped).
+- **Article detail (handoff screen 3):** section chips that jump/track on scroll,
+  body text with **tappable internal links** that push the target article (the
+  rabbit-hole bounce), a "Keep exploring" block of related links, localized
+  section labels. Parsed server-side from Wikipedia HTML (chrome stripped).
+- **Immersive flow (handoff screen 2):** full-screen, vertically-paged Reels-like
+  view with action column; swipe/tap to open the article.
+- **Share sheet (handoff screen 4):** slide-up bottom sheet with contacts, copy
+  link, etc.
+- **Bookmark & like persisted** locally (AsyncStorage); saved articles listed in
+  the profile. **Language choice persisted** too.
 - `GET /feed`, `GET /articles/:id` (parsed sections + inline links),
-  `POST /events` (dwell, openFull, linkClick, like… logged for now).
-- Bottom tab bar (home / explore / flow / shared / profile), language switcher.
-- Optimistic like + signal logging groundwork.
+  `POST /events` — signals (dwell, openFull, linkClick, like, share, save)
+  **persisted to Postgres** when reachable, otherwise logged (graceful fallback).
+- Web: content constrained to a centered column; bottom tab bar, language switcher.
+
+> Postgres runs on host port **5433** (avoids clashing with a local 5432).
+> `pnpm infra:up` to start it; without it the API still runs (events are logged).
 
 ## Troubleshooting
 

@@ -7,11 +7,19 @@
   "feed.forYou": "Voor jou",
   "feed.popular": "Populair",
   "feed.news": "Nieuws",
+  "flow.swipeHint": "Veeg om te lezen",
   "article.readMore": "Meer lezen",
   "article.showLess": "Minder tonen",
   "article.minRead": "{{count}} min lezen",
   "common.retry": "Opnieuw",
   "common.loadError": "Kan de feed niet laden.",
   "common.source": "Bron: Wikipedia",
-  "settings.language": "Taal"
+  "article.keepExploring": "Verder verkennen",
+  "share.sendTo": "Versturen naar",
+  "share.copyLink": "Link kopiëren",
+  "share.messages": "Berichten",
+  "share.more": "Meer",
+  "share.linkCopied": "Link gekopieerd",
+  "settings.language": "Taal",
+  "profile.saved": "Opgeslagen"
 }
