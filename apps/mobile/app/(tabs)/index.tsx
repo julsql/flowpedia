@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import type { Article, FeedTab } from "@flowpedia/shared";
 import { ArticleCard } from "../../src/components/ArticleCard";
+import { ScreenContainer } from "../../src/components/ScreenContainer";
 import { fetchFeed, sendEvents } from "../../src/api/client";
 import { colors, spacing, typography } from "../../src/theme";
 import { useLocale, type TranslationKey } from "../../src/i18n";
@@ -79,7 +80,7 @@ export default function FeedScreen() {
   }, []);
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <ScreenContainer style={{ paddingTop: insets.top }}>
       <View style={styles.header}>
         <Text style={styles.brand}>Flowpedia</Text>
       </View>
@@ -119,12 +120,11 @@ export default function FeedScreen() {
           onEndReachedThreshold={0.6}
         />
       )}
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
   header: { paddingHorizontal: spacing.screenPadding, paddingVertical: 12 },
   brand: {
     fontFamily: typography.brandFamily,

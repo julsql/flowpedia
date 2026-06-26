@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import type { Article, ArticleSection } from "@flowpedia/shared";
 import { fetchArticle, sendEvents } from "../../src/api/client";
+import { ScreenContainer } from "../../src/components/ScreenContainer";
 import { colors, radii, spacing } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
 
@@ -97,7 +98,7 @@ export default function ArticleScreen() {
   );
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <ScreenContainer style={{ paddingTop: insets.top }}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
           <MaterialIcons name="arrow-back" size={26} color={colors.textPrimary} />
@@ -174,7 +175,7 @@ export default function ArticleScreen() {
           </ScrollView>
         </>
       )}
-    </View>
+    </ScreenContainer>
   );
 }
 
@@ -212,7 +213,6 @@ function SectionBlock({ section, showHeading, onLayoutTop, onLinkPress }: Sectio
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: "row",
     alignItems: "center",

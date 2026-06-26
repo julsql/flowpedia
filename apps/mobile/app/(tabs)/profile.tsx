@@ -1,7 +1,8 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing } from "../../src/theme";
+import { ScreenContainer } from "../../src/components/ScreenContainer";
 import { LOCALE_LABELS, SUPPORTED_LOCALES, useLocale } from "../../src/i18n";
 
 export default function ProfileScreen() {
@@ -9,7 +10,9 @@ export default function ProfileScreen() {
   const { t, locale, setLocale } = useLocale();
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 20 }]}>
+    <ScreenContainer
+      style={{ paddingTop: insets.top + 20, paddingHorizontal: spacing.screenPadding }}
+    >
       <Text style={styles.title}>{t("tab.profile")}</Text>
       <Text style={styles.sectionLabel}>{t("settings.language")}</Text>
 
@@ -26,12 +29,11 @@ export default function ProfileScreen() {
           );
         })}
       </ScrollView>
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.screenPadding },
   title: { fontSize: 24, fontWeight: "600", color: colors.textPrimary, marginBottom: 24 },
   sectionLabel: {
     fontSize: 13,
