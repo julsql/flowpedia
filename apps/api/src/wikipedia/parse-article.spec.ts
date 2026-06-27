@@ -142,6 +142,15 @@ describe("parseArticleSections — inline annotations", () => {
     expect(t).toContain("Vrai contenu");
   });
 
+  it("keeps a Category: link in prose clickable (opened on Wikipedia)", () => {
+    const html = `<html><body><section data-mw-section-id="0"><p>Voir <a rel="mw:WikiLink" href="./Catégorie:Décès_en_2026">Catégorie:Décès en 2026</a> et <a rel="mw:WikiLink" href="./File:X.jpg">une image</a>.</p></section></body></html>`;
+    const runs = parseArticleSections(html, "Résumé")[0].paragraphs[0].runs;
+    const cat = runs.find((r) => r.linkTargetId === "Catégorie:Décès_en_2026");
+    expect(cat?.text).toBe("Catégorie:Décès en 2026");
+    // The File: (media) link stays plain text.
+    expect(runs.some((r) => r.linkTargetId?.startsWith("File:"))).toBe(false);
+  });
+
   it("captures link lists inside <pre> (sigles index pages) as link runs", () => {
     const html = `<html><body><section data-mw-section-id="1"><h2>A</h2><pre><span class="page_h"><a rel="mw:WikiLink" href="./A10">A10</a></span> <a rel="mw:WikiLink" href="./A11">A11</a> <a rel="mw:WikiLink" href="./A12">A12</a></pre></section></body></html>`;
     const sections = parseArticleSections(html, "Résumé");

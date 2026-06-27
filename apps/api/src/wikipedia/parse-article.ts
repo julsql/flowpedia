@@ -289,6 +289,11 @@ const SKIP_INLINE_CLASS =
   /ext-phonos|noexcerpt|navigation-not-searchable|noprint|nomobile|mw-editsection|oo-ui|mw-tmh|metadata|mw-empty-elt/i;
 const SKIP_INLINE_TYPEOF = /mw:Extension\/phonos|mw:Audio|mw:Media/i;
 
+// Media-file namespaces (across the supported languages) — these link to images
+// or audio, not articles, so they're rendered as plain text, not tappable links.
+const MEDIA_NAMESPACE =
+  /^(file|image|media|fichier|média|datei|imagen|immagine|imagem|bestand|plik|файл|αρχείο|ファイル|文件|파일|dosya):/i;
+
 function isInlineAnnotation(el: HTMLElement): boolean {
   return (
     SKIP_INLINE_CLASS.test(el.getAttribute("class") ?? "") ||
@@ -336,8 +341,10 @@ function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
         const text = el.text;
         if (rel.includes("mw:WikiLink") && href.startsWith("./")) {
           const target = decodeURIComponent(href.slice(2).split("#")[0]);
-          // Drop namespaced targets (File:, Category:) — render as plain text.
-          if (target.includes(":") || !text.trim()) {
+          // Media namespaces (File:/Image:/Media:) are not articles → plain text.
+          // Other namespaces (Category:/Portal:…) stay clickable: the app opens
+          // them on Wikipedia.
+          if (!text.trim() || MEDIA_NAMESPACE.test(target)) {
             pushText(runs, text);
           } else {
             runs.push({ text, linkTargetId: target });
