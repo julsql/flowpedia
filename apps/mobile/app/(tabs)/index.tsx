@@ -132,15 +132,31 @@ export default function FeedScreen() {
   }, [load, tab]);
 
   // Web has no native pull-to-refresh (RefreshControl is a no-op): when the list
-  // is at the top and the user keeps scrolling up, reload with fresh proposals.
+  // is at the top and the user pulls up — with a mouse wheel/trackpad OR a touch
+  // drag (web on a phone) — reload with fresh proposals. A cooldown avoids
+  // firing several reloads in a row on one strong gesture.
   useEffect(() => {
     if (Platform.OS !== "web") {
       return;
     }
+    const COOLDOWN_MS = 1500;
     let acc = 0;
     let resetTimer: ReturnType<typeof setTimeout> | undefined;
+    let touchStartY: number | null = null;
+    let cooldownUntil = 0;
+
+    const trigger = () => {
+      const now = Date.now();
+      if (refreshingRef.current || now < cooldownUntil) {
+        return;
+      }
+      cooldownUntil = now + COOLDOWN_MS;
+      acc = 0;
+      void onRefresh();
+    };
+
     const onWheel = (e: WheelEvent) => {
-      if (!atTopRef.current || refreshingRef.current || e.deltaY >= 0) {
+      if (!atTopRef.current || e.deltaY >= 0) {
         acc = 0;
         return;
       }
@@ -152,13 +168,35 @@ export default function FeedScreen() {
         acc = 0;
       }, 300);
       if (acc > 260) {
-        acc = 0;
-        void onRefresh();
+        trigger();
       }
     };
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartY = atTopRef.current ? e.touches[0]?.clientY ?? null : null;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (touchStartY === null || !atTopRef.current) {
+        return;
+      }
+      // Finger dragging down while at the top = pull-to-refresh.
+      if ((e.touches[0]?.clientY ?? 0) - touchStartY > 90) {
+        trigger();
+        touchStartY = null;
+      }
+    };
+    const onTouchEnd = () => {
+      touchStartY = null;
+    };
+
     window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
     return () => {
       window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
       if (resetTimer) {
         clearTimeout(resetTimer);
       }
