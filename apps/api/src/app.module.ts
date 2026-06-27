@@ -7,6 +7,7 @@ import { ArticlesModule } from "./articles/articles.module";
 import { SearchModule } from "./search/search.module";
 import { EventsModule } from "./events/events.module";
 import { ImagesModule } from "./images/images.module";
+import { HealthController } from "./health/health.controller";
 
 @Module({
   imports: [
@@ -19,5 +20,6 @@ import { ImagesModule } from "./images/images.module";
     EventsModule,
     ImagesModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}

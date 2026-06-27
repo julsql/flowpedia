@@ -1,4 +1,5 @@
 import { networkInterfaces } from "node:os";
+import { RequestMethod } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 
@@ -17,7 +18,13 @@ function lanAddress(): string | undefined {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors(); // the mobile/web app calls the API cross-origin
-  app.setGlobalPrefix("api");
+  // Everything lives under /api, except the bare liveness routes (/, /health).
+  app.setGlobalPrefix("api", {
+    exclude: [
+      { path: "/", method: RequestMethod.GET },
+      { path: "health", method: RequestMethod.GET },
+    ],
+  });
   // ValidationPipe (class-validator) will be added when request DTOs need validation.
   const port = process.env.PORT ?? 3000;
   // Bind to all interfaces so the API is reachable over the LAN (phone on Wi-Fi),
