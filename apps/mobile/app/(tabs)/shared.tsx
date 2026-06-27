@@ -7,6 +7,7 @@ import { spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { useLibrary } from "../../src/library/LibraryProvider";
+import { shareExternal } from "../../src/share/shareExternal";
 import { useLocale } from "../../src/i18n";
 
 export default function SharedScreen() {
@@ -57,7 +58,14 @@ export default function SharedScreen() {
                   {article.category}
                 </Text>
               </View>
-              <MaterialIcons name="send" size={18} color={colors.mutedLight} />
+              {/* Send the article outside the app (OS share sheet → messaging). */}
+              <Pressable
+                onPress={() => void shareExternal(article)}
+                hitSlop={10}
+                style={styles.sendBtn}
+              >
+                <MaterialIcons name="ios-share" size={20} color={colors.accent} />
+              </Pressable>
             </Pressable>
           ))}
         </ScrollView>
@@ -85,6 +93,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     list: { paddingBottom: 24, paddingHorizontal: spacing.screenPadding },
     row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
+    sendBtn: { padding: 4 },
     thumb: { width: 48, height: 48, borderRadius: 10, backgroundColor: colors.field },
     placeholder: { backgroundColor: colors.separatorThick },
     rowText: { flex: 1 },
