@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Article, FeedResponse } from "@flowpedia/shared";
-import { collectLinks, parseArticleSections } from "./parse-article";
+import { collectLinks, parseArticleSections, parseInfobox } from "./parse-article";
 
 // Keep in sync with the mobile SUPPORTED_LOCALES.
 const SUPPORTED_LANGS = [
@@ -155,9 +155,11 @@ export class WikipediaService {
     const leadTitle = SUMMARY_LABEL[language];
 
     let sections = summary.sections;
+    let infobox = summary.infobox;
     try {
       const html = await this.fetchArticleHtml(summary.title, language);
       sections = parseArticleSections(html, leadTitle);
+      infobox = parseInfobox(html);
     } catch (err) {
       this.logger.warn(`article HTML parse failed for ${title}: ${String(err)}`);
     }
@@ -174,7 +176,7 @@ export class WikipediaService {
       links = collectLinks(sections).slice(0, ARTICLE_LINKS_LIMIT);
     }
 
-    const article: Article = { ...summary, sections, links };
+    const article: Article = { ...summary, sections, links, infobox };
     this.articleCache.set(key, { article, expiresAt: nowMs() + this.ttlMs });
     return article;
   }
@@ -538,6 +540,8 @@ export class WikipediaService {
       title: data.title,
       summary: data.extract ?? "",
       image: data.thumbnail?.source ?? data.originalimage?.source,
+      imageWidth: data.originalimage?.width ?? data.thumbnail?.width,
+      imageHeight: data.originalimage?.height ?? data.thumbnail?.height,
       readingMinutes: estimateReadingMinutes(data.extract ?? ""),
       // Sections & internal links are filled by getArticle (detail screen only).
       sections: [],
@@ -597,7 +601,7 @@ interface WikiSummary {
   titles?: { canonical?: string };
   description?: string;
   extract?: string;
-  thumbnail?: { source: string };
-  originalimage?: { source: string };
+  thumbnail?: { source: string; width?: number; height?: number };
+  originalimage?: { source: string; width?: number; height?: number };
   content_urls?: { desktop?: { page?: string } };
 }

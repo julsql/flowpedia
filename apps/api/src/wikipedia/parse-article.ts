@@ -1,9 +1,11 @@
 import { parse, type HTMLElement, type Node } from "node-html-parser";
-import type { ArticleSection, TextRun } from "@flowpedia/shared";
+import type { ArticleInfobox, ArticleSection, InfoboxRow, TextRun } from "@flowpedia/shared";
 
 const TEXT_NODE = 3;
 const MAX_SECTIONS = 40;
 const MAX_PARAGRAPHS_PER_SECTION = 80;
+const MAX_INFOBOX_ROWS = 14;
+const MIN_SECTION_IMAGE_WIDTH = 100; // skip tiny inline icons/flags
 
 // Wrappers whose content is chrome, not article prose. Lists (ul/ol) are kept
 // now so that bulleted sections like a filmography come through; reference lists
@@ -86,7 +88,7 @@ function isExcludedSection(title: string): boolean {
  */
 export function parseArticleSections(html: string, leadTitle: string): ArticleSection[] {
   const root = parse(html, { comment: false });
-  const flow = root.querySelectorAll("h2, h3, h4, p, li");
+  const flow = root.querySelectorAll("h2, h3, h4, p, li, figure");
 
   const sections: ArticleSection[] = [];
   let current: ArticleSection = { id: "section-0", title: leadTitle, paragraphs: [] };
@@ -96,7 +98,7 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
   let skip = false;
 
   const flush = () => {
-    if (current.paragraphs.length) {
+    if (current.paragraphs.length || (current.images && current.images.length)) {
       sections.push(current);
     }
   };
@@ -124,6 +126,13 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
           runs.unshift({ text: "•  " });
         }
         current.paragraphs.push({ runs });
+      }
+    } else if (!skip && tag === "figure" && current.id !== "section-0" && isContentNode(node)) {
+      // Section illustrations (like Wikipedia thumbnails). The lead image is
+      // handled by the summary card, so figures in the intro are skipped.
+      const image = figureImage(node);
+      if (image) {
+        (current.images ??= []).push(image);
       }
     }
   }
@@ -246,4 +255,107 @@ function normalizeRuns(runs: TextRun[]): TextRun[] {
 
 function collapseWhitespace(text: string): string {
   return text.replace(/\s+/g, " ");
+}
+
+function toInt(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const n = Number.parseInt(value, 10);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** Resolve a Parsoid image src (often protocol-relative) to an https URL. */
+function resolveImageUrl(src: string | undefined): string | undefined {
+  if (!src) {
+    return undefined;
+  }
+  if (src.startsWith("//")) {
+    return `https:${src}`;
+  }
+  if (src.startsWith("http")) {
+    return src;
+  }
+  return undefined;
+}
+
+/** Extract the image + caption from a <figure>, skipping tiny icons. */
+function figureImage(figure: HTMLElement) {
+  const img = figure.querySelector("img");
+  if (!img) {
+    return undefined;
+  }
+  const width = toInt(img.getAttribute("width"));
+  if (width !== undefined && width < MIN_SECTION_IMAGE_WIDTH) {
+    return undefined;
+  }
+  const url = resolveImageUrl(img.getAttribute("src"));
+  if (!url) {
+    return undefined;
+  }
+  const cap = figure.querySelector("figcaption");
+  const caption = cap ? collapseWhitespace(cap.text).trim() : "";
+  return { url, caption: caption || undefined, width, height: toInt(img.getAttribute("height")) };
+}
+
+/** Clean visible text of an element (drop citation markers, collapse spaces). */
+function cleanCellText(el: HTMLElement): string {
+  for (const sup of el.querySelectorAll("sup")) {
+    if (/reference|mw-ref/i.test(sup.getAttribute("class") ?? "")) {
+      sup.remove();
+    }
+  }
+  return collapseWhitespace(el.text).trim();
+}
+
+/**
+ * Extract the emblematic Wikipedia summary card (infobox) into structured key
+ * facts — rendered as our own "profile header" card, not raw Wikipedia chrome.
+ */
+export function parseInfobox(html: string): ArticleInfobox | undefined {
+  const root = parse(html, { comment: false });
+  const table = root.querySelector("table.infobox");
+  if (!table) {
+    return undefined;
+  }
+
+  let image: string | undefined;
+  let imageWidth: number | undefined;
+  let imageHeight: number | undefined;
+  for (const img of table.querySelectorAll("img")) {
+    const width = toInt(img.getAttribute("width"));
+    if (width === undefined || width >= 60) {
+      image = resolveImageUrl(img.getAttribute("src"));
+      if (image) {
+        imageWidth = width;
+        imageHeight = toInt(img.getAttribute("height"));
+        break;
+      }
+    }
+  }
+
+  const rows: InfoboxRow[] = [];
+  for (const tr of table.querySelectorAll("tr")) {
+    if (rows.length >= MAX_INFOBOX_ROWS) {
+      break;
+    }
+    const th = tr.querySelector("th");
+    const td = tr.querySelector("td");
+    // Label/value rows only — section headers (th, colspan) and the image row
+    // (td only) are skipped.
+    if (!th || !td) {
+      continue;
+    }
+    const label = cleanCellText(th);
+    const value = cleanCellText(td);
+    if (!label || !value || label.length > 40 || value.length > 180) {
+      continue;
+    }
+    rows.push({ label, value });
+  }
+
+  if (!image && !rows.length) {
+    return undefined;
+  }
+  return { image, imageWidth, imageHeight, rows };
 }

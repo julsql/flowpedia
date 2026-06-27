@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import type { Article } from "@flowpedia/shared";
+import { RemoteImage } from "./RemoteImage";
 import { radii, spacing, useTheme, type ThemeColors } from "../theme";
 import { useLocale } from "../i18n";
 import { useLibrary } from "../library/LibraryProvider";
@@ -54,7 +54,7 @@ export function ArticleCard({ article, onShare, onOpen }: ArticleCardProps) {
 
       <Pressable onPress={() => onOpen?.(article)}>
         {article.image ? (
-          <Image source={{ uri: article.image }} style={styles.image} resizeMode="contain" />
+          <RemoteImage source={{ uri: article.image }} style={styles.image} resizeMode="contain" />
         ) : (
           <View style={[styles.image, styles.imagePlaceholder]} />
         )}

@@ -153,7 +153,7 @@ export default function FeedScreen() {
       </View>
 
       {error ? (
-        <View style={[styles.center, centeredColumn]}>
+        <View style={styles.center}>
           <Text style={styles.errorText}>{t("common.loadError")}</Text>
           <Pressable onPress={() => load(tab)} style={styles.retryBtn}>
             <Text style={styles.retryText}>{t("common.retry")}</Text>

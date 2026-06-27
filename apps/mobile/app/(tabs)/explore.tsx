@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Article } from "@flowpedia/shared";
 import { fetchFeed, fetchSearch } from "../../src/api/client";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
+import { RemoteImage } from "../../src/components/RemoteImage";
 import { SkeletonCell } from "../../src/components/SkeletonCard";
 import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
@@ -184,7 +184,7 @@ export default function ExploreScreen() {
               {grid.map((article) => (
                 <Pressable key={article.id} style={styles.cell} onPress={() => open(article)}>
                   {article.image ? (
-                    <Image source={{ uri: article.image }} style={styles.cellImage} />
+                    <RemoteImage source={{ uri: article.image }} style={styles.cellImage} />
                   ) : (
                     <View style={[styles.cellImage, styles.cellPlaceholder]} />
                   )}

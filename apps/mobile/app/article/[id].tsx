@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -14,10 +13,12 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MaterialIcons } from "@expo/vector-icons";
+import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import type { Article, ArticleSection } from "@flowpedia/shared";
 import { fetchArticle, sendEvents } from "../../src/api/client";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
+import { InfoCard } from "../../src/components/InfoCard";
+import { RemoteImage } from "../../src/components/RemoteImage";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
 import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
@@ -31,7 +32,7 @@ export default function ArticleScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useLocale();
-  const { isSaved, toggleSave, markRead } = useLibrary();
+  const { isSaved, toggleSave, isLiked, toggleLike, markRead } = useLibrary();
   const { openShare } = useShare();
   const { id } = useLocalSearchParams<{ id: string }>();
   const articleId = decodeURIComponent(id ?? "");
@@ -133,7 +134,14 @@ export default function ArticleScreen() {
         </Pressable>
         <View style={styles.headerActions}>
           <Pressable onPress={openOriginal} hitSlop={8} disabled={!article}>
-            <MaterialIcons name="open-in-new" size={23} color={colors.textPrimary} />
+            <FontAwesome name="wikipedia-w" size={19} color={colors.textPrimary} />
+          </Pressable>
+          <Pressable onPress={() => article && toggleLike(article)} hitSlop={8}>
+            <MaterialIcons
+              name={article && isLiked(article.id) ? "favorite" : "favorite-border"}
+              size={24}
+              color={article && isLiked(article.id) ? colors.like : colors.textPrimary}
+            />
           </Pressable>
           <Pressable onPress={() => article && toggleSave(article)} hitSlop={8}>
             <MaterialIcons
@@ -149,11 +157,11 @@ export default function ArticleScreen() {
       </View>
 
       {loading ? (
-        <View style={[styles.center, centeredColumn]}>
+        <View style={styles.center}>
           <ActivityIndicator color={colors.accent} />
         </View>
       ) : error || !article ? (
-        <View style={[styles.center, centeredColumn]}>
+        <View style={styles.center}>
           <Text style={styles.errorText}>{t("common.loadError")}</Text>
           <Pressable onPress={load} style={styles.retryBtn}>
             <Text style={styles.retryText}>{t("common.retry")}</Text>
@@ -199,11 +207,10 @@ export default function ArticleScreen() {
             onScroll={onScroll}
             contentContainerStyle={[styles.content, centeredColumn]}
           >
-            {article.image ? (
-              <Image source={{ uri: article.image }} style={styles.lead} resizeMode="cover" />
-            ) : null}
             <Text style={styles.category}>{article.category.toUpperCase()}</Text>
             <Text style={styles.title}>{article.title}</Text>
+
+            <InfoCard article={article} colors={colors} />
 
             {article.sections.map((section, index) => (
               <SectionBlock
@@ -236,7 +243,7 @@ export default function ArticleScreen() {
             ) : null}
 
             <Pressable onPress={openOriginal} style={styles.originalBtn}>
-              <MaterialIcons name="open-in-new" size={18} color={colors.accentLinkText} />
+              <FontAwesome name="wikipedia-w" size={16} color={colors.accentLinkText} />
               <Text style={styles.originalBtnText}>{t("article.openOriginal")}</Text>
             </Pressable>
             <Text style={styles.source}>{t("common.source")}</Text>
@@ -260,6 +267,19 @@ function SectionBlock({ section, showHeading, styles, onLayoutTop, onLinkPress }
   return (
     <View style={styles.section} onLayout={onLayout}>
       {showHeading ? <Text style={styles.sectionTitle}>{section.title}</Text> : null}
+      {section.images?.map((img, i) => (
+        <View key={`img-${i}`} style={styles.figure}>
+          <RemoteImage
+            source={{ uri: img.url }}
+            style={[
+              styles.figureImage,
+              img.width && img.height ? { aspectRatio: img.width / img.height } : null,
+            ]}
+            resizeMode="cover"
+          />
+          {img.caption ? <Text style={styles.figureCaption}>{img.caption}</Text> : null}
+        </View>
+      ))}
       {section.paragraphs.map((paragraph, pIndex) => (
         <Text key={pIndex} style={styles.paragraph}>
           {paragraph.runs.map((run, rIndex) =>
@@ -312,13 +332,16 @@ const makeStyles = (colors: ThemeColors) =>
   chipText: { fontSize: 14, color: colors.textSecondary },
   chipTextActive: { color: colors.bg, fontWeight: "600" },
   content: { paddingHorizontal: spacing.screenPadding, paddingBottom: 48 },
-  lead: {
+  // Section illustrations.
+  figure: { marginTop: 4, marginBottom: 14 },
+  figureImage: {
     width: "100%",
-    height: 200,
+    height: undefined,
+    aspectRatio: 1.4,
     borderRadius: radii.media,
     backgroundColor: colors.field,
-    marginTop: 8,
   },
+  figureCaption: { color: colors.textTertiary, fontSize: 12, lineHeight: 17, marginTop: 6 },
   category: {
     color: colors.accentDark,
     fontSize: 11,

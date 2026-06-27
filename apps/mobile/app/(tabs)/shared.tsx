@@ -1,10 +1,11 @@
 import { useMemo } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
+import { RemoteImage } from "../../src/components/RemoteImage";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useLocale } from "../../src/i18n";
 
@@ -44,7 +45,7 @@ export default function SharedScreen() {
               }
             >
               {article.image ? (
-                <Image source={{ uri: article.image }} style={styles.thumb} />
+                <RemoteImage source={{ uri: article.image }} style={styles.thumb} />
               ) : (
                 <View style={[styles.thumb, styles.placeholder]} />
               )}

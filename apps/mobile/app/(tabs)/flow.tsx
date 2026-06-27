@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   Platform,
   Pressable,
   StyleSheet,
@@ -16,6 +15,7 @@ import { useRouter } from "expo-router";
 import type { Article } from "@flowpedia/shared";
 import { fetchFeed, sendEvents } from "../../src/api/client";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
+import { RemoteImage } from "../../src/components/RemoteImage";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useSeen } from "../../src/seen/SeenProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
@@ -143,7 +143,7 @@ function FlowItem({ article, height }: { article: Article; height: number }) {
   return (
     <Pressable style={[styles.item, { height }]} onPress={open}>
       {article.image ? (
-        <Image source={{ uri: article.image }} style={styles.image} resizeMode="cover" />
+        <RemoteImage source={{ uri: article.image }} style={styles.image} resizeMode="cover" />
       ) : (
         <View style={[styles.image, styles.imagePlaceholder]} />
       )}

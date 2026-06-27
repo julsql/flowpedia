@@ -1,4 +1,4 @@
-import { collectLinks, parseArticleSections } from "./parse-article";
+import { collectLinks, parseArticleSections, parseInfobox } from "./parse-article";
 
 const HTML = `
 <html><body>
@@ -101,5 +101,56 @@ describe("parseArticleSections — lists & excluded sections", () => {
   it("drops external-links and notes/references sections", () => {
     expect(sections.find((s) => s.title === "Liens externes")).toBeUndefined();
     expect(sections.find((s) => s.title === "Notes et références")).toBeUndefined();
+  });
+});
+
+const INFOBOX_HTML = `
+<html><body>
+  <table class="infobox">
+    <tr><th colspan="2">Marie Curie</th></tr>
+    <tr><td colspan="2"><img src="//upload.wikimedia.org/curie.jpg" width="220" height="280"/></td></tr>
+    <tr><th>Naissance</th><td>7 novembre 1867<sup class="mw-ref"><a href="#x">[1]</a></sup></td></tr>
+    <tr><th>Nationalité</th><td>Polonaise</td></tr>
+  </table>
+  <section data-mw-section-id="0"><p>Intro.</p></section>
+  <section data-mw-section-id="1">
+    <h2>Carrière</h2>
+    <p>Texte.</p>
+    <figure typeof="mw:Image/Thumb">
+      <img src="//upload.wikimedia.org/lab.jpg" width="300" height="200"/>
+      <figcaption>Au laboratoire</figcaption>
+    </figure>
+  </section>
+</body></html>
+`;
+
+describe("parseInfobox", () => {
+  const box = parseInfobox(INFOBOX_HTML);
+
+  it("extracts the lead image as https with its size", () => {
+    expect(box?.image).toBe("https://upload.wikimedia.org/curie.jpg");
+    expect(box?.imageWidth).toBe(220);
+    expect(box?.imageHeight).toBe(280);
+  });
+
+  it("extracts label/value rows and strips citation markers", () => {
+    expect(box?.rows).toEqual([
+      { label: "Naissance", value: "7 novembre 1867" },
+      { label: "Nationalité", value: "Polonaise" },
+    ]);
+  });
+});
+
+describe("parseArticleSections — figures", () => {
+  it("attaches section figures (https url + caption), not in the lead", () => {
+    const sections = parseArticleSections(INFOBOX_HTML, "Résumé");
+    const career = sections.find((s) => s.title === "Carrière");
+    expect(career?.images?.[0]).toEqual({
+      url: "https://upload.wikimedia.org/lab.jpg",
+      caption: "Au laboratoire",
+      width: 300,
+      height: 200,
+    });
+    expect(sections[0].images).toBeUndefined();
   });
 });

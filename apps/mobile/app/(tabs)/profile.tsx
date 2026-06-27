@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Article } from "@flowpedia/shared";
 import { radii, spacing, useTheme, type ThemeColors, type ThemeMode } from "../../src/theme";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
+import { RemoteImage } from "../../src/components/RemoteImage";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useUser } from "../../src/user/UserProvider";
 import { LOCALE_LABELS, SUPPORTED_LOCALES, useLocale, type TranslationKey } from "../../src/i18n";
@@ -113,7 +114,7 @@ export default function ProfileScreen() {
                     onPress={() => openArticle(article.id)}
                   >
                     {article.image ? (
-                      <Image source={{ uri: article.image }} style={styles.savedImage} />
+                      <RemoteImage source={{ uri: article.image }} style={styles.savedImage} />
                     ) : (
                       <View style={[styles.savedImage, styles.savedPlaceholder]} />
                     )}
