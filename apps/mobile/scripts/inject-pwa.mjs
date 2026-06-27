@@ -21,7 +21,10 @@ const tags = `    <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-title" content="Flowpedia" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <script>
-      if ('serviceWorker' in navigator) {
+      // Never run the service worker on localhost, so a locally-served build
+      // can't hijack the dev server's bundle with a cached copy.
+      if ('serviceWorker' in navigator &&
+          location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
         window.addEventListener('load', function () {
           navigator.serviceWorker.register('/sw.js').catch(function () {});
         });
