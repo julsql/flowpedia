@@ -9,7 +9,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:web": "expo export --platform web",
+    "build:web": "expo export --platform web && node scripts/inject-pwa.mjs",
     "test": "echo \"no tests yet\" && exit 0"
   },
   "dependencies": {
