@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Article } from "@flowpedia/shared";
-import { sendEvents } from "../api/client";
+import { prefetchArticle, sendEvents } from "../api/client";
+import { useLocale } from "../i18n";
 
 const LIKED_KEY = "flowpedia.liked";
 const SAVED_KEY = "flowpedia.saved";
@@ -54,6 +55,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [shared, setShared] = useState<Article[]>([]);
   const [read, setRead] = useState<Article[]>([]);
   const [mutedInterests, setMutedInterests] = useState<string[]>([]);
+  const { locale } = useLocale();
+
+  // Pre-warm the offline cache with the full content of saved articles, so they
+  // stay readable without network (liked articles are not pre-cached on purpose).
+  useEffect(() => {
+    for (const article of saved) {
+      void prefetchArticle(article.id, locale);
+    }
+  }, [saved, locale]);
 
   useEffect(() => {
     void (async () => {

@@ -1,5 +1,11 @@
 import type { Article, FeedResponse, FeedTab, InteractionEvent } from "@flowpedia/shared";
 import type { Locale } from "../i18n";
+import {
+  cacheArticle,
+  cacheFeedPage,
+  getCachedArticle,
+  getCachedFeedPage,
+} from "../cache/offlineCache";
 
 // Override with EXPO_PUBLIC_API_URL. On a physical device, use the host machine
 // LAN IP instead of localhost (e.g. http://192.168.1.20:3000/api).
@@ -59,11 +65,61 @@ export function fetchFeed(
   if (exclude.length) {
     params.set("exclude", exclude.join(","));
   }
-  return getJson<FeedResponse>(`/feed?${params.toString()}`);
+  return getFeed(tab, locale, cursor, params);
 }
 
-export function fetchArticle(id: string, locale: Locale): Promise<Article> {
-  return getJson<Article>(`/articles/${encodeURIComponent(id)}?lang=${locale}`);
+async function getFeed(
+  tab: FeedTab,
+  locale: Locale,
+  cursor: string | undefined,
+  params: URLSearchParams,
+): Promise<FeedResponse> {
+  try {
+    const response = await getJson<FeedResponse>(`/feed?${params.toString()}`);
+    // Freeze the first page per tab so it can be replayed when offline.
+    if (!cursor) {
+      void cacheFeedPage(tab, locale, response);
+    }
+    return response;
+  } catch (err) {
+    // Offline: replay the frozen first page; deeper pages just stop.
+    if (!cursor) {
+      const cached = await getCachedFeedPage(tab, locale);
+      if (cached) {
+        return cached;
+      }
+    } else {
+      return { items: [] };
+    }
+    throw err;
+  }
+}
+
+export async function fetchArticle(id: string, locale: Locale): Promise<Article> {
+  try {
+    const article = await getJson<Article>(`/articles/${encodeURIComponent(id)}?lang=${locale}`);
+    void cacheArticle(article, locale);
+    return article;
+  } catch (err) {
+    // Offline: fall back to the cached copy if we've opened it before.
+    const cached = await getCachedArticle(id, locale);
+    if (cached) {
+      return cached;
+    }
+    throw err;
+  }
+}
+
+/** Warm the offline cache with an article's full content (no-op if cached). */
+export async function prefetchArticle(id: string, locale: Locale): Promise<void> {
+  if (await getCachedArticle(id, locale)) {
+    return;
+  }
+  try {
+    await fetchArticle(id, locale);
+  } catch {
+    // Best-effort warming; ignore failures (e.g. offline).
+  }
 }
 
 /** Hydrate a list of titles into summary cards (e.g. "Articles connexes"). */
@@ -93,7 +149,8 @@ export function fetchSearch(
 
 /** Trending = the popular feed, used as the Explore default state. */
 export async function fetchTrending(locale: Locale): Promise<Article[]> {
-  const res = await getJson<FeedResponse>(`/feed?tab=popular&lang=${locale}`);
+  // Reuse the cached popular feed so trending also works offline (frozen).
+  const res = await getFeed("popular", locale, undefined, new URLSearchParams({ tab: "popular", lang: locale }));
   return res.items;
 }
 
