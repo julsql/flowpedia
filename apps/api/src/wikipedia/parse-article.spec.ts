@@ -104,6 +104,26 @@ describe("parseArticleSections — lists & excluded sections", () => {
   });
 });
 
+describe("parseArticleSections — inline annotations", () => {
+  const html = `
+    <html><body><section data-mw-section-id="0">
+      <p>Paris <span class="ext-phonos" typeof="mw:Extension/phonos"><a class="oo-ui-buttonElement-button"><small>Écouter</small></a></span><sup class="ext-phonos-attribution noexcerpt navigation-not-searchable"><a href="/x">ⓘ</a></sup> est la capitale<sup class="mw-ref"><a href="#cite">[3]</a></sup> de la France.</p>
+    </section></body></html>
+  `;
+  const text = parseArticleSections(html, "Résumé")[0]
+    .paragraphs.flatMap((p) => p.runs.map((r) => r.text))
+    .join("");
+
+  it("removes pronunciation widgets, the ⓘ marker and citations", () => {
+    expect(text).not.toContain("Écouter");
+    expect(text).not.toContain("ⓘ");
+    expect(text).not.toContain("[3]");
+    expect(text).toContain("Paris");
+    expect(text).toContain("est la capitale");
+    expect(text).toContain("de la France");
+  });
+});
+
 const INFOBOX_HTML = `
 <html><body>
   <table class="infobox">

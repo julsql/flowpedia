@@ -220,6 +220,19 @@ function isContentNode(p: HTMLElement): boolean {
   return true;
 }
 
+// Inline elements that are small page chrome, not prose: pronunciation audio
+// widgets ("Écouter ⓘ"), edit links, non-searchable/non-printing annotations.
+const SKIP_INLINE_CLASS =
+  /ext-phonos|noexcerpt|navigation-not-searchable|noprint|nomobile|mw-editsection|oo-ui|mw-tmh|metadata|mw-empty-elt/i;
+const SKIP_INLINE_TYPEOF = /mw:Extension\/phonos|mw:Audio|mw:Media/i;
+
+function isInlineAnnotation(el: HTMLElement): boolean {
+  return (
+    SKIP_INLINE_CLASS.test(el.getAttribute("class") ?? "") ||
+    SKIP_INLINE_TYPEOF.test(el.getAttribute("typeof") ?? "")
+  );
+}
+
 function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
   const runs: TextRun[] = [];
 
@@ -239,13 +252,12 @@ function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
       if (isListItem && (tag === "ul" || tag === "ol")) {
         continue;
       }
-      if (tag === "sup") {
-        // Skip citation markers like [1]; keep other superscripts as text.
-        if (/reference|mw-ref/i.test(el.getAttribute("class") ?? "")) {
-          continue;
-        }
-        walk(el);
-      } else if (tag === "a") {
+      // Drop tiny superscript annotations entirely (citation markers [1], the
+      // "Écouter ⓘ" pronunciation widget, edit links, non-printing chrome…).
+      if (tag === "sup" || isInlineAnnotation(el)) {
+        continue;
+      }
+      if (tag === "a") {
         const rel = el.getAttribute("rel") ?? "";
         const href = el.getAttribute("href") ?? "";
         const text = el.text;

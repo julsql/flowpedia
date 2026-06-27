@@ -17,6 +17,13 @@ export function proxiedImageUrl(uri: string): string {
   return `${BASE_URL}/image?u=${encodeURIComponent(uri)}`;
 }
 
+/** Upscale a Wikimedia thumbnail URL (…/300px-Name → …/<width>px-Name). */
+export function largeImageUrl(uri: string, width = 1280): string {
+  return uri.replace(/\/(\d+)px-([^/]+)$/i, (match, current, name) =>
+    Number(current) >= width ? match : `/${width}px-${name}`,
+  );
+}
+
 // Temporary anonymous user id, attached to every signal. Set by UserProvider.
 let currentUserId: string | undefined;
 export function setCurrentUserId(id: string): void {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -17,7 +18,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import type { Article, ArticleSection } from "@flowpedia/shared";
-import { fetchArticle, sendEvents } from "../../src/api/client";
+import { fetchArticle, largeImageUrl, sendEvents } from "../../src/api/client";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { InfoCard } from "../../src/components/InfoCard";
 import { RemoteImage } from "../../src/components/RemoteImage";
@@ -49,6 +50,8 @@ export default function ArticleScreen() {
   const [error, setError] = useState(false);
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  // Tapped section image shown full-size in a lightbox.
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   // On a wide web window the table of contents sits in a fixed sidebar on the
   // right (easier to use); on mobile / narrow web it stays a horizontal bar.
@@ -281,6 +284,7 @@ export default function ArticleScreen() {
                   sectionY.current[section.id] = y;
                 }}
                 onLinkPress={openLink}
+                onImagePress={(url) => setLightbox(largeImageUrl(url))}
               />
             ))}
 
@@ -376,6 +380,22 @@ export default function ArticleScreen() {
           ) : null}
         </>
       )}
+
+      <Modal
+        visible={lightbox !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLightbox(null)}
+      >
+        <Pressable style={styles.lightbox} onPress={() => setLightbox(null)}>
+          {lightbox ? (
+            <RemoteImage source={{ uri: lightbox }} style={styles.lightboxImage} resizeMode="contain" />
+          ) : null}
+          <Pressable style={styles.lightboxClose} onPress={() => setLightbox(null)} hitSlop={10}>
+            <MaterialIcons name="close" size={28} color="#fff" />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -386,15 +406,23 @@ interface SectionBlockProps {
   styles: ReturnType<typeof makeStyles>;
   onLayoutTop: (y: number) => void;
   onLinkPress: (targetId: string) => void;
+  onImagePress: (url: string) => void;
 }
 
-function SectionBlock({ section, showHeading, styles, onLayoutTop, onLinkPress }: SectionBlockProps) {
+function SectionBlock({
+  section,
+  showHeading,
+  styles,
+  onLayoutTop,
+  onLinkPress,
+  onImagePress,
+}: SectionBlockProps) {
   const onLayout = (e: LayoutChangeEvent) => onLayoutTop(e.nativeEvent.layout.y);
   return (
     <View style={styles.section} onLayout={onLayout}>
       {showHeading ? <Text style={styles.sectionTitle}>{section.title}</Text> : null}
       {section.images?.map((img, i) => (
-        <View key={`img-${i}`} style={styles.figure}>
+        <Pressable key={`img-${i}`} style={styles.figure} onPress={() => onImagePress(img.url)}>
           <RemoteImage
             source={{ uri: img.url }}
             style={[
@@ -404,7 +432,7 @@ function SectionBlock({ section, showHeading, styles, onLayoutTop, onLinkPress }
             resizeMode="cover"
           />
           {img.caption ? <Text style={styles.figureCaption}>{img.caption}</Text> : null}
-        </View>
+        </Pressable>
       ))}
       {section.paragraphs.map((paragraph, pIndex) => (
         <Text key={pIndex} style={styles.paragraph}>
@@ -458,16 +486,33 @@ const makeStyles = (colors: ThemeColors) =>
   chipText: { fontSize: 14, color: colors.textSecondary },
   chipTextActive: { color: colors.bg, fontWeight: "600" },
   content: { paddingHorizontal: spacing.screenPadding, paddingBottom: 48 },
-  // Section illustrations.
-  figure: { marginTop: 4, marginBottom: 14 },
+  // Section illustrations — kept small (so the thumbnail isn't upscaled) and
+  // tappable to view full-size.
+  figure: { marginTop: 4, marginBottom: 14, alignItems: "center" },
   figureImage: {
     width: "100%",
+    maxWidth: 320,
     height: undefined,
     aspectRatio: 1.4,
     borderRadius: radii.media,
     backgroundColor: colors.field,
   },
-  figureCaption: { color: colors.textTertiary, fontSize: 12, lineHeight: 17, marginTop: 6 },
+  figureCaption: {
+    color: colors.textTertiary,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 6,
+    textAlign: "center",
+  },
+  // Full-size image lightbox.
+  lightbox: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lightboxImage: { width: "100%", height: "85%" },
+  lightboxClose: { position: "absolute", top: 44, right: 20 },
   category: {
     color: colors.accentDark,
     fontSize: 11,

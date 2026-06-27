@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import type { Article, FeedTab } from "@flowpedia/shared";
@@ -139,9 +138,6 @@ export default function FeedScreen() {
     <ScreenContainer style={{ paddingTop: insets.top }}>
       <View style={[styles.header, centeredColumn]}>
         <Text style={styles.brand}>Flowpedia</Text>
-        <Pressable onPress={() => router.push("/(tabs)/explore")} hitSlop={8}>
-          <MaterialIcons name="search" size={26} color={colors.textPrimary} />
-        </Pressable>
       </View>
 
       <View style={[styles.tabsRow, centeredColumn]}>
@@ -199,13 +195,7 @@ export default function FeedScreen() {
 
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: spacing.screenPadding,
-      paddingVertical: 12,
-    },
+    header: { paddingHorizontal: spacing.screenPadding, paddingVertical: 12 },
     brand: {
       fontFamily: typography.brandFamily,
       fontSize: typography.brandSize,
