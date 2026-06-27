@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  PanResponder,
   Platform,
   Pressable,
   RefreshControl,
@@ -228,6 +229,35 @@ export default function FeedScreen() {
     }
   }, [cursor, loading, tab, locale]);
 
+  // Horizontal swipe across the feed moves between tabs (For you ↔ Popular ↔
+  // News). Kept in a ref so the responder reads the live tab without rebuilding.
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  const swipeToTab = useCallback((direction: 1 | -1) => {
+    const index = TABS.findIndex((entry) => entry.key === tabRef.current);
+    const next = index + direction;
+    if (next >= 0 && next < TABS.length) {
+      setTab(TABS[next].key);
+    }
+  }, []);
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        // Only claim clearly-horizontal gestures, so vertical scroll and
+        // pull-to-refresh keep working untouched.
+        onMoveShouldSetPanResponder: (_e, g) =>
+          Math.abs(g.dx) > 24 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+        onPanResponderRelease: (_e, g) => {
+          if (g.dx <= -56) {
+            swipeToTab(1); // swipe left → next tab
+          } else if (g.dx >= 56) {
+            swipeToTab(-1); // swipe right → previous tab
+          }
+        },
+      }),
+    [swipeToTab],
+  );
+
   return (
     <ScreenContainer style={{ paddingTop: insets.top }}>
       <View style={[styles.header, centeredColumn]}>
@@ -246,6 +276,7 @@ export default function FeedScreen() {
         })}
       </View>
 
+      <View style={styles.feedArea} {...panResponder.panHandlers}>
       {error ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{t("common.loadError")}</Text>
@@ -292,12 +323,14 @@ export default function FeedScreen() {
           }
         />
       )}
+      </View>
     </ScreenContainer>
   );
 }
 
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    feedArea: { flex: 1 },
     header: { paddingHorizontal: spacing.screenPadding, paddingVertical: 12 },
     brand: {
       fontFamily: typography.brandFamily,
