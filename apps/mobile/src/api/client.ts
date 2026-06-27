@@ -70,10 +70,14 @@ export function fetchSearch(
   query: string,
   locale: Locale,
   cursor?: string,
+  exact = false,
 ): Promise<FeedResponse> {
   const params = new URLSearchParams({ q: query, lang: locale });
   if (cursor) {
     params.set("cursor", cursor);
+  }
+  if (exact) {
+    params.set("exact", "1");
   }
   return getJson<FeedResponse>(`/search?${params.toString()}`);
 }

@@ -76,6 +76,22 @@ export default function ExploreScreen() {
   // The query currently backing `results`, so paginated loads stay coherent.
   const activeQueryRef = useRef("");
   const seedRef = useRef<number>(Math.floor(Math.random() * 1_000_000_000));
+  // Typo handling returned by the API ("did you mean" / auto-correction).
+  const [searchInfo, setSearchInfo] = useState<{
+    correctedQuery?: string;
+    originalQuery?: string;
+    suggestion?: string;
+  }>({});
+  // When true, search the literal query (skip auto-correction).
+  const [exact, setExact] = useState(false);
+  const exactRef = useRef(false);
+  exactRef.current = exact;
+
+  // Typing a new query always re-enables auto-correction.
+  const changeQuery = useCallback((text: string) => {
+    setQuery(text);
+    setExact(false);
+  }, []);
 
   // Apply an incoming search theme (Explore tab may already be mounted).
   useEffect(() => {
@@ -99,25 +115,32 @@ export default function ExploreScreen() {
     if (!q) {
       setResults(null);
       setSearchCursor(undefined);
+      setSearchInfo({});
       activeQueryRef.current = "";
       return;
     }
     setLoading(true);
     const handle = setTimeout(() => {
-      void fetchSearch(q, locale)
+      void fetchSearch(q, locale, undefined, exact)
         .then((res) => {
           activeQueryRef.current = q;
           setResults(res.items);
           setSearchCursor(res.nextCursor);
+          setSearchInfo({
+            correctedQuery: res.correctedQuery,
+            originalQuery: res.originalQuery,
+            suggestion: res.suggestion,
+          });
         })
         .catch(() => {
           setResults([]);
           setSearchCursor(undefined);
+          setSearchInfo({});
         })
         .finally(() => setLoading(false));
     }, 350);
     return () => clearTimeout(handle);
-  }, [query, locale]);
+  }, [query, locale, exact]);
 
   const open = useCallback(
     (article: Article) => {
@@ -149,7 +172,7 @@ export default function ExploreScreen() {
     loadingMoreRef.current = true;
     const q = activeQueryRef.current;
     try {
-      const res = await fetchSearch(q, locale, searchCursor);
+      const res = await fetchSearch(q, locale, searchCursor, exactRef.current);
       // Ignore if the query changed while this request was in flight.
       if (activeQueryRef.current === q) {
         setResults((prev) => [...(prev ?? []), ...res.items]);
@@ -197,7 +220,7 @@ export default function ExploreScreen() {
           <MaterialIcons name="search" size={20} color={colors.muted} />
           <TextInput
             value={query}
-            onChangeText={setQuery}
+            onChangeText={changeQuery}
             placeholder={t("explore.searchPlaceholder")}
             placeholderTextColor={colors.muted}
             style={styles.searchInput}
@@ -205,7 +228,7 @@ export default function ExploreScreen() {
             autoCorrect={false}
           />
           {query ? (
-            <Pressable onPress={() => setQuery("")} hitSlop={8}>
+            <Pressable onPress={() => changeQuery("")} hitSlop={8}>
               <MaterialIcons name="close" size={20} color={colors.muted} />
             </Pressable>
           ) : null}
@@ -223,6 +246,29 @@ export default function ExploreScreen() {
             <MaterialIcons name="trending-up" size={20} color={colors.accent} />
             <Text style={styles.trendingTitle}>{t("explore.trending")}</Text>
           </View>
+        ) : null}
+
+        {searching && searchInfo.correctedQuery ? (
+          <View style={styles.correction}>
+            <Text style={styles.correctionText}>
+              {t("explore.resultsFor", { query: searchInfo.correctedQuery })}
+            </Text>
+            <Pressable onPress={() => setExact(true)} hitSlop={6}>
+              <Text style={styles.correctionLink}>
+                {t("explore.searchInstead", { query: searchInfo.originalQuery ?? "" })}
+              </Text>
+            </Pressable>
+          </View>
+        ) : searching && searchInfo.suggestion ? (
+          <Pressable
+            style={styles.correction}
+            onPress={() => changeQuery(searchInfo.suggestion as string)}
+            hitSlop={6}
+          >
+            <Text style={styles.correctionLink}>
+              {t("explore.didYouMean", { query: searchInfo.suggestion })}
+            </Text>
+          </Pressable>
         ) : null}
 
         {showSkeletons ? (
@@ -292,6 +338,10 @@ const makeStyles = (colors: ThemeColors) =>
     searchInput: { flex: 1, color: colors.textPrimary, fontSize: 15, height: "100%" },
     scroll: { paddingHorizontal: spacing.screenPadding, paddingTop: 18, paddingBottom: 24 },
     trendingHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 16 },
+    // "Did you mean / results for" search-correction banner.
+    correction: { marginBottom: 14, gap: 2 },
+    correctionText: { color: colors.textSecondary, fontSize: 14 },
+    correctionLink: { color: colors.accentLinkText, fontSize: 14, fontWeight: "600" },
     trendingTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: "600" },
     loader: { marginTop: 20, marginBottom: 12 },
     empty: { color: colors.textSecondary, fontSize: 15, marginTop: 40, textAlign: "center" },

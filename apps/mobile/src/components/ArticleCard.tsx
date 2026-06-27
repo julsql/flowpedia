@@ -16,6 +16,26 @@ import { useLibrary } from "../library/LibraryProvider";
 
 const COLLAPSED_LINES = 3;
 
+// Backdrop colors for image-less cards (title shown big, like a cover).
+const COVER_COLORS = [
+  "#8E6FB0",
+  "#5A7DAF",
+  "#4F9D8C",
+  "#C18B5A",
+  "#B0586E",
+  "#6B7FA0",
+  "#9A7B4F",
+  "#7E8B5A",
+];
+
+function coverColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return COVER_COLORS[hash % COVER_COLORS.length];
+}
+
 interface ArticleCardProps {
   article: Article;
   onShare?: (article: Article) => void;
@@ -56,7 +76,12 @@ export function ArticleCard({ article, onShare, onOpen }: ArticleCardProps) {
         {article.image ? (
           <RemoteImage source={{ uri: article.image }} style={styles.image} resizeMode="contain" />
         ) : (
-          <View style={[styles.image, styles.imagePlaceholder]} />
+          // No image → a colored cover with the title shown big.
+          <View style={[styles.image, styles.imageFallback, { backgroundColor: coverColor(article.id) }]}>
+            <Text style={styles.imageFallbackText} numberOfLines={4}>
+              {article.title}
+            </Text>
+          </View>
         )}
         <Text style={styles.title}>{article.title}</Text>
       </Pressable>
@@ -129,7 +154,14 @@ const makeStyles = (colors: ThemeColors) =>
     // Whole image shown (no crop) on a neutral backdrop; portrait images appear
     // naturally narrower than the card.
     image: { width: "100%", height: 240, borderRadius: radii.media, backgroundColor: colors.field },
-    imagePlaceholder: { backgroundColor: colors.separatorThick },
+    imageFallback: { alignItems: "center", justifyContent: "center", padding: 20 },
+    imageFallbackText: {
+      color: "#fff",
+      fontSize: 28,
+      fontWeight: "800",
+      textAlign: "center",
+      lineHeight: 34,
+    },
     title: {
       color: colors.textPrimary,
       fontSize: 21,

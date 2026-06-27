@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Linking,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -78,6 +79,32 @@ export default function ArticleScreen() {
       void Linking.openURL(article.sourceUrl);
     }
   }, [article]);
+
+  // Go back, but fall back to the home feed when there's no history (e.g. after a
+  // web reload, where the back stack is empty).
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
+  }, [router]);
+
+  // Swipe right anywhere on the page → go back (the gesture only engages on a
+  // clearly horizontal rightward move, so vertical scrolling is unaffected).
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) =>
+          g.dx > 18 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
+        onPanResponderRelease: (_, g) => {
+          if (g.dx > 60) {
+            goBack();
+          }
+        },
+      }),
+    [goBack],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -252,8 +279,9 @@ export default function ArticleScreen() {
 
   return (
     <ScreenContainer style={{ paddingTop: insets.top }}>
+      <View style={styles.flex} {...panResponder.panHandlers}>
       <View style={[styles.header, centeredColumn]}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={goBack} hitSlop={8}>
           <MaterialIcons name="arrow-back" size={26} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.headerActions}>
@@ -462,6 +490,7 @@ export default function ArticleScreen() {
           ) : null}
         </>
       )}
+      </View>
 
       <Modal
         visible={lightbox !== null}
@@ -641,6 +670,7 @@ function SectionBlock({
 
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+  flex: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
