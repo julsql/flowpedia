@@ -104,6 +104,17 @@ export class WikipediaService {
       : this.defaultLang;
   }
 
+  /** Hydrate a list of titles into summary cards (skips failures + excluded). */
+  async getSummaries(titles: string[], lang?: string): Promise<Article[]> {
+    const settled = await Promise.allSettled(
+      titles.slice(0, 12).map((title) => this.getSummary(title, lang)),
+    );
+    return settled
+      .filter((r): r is PromiseFulfilledResult<Article> => r.status === "fulfilled")
+      .map((r) => r.value)
+      .filter((a) => !isExcludedTitle(a.title));
+  }
+
   /** Fetch an article summary (page/summary endpoint), cached per language. */
   async getSummary(title: string, lang?: string): Promise<Article> {
     const language = this.normalizeLang(lang);

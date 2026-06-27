@@ -66,6 +66,15 @@ export function fetchArticle(id: string, locale: Locale): Promise<Article> {
   return getJson<Article>(`/articles/${encodeURIComponent(id)}?lang=${locale}`);
 }
 
+/** Hydrate a list of titles into summary cards (e.g. "Articles connexes"). */
+export function fetchSummaries(ids: string[], locale: Locale): Promise<Article[]> {
+  if (!ids.length) {
+    return Promise.resolve([]);
+  }
+  const params = new URLSearchParams({ ids: ids.join(","), lang: locale });
+  return getJson<Article[]>(`/articles/summaries?${params.toString()}`);
+}
+
 export function fetchSearch(
   query: string,
   locale: Locale,

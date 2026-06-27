@@ -19,7 +19,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import type { Article, ArticleSection } from "@flowpedia/shared";
-import { fetchArticle, fetchFeed, largeImageUrl, sendEvents } from "../../src/api/client";
+import {
+  fetchArticle,
+  fetchFeed,
+  fetchSummaries,
+  largeImageUrl,
+  sendEvents,
+} from "../../src/api/client";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { ArticleCard } from "../../src/components/ArticleCard";
 import { InfoCard } from "../../src/components/InfoCard";
@@ -52,6 +58,8 @@ export default function ArticleScreen() {
   const relatedSeed = useRef<number>(Math.floor(Math.random() * 1_000_000_000));
   // Feed seeds for "keep exploring": the article + its "Articles connexes" links.
   const relatedSeedsRef = useRef<string[]>([]);
+  // Ids already in the related feed, so pages never duplicate an article.
+  const relatedShownRef = useRef<Set<string>>(new Set());
   const loadingRelatedRef = useRef(false);
   const { id } = useLocalSearchParams<{ id: string }>();
   const articleId = decodeURIComponent(id ?? "");
@@ -153,8 +161,9 @@ export default function ArticleScreen() {
     [articleId, router, locale],
   );
 
-  // Load related articles for the bottom feed once the article is known, seeded
-  // by its "Articles connexes" links so "keep exploring" is based on them.
+  // Load the bottom "keep exploring" feed once the article is known: the page's
+  // own "Articles connexes" pages (as cards) first, then algorithmic proposals
+  // seeded by them — all de-duplicated.
   useEffect(() => {
     if (!article) {
       return;
@@ -163,20 +172,30 @@ export default function ArticleScreen() {
     setRelated([]);
     setRelatedCursor(undefined);
     relatedSeed.current = Math.floor(Math.random() * 1_000_000_000);
-    relatedSeedsRef.current = [
-      articleId,
-      ...article.links.map((l) => l.targetId).filter((id) => !id.includes(":")),
-    ].slice(0, 6);
-    void fetchFeed("forYou", locale, undefined, relatedSeedsRef.current, relatedSeed.current, [
-      articleId,
-    ])
-      .then((res) => {
-        if (!cancelled) {
-          setRelated(res.items.filter((a) => a.id !== articleId));
-          setRelatedCursor(res.nextCursor);
+    const linkIds = article.links.map((l) => l.targetId).filter((id) => !id.includes(":"));
+    relatedSeedsRef.current = [articleId, ...linkIds].slice(0, 6);
+    relatedShownRef.current = new Set([articleId]);
+
+    void Promise.all([
+      fetchSummaries(linkIds.slice(0, 8), locale).catch(() => []),
+      fetchFeed("forYou", locale, undefined, relatedSeedsRef.current, relatedSeed.current, [
+        articleId,
+      ]).catch(() => ({ items: [], nextCursor: undefined })),
+    ]).then(([connexes, feed]) => {
+      if (cancelled) {
+        return;
+      }
+      const list: Article[] = [];
+      for (const a of [...connexes, ...feed.items]) {
+        if (relatedShownRef.current.has(a.id)) {
+          continue;
         }
-      })
-      .catch(() => undefined);
+        relatedShownRef.current.add(a.id);
+        list.push(a);
+      }
+      setRelated(list);
+      setRelatedCursor(feed.nextCursor);
+    });
     return () => {
       cancelled = true;
     };
@@ -196,7 +215,9 @@ export default function ArticleScreen() {
         relatedSeed.current,
         [articleId],
       );
-      setRelated((prev) => [...prev, ...res.items.filter((a) => a.id !== articleId)]);
+      const fresh = res.items.filter((a) => !relatedShownRef.current.has(a.id));
+      fresh.forEach((a) => relatedShownRef.current.add(a.id));
+      setRelated((prev) => [...prev, ...fresh]);
       setRelatedCursor(res.nextCursor);
     } catch {
       // keep current list on pagination failure
