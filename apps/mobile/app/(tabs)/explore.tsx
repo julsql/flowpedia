@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -74,6 +76,9 @@ export default function ExploreScreen() {
   const [results, setResults] = useState<Article[] | null>(null);
   const [searchCursor, setSearchCursor] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshingRef = useRef(false);
+  const atTopRef = useRef(true);
   const loadingMoreRef = useRef(false);
   // The query currently backing `results`, so paginated loads stay coherent.
   const activeQueryRef = useRef("");
@@ -215,6 +220,7 @@ export default function ExploreScreen() {
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+      atTopRef.current = contentOffset.y <= 1;
       if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 600) {
         if (results !== null) {
           void loadMoreSearch();
@@ -225,6 +231,91 @@ export default function ExploreScreen() {
     },
     [results, loadMoreSearch, loadMoreTrending],
   );
+
+  // Pull up at the top of the trending grid → fresh proposals (new shuffle seed).
+  const refreshTrending = useCallback(async () => {
+    if (refreshingRef.current || query.trim().length > 0) {
+      return;
+    }
+    refreshingRef.current = true;
+    setRefreshing(true);
+    seedRef.current = Math.floor(Math.random() * 1_000_000_000);
+    try {
+      const res = await fetchFeed("popular", locale, undefined, [], seedRef.current);
+      setTrending(res.items);
+      setTrendingCursor(res.nextCursor);
+    } catch {
+      // keep current
+    } finally {
+      setRefreshing(false);
+      refreshingRef.current = false;
+    }
+  }, [locale, query]);
+
+  // Web has no native pull-to-refresh: when at the top, a wheel/touch pull-up
+  // reloads fresh trending (with a cooldown to avoid repeated reloads).
+  useEffect(() => {
+    if (Platform.OS !== "web") {
+      return;
+    }
+    let acc = 0;
+    let resetTimer: ReturnType<typeof setTimeout> | undefined;
+    let touchStartY: number | null = null;
+    let cooldownUntil = 0;
+    const trigger = () => {
+      const now = Date.now();
+      if (refreshingRef.current || now < cooldownUntil) {
+        return;
+      }
+      cooldownUntil = now + 1500;
+      acc = 0;
+      void refreshTrending();
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (!atTopRef.current || e.deltaY >= 0) {
+        acc = 0;
+        return;
+      }
+      acc += -e.deltaY;
+      if (resetTimer) {
+        clearTimeout(resetTimer);
+      }
+      resetTimer = setTimeout(() => {
+        acc = 0;
+      }, 300);
+      if (acc > 260) {
+        trigger();
+      }
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartY = atTopRef.current ? e.touches[0]?.clientY ?? null : null;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (touchStartY === null || !atTopRef.current) {
+        return;
+      }
+      if ((e.touches[0]?.clientY ?? 0) - touchStartY > 90) {
+        trigger();
+        touchStartY = null;
+      }
+    };
+    const onTouchEnd = () => {
+      touchStartY = null;
+    };
+    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      if (resetTimer) {
+        clearTimeout(resetTimer);
+      }
+    };
+  }, [refreshTrending]);
 
   // While a search is active, never fall back to trending — show skeletons until
   // the results arrive, then the grid.
@@ -265,9 +356,21 @@ export default function ExploreScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, centeredColumn]}
-        scrollEventThrottle={200}
+        scrollEventThrottle={64}
         onScroll={onScroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refreshTrending}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
+          />
+        }
       >
+        {refreshing && Platform.OS === "web" ? (
+          <ActivityIndicator color={colors.accent} style={styles.webRefresh} />
+        ) : null}
+
         {!searching ? (
           <View style={styles.trendingHeader}>
             <MaterialIcons name="trending-up" size={20} color={colors.accent} />
@@ -375,6 +478,7 @@ const makeStyles = (colors: ThemeColors) =>
     },
     searchInput: { flex: 1, color: colors.textPrimary, fontSize: 15, height: "100%" },
     scroll: { paddingHorizontal: spacing.screenPadding, paddingTop: 18, paddingBottom: 24 },
+    webRefresh: { marginBottom: 12 },
     trendingHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 16 },
     // "Did you mean / results for" search-correction banner.
     correction: { marginBottom: 14, gap: 2 },
