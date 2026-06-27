@@ -10,8 +10,9 @@ import type {
 const TEXT_NODE = 3;
 const MAX_SECTIONS = 40;
 const MAX_PARAGRAPHS_PER_SECTION = 80;
-const MAX_INFOBOX_ROWS = 14;
-const MAX_INFOBOX_SCAN = 80; // scan deep enough to reach the biography block
+const MAX_INFOBOX_ROWS = 16; // total label/value rows kept (headings not counted)
+const PER_BLOCK_ROWS = 3; // facts kept per theme when an infobox spans many blocks
+const MAX_INFOBOX_SCAN = 140; // scan deep enough across a multi-table (v3) infobox
 const MIN_SECTION_IMAGE_WIDTH = 100; // skip tiny inline icons/flags
 
 // Infobox "biography" section headings — for a person we keep only these facts
@@ -426,10 +427,11 @@ function cleanCellText(el: HTMLElement): string {
  * Extract the emblematic Wikipedia summary card (infobox) into structured key
  * facts — rendered as our own "profile header" card, not raw Wikipedia chrome.
  */
-/** Count label/value (th+td) rows in a table. */
-function labelValueRowCount(table: HTMLElement): number {
+
+/** Count label/value (th+td) rows anywhere inside an element. */
+function labelValueRowCount(el: HTMLElement): number {
   let n = 0;
-  for (const tr of table.querySelectorAll("tr")) {
+  for (const tr of el.querySelectorAll("tr")) {
     if (tr.querySelector("th") && tr.querySelector("td")) {
       n += 1;
     }
@@ -437,38 +439,141 @@ function labelValueRowCount(table: HTMLElement): number {
   return n;
 }
 
+// Year-range markers — these fill the chronology blocks of country infoboxes
+// (regime lists by date, "President 1949–1959 → name"), which we drop from the
+// at-a-glance card. Matched as a whole value, or anywhere in a row label.
+const DATE_RANGE_VALUE = /^\s*\d{3,4}\s*[-–—]\s*\d{0,4}\s*$/;
+const YEAR_RANGE_LABEL = /\b\d{3,4}\s*[-–—]\s*\d{2,4}\b/;
+
 /**
- * Find the page's main infobox. Wikipedia uses many flavours: class "infobox"
- * (countries, companies), "taxobox" (species), or a bare table with a
- * "Données clés" caption (films). We pick the richest candidate.
+ * Find the page's lead infobox element. Wikipedia ships several flavours:
+ * old-style `table.infobox`/`taxobox` (species, films), and the modern
+ * `div.infobox_v3` (countries, monuments) whose data lives in nested sub-tables.
+ * A bare table with a "Données clés" caption (films) is matched too. We take the
+ * first infobox-like element in document order (the lead), so secondary
+ * infoboxes deeper in the body and large content wikitables don't win.
  */
-function findInfoboxTable(root: HTMLElement): HTMLElement | undefined {
-  // The main infobox is the first infobox-like table (in the lead), not the
-  // richest — large content wikitables (city lists, tracklists) would win on
-  // row count otherwise.
-  for (const table of root.querySelectorAll("table")) {
-    const cls = table.getAttribute("class") ?? "";
-    const caption = table.querySelector("caption")?.text?.toLowerCase() ?? "";
+function findInfobox(root: HTMLElement): HTMLElement | undefined {
+  for (const el of root.querySelectorAll("table, div")) {
+    const cls = el.getAttribute("class") ?? "";
+    const caption = el.querySelector("caption")?.text?.toLowerCase() ?? "";
     const looksInfobox =
       /infobox|taxobox/i.test(cls) || /données clés|key data|fiche technique/i.test(caption);
-    if (looksInfobox && labelValueRowCount(table) >= 2) {
-      return table;
+    if (looksInfobox && labelValueRowCount(el) >= 2) {
+      return el;
     }
   }
   return undefined;
 }
 
+/** Nearest ancestor <table> of a node (used to detect sub-table boundaries). */
+function nearestTable(node: HTMLElement): HTMLElement | null {
+  let el: HTMLElement | null = node.parentNode as HTMLElement | null;
+  while (el && el.rawTagName) {
+    if (el.rawTagName.toLowerCase() === "table") {
+      return el;
+    }
+    el = el.parentNode as HTMLElement | null;
+  }
+  return null;
+}
+
+interface InfoboxBlock {
+  heading?: string;
+  rows: InfoboxRow[];
+}
+
+/**
+ * Split an infobox into thematic blocks. A new block starts at a lone heading
+ * cell (section title like "Caractéristiques physiques", or an office name) and
+ * at each sub-table boundary (the modern v3 div groups themes into sub-tables).
+ * This lets us sample a few facts per theme so a large infobox shows breadth
+ * (geography + demographics + economy), not just its first block.
+ */
+function infoboxBlocks(el: HTMLElement): InfoboxBlock[] {
+  const blocks: InfoboxBlock[] = [];
+  let cur: InfoboxBlock = { rows: [] };
+  let started = false;
+  let lastTable: HTMLElement | null = null;
+  let scanned = 0;
+
+  const push = () => {
+    if (cur.rows.length || cur.heading) {
+      blocks.push(cur);
+    }
+    cur = { rows: [] };
+  };
+
+  for (const tr of el.querySelectorAll("tr")) {
+    if (scanned >= MAX_INFOBOX_SCAN) {
+      break;
+    }
+    scanned += 1;
+    const cells = tr.querySelectorAll("th, td").filter((c) => c.parentNode === tr);
+    if (!cells.length) {
+      continue;
+    }
+    const table = nearestTable(tr);
+    if (started && table !== lastTable) {
+      push();
+    }
+    lastTable = table;
+    started = true;
+
+    // A lone heading cell gives the rows below it their context.
+    if (cells.every((c) => c.rawTagName?.toLowerCase() === "th")) {
+      const heading = cleanCellText(tr);
+      push();
+      if (heading && heading.length <= 80) {
+        cur.heading = heading;
+      }
+      continue;
+    }
+
+    const th = tr.querySelector("th");
+    const td = tr.querySelector("td");
+    if (!th || !td) {
+      continue; // image row (td only) or empty
+    }
+    const label = cleanCellText(th);
+    const value = cleanCellText(td);
+    if (!label || !value || label.length > 40 || value.length > 180) {
+      continue;
+    }
+    cur.rows.push({ label, value });
+  }
+  push();
+  return blocks;
+}
+
+/** A chronology block (regime list, year ranges) — noise for an at-a-glance card. */
+function isTimelineBlock(block: InfoboxBlock): boolean {
+  const n = block.rows.length;
+  if (n < 2) {
+    return false;
+  }
+  const ranges = block.rows.filter(
+    (r) => DATE_RANGE_VALUE.test(r.value) || YEAR_RANGE_LABEL.test(r.label ?? ""),
+  ).length;
+  if (n >= 4) {
+    return ranges / n >= 0.5;
+  }
+  // A short block keyed entirely by year ranges is a leaders/succession list
+  // (e.g. "President 1949–1959 → name"), not at-a-glance facts.
+  return ranges === n && block.rows.every((r) => YEAR_RANGE_LABEL.test(r.label ?? ""));
+}
+
 export function parseInfobox(html: string): ArticleInfobox | undefined {
   const root = parse(html, { comment: false });
-  const table = findInfoboxTable(root);
-  if (!table) {
+  const el = findInfobox(root);
+  if (!el) {
     return undefined;
   }
 
   let image: string | undefined;
   let imageWidth: number | undefined;
   let imageHeight: number | undefined;
-  for (const img of table.querySelectorAll("img")) {
+  for (const img of el.querySelectorAll("img")) {
     const width = toInt(img.getAttribute("width"));
     if (width === undefined || width >= 60) {
       image = resolveImageUrl(img.getAttribute("src"));
@@ -480,59 +585,43 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
     }
   }
 
-  let collected: InfoboxRow[] = [];
-  let sawHeading = false;
-  let scanned = 0;
-  for (const tr of table.querySelectorAll("tr")) {
-    if (scanned >= MAX_INFOBOX_SCAN) {
+  // The first heading-less block is the page title row; empty blocks are dropped.
+  let blocks = infoboxBlocks(el).filter((b) => b.rows.length > 0 && !isTimelineBlock(b));
+
+  // For a person, drop the office/function blocks and keep only the "Biography"
+  // facts (born/died/nationality…) — its own block, rendered without a heading.
+  const bio = blocks.find((b) => b.heading && BIOGRAPHY_HEADINGS.has(b.heading.toLowerCase()));
+  if (bio) {
+    blocks = [{ rows: bio.rows }];
+  }
+
+  // One block → a focused card (person/species/film): keep its facts as-is.
+  // Many blocks → a broad subject (country, star): sample a few facts per theme
+  // so geography, demographics and economy all surface, not just the first block.
+  const multi = blocks.length > 1;
+  const rows: InfoboxRow[] = [];
+  let kept = 0;
+  for (const block of blocks) {
+    if (kept >= MAX_INFOBOX_ROWS) {
       break;
     }
-    scanned += 1;
-    const th = tr.querySelector("th");
-    const td = tr.querySelector("td");
-
-    // A lone heading cell (e.g. an office title like "President of France") —
-    // gives the rows below it their context. The very first one is the page
-    // title (redundant with the article title), so it's dropped.
-    if (th && !td) {
-      const heading = cleanCellText(th);
-      if (!heading || heading.length > 80) {
-        continue;
+    if (multi && block.heading) {
+      rows.push({ value: block.heading, heading: true });
+    }
+    const take = multi ? block.rows.slice(0, PER_BLOCK_ROWS) : block.rows;
+    for (const row of take) {
+      if (kept >= MAX_INFOBOX_ROWS) {
+        break;
       }
-      if (!sawHeading) {
-        sawHeading = true; // skip the page-title heading
-        continue;
-      }
-      collected.push({ value: heading, heading: true });
-      continue;
+      rows.push(row);
+      kept += 1;
     }
-
-    if (!th || !td) {
-      continue; // image row (td only) or empty
-    }
-    const label = cleanCellText(th);
-    const value = cleanCellText(td);
-    if (!label || !value || label.length > 40 || value.length > 180) {
-      continue;
-    }
-    collected.push({ label, value });
   }
 
-  // For a person, the infobox lists offices/functions first, then a "Biography"
-  // block with the classic facts (born/died/nationality/places). When present,
-  // keep only those facts and drop the function blocks + headings.
-  const bioIndex = collected.findIndex(
-    (r) => r.heading && BIOGRAPHY_HEADINGS.has(r.value.toLowerCase()),
-  );
-  if (bioIndex >= 0) {
-    collected = collected.slice(bioIndex + 1).filter((r) => !r.heading);
+  // Drop a trailing heading left with no facts under it (cap reached mid-block).
+  while (rows.length && rows[rows.length - 1].heading) {
+    rows.pop();
   }
-
-  // Drop a trailing heading with no facts under it, then cap.
-  while (collected.length && collected[collected.length - 1].heading) {
-    collected.pop();
-  }
-  const rows = collected.slice(0, MAX_INFOBOX_ROWS);
 
   if (!image && !rows.length) {
     return undefined;

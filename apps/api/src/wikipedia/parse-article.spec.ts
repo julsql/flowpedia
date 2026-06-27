@@ -292,6 +292,60 @@ describe("parseInfobox — person keeps only biography facts", () => {
   });
 });
 
+// Modern French "Infobox V3": a <div> whose data lives in nested sub-tables,
+// one per theme (symbols, a history timeline, geography/demographics).
+const V3_HTML = `
+<html><body>
+  <div class="infobox_v3 infobox infobox--frwiki">
+    <table><tr><td><img src="//upload.wikimedia.org/flag.png" width="110" height="73"/></td></tr></table>
+    <table>
+      <tr><th>Devise</th><td>Liberté, Égalité, Fraternité</td></tr>
+      <tr><th>Hymne</th><td>La Marseillaise</td></tr>
+    </table>
+    <table>
+      <tr><th>Royaume des Francs</th><td>481-843</td></tr>
+      <tr><th>Royaume de France</th><td>987-1792</td></tr>
+      <tr><th>Première République</th><td>1792-1804</td></tr>
+      <tr><th>Cinquième République</th><td>1958-</td></tr>
+    </table>
+    <table>
+      <tr><th>Capitale</th><td>Paris</td></tr>
+      <tr><th>Superficie totale</th><td>672 051 km2</td></tr>
+      <tr><th>Population totale</th><td>69 082 000 hab.</td></tr>
+      <tr><th>Densité</th><td>107 hab./km2</td></tr>
+    </table>
+  </div>
+</body></html>
+`;
+
+describe("parseInfobox — multi-theme (Infobox V3 div with sub-tables)", () => {
+  const box = parseInfobox(V3_HTML);
+  const labels = (box?.rows ?? []).filter((r) => !r.heading).map((r) => r.label);
+
+  it("uses the lead div infobox image", () => {
+    expect(box?.image).toBe("https://upload.wikimedia.org/flag.png");
+    expect(box?.imageWidth).toBe(110);
+  });
+
+  it("samples facts from every theme so geography/demographics surface", () => {
+    expect(labels).toContain("Capitale");
+    expect(labels).toContain("Superficie totale");
+    expect(labels).toContain("Population totale");
+  });
+
+  it("drops the regime/history chronology block (year ranges)", () => {
+    expect(labels).not.toContain("Royaume des Francs");
+    expect(labels).not.toContain("Cinquième République");
+  });
+
+  it("caps facts per theme (the demographics block keeps 3 of 4)", () => {
+    const demo = ["Capitale", "Superficie totale", "Population totale", "Densité"].filter((l) =>
+      labels.includes(l),
+    );
+    expect(demo.length).toBe(3);
+  });
+});
+
 describe("parseArticleSections — figures", () => {
   it("attaches section figures (https url + caption), not in the lead", () => {
     const sections = parseArticleSections(INFOBOX_HTML, "Résumé");
