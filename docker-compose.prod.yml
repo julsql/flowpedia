@@ -18,6 +18,21 @@ services:
       timeout: 5s
       retries: 10
 
+  # Dedicated Redis for the Wikipedia cache — internal only (no host port), with
+  # LRU eviction so it stays bounded. Kept separate from any other app's Redis.
+  redis:
+    image: redis:7-alpine
+    container_name: flowpedia-redis
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - flowpedia-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build:
       context: .
@@ -27,12 +42,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       PORT: 3000
       WIKIPEDIA_USER_AGENT: ${WIKIPEDIA_USER_AGENT}
       WIKIPEDIA_LANG: ${WIKIPEDIA_LANG:-fr}
       ARTICLE_CACHE_TTL: ${ARTICLE_CACHE_TTL:-86400}
       DATABASE_URL: postgresql://${POSTGRES_USER:-flowpedia}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-flowpedia}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     ports:
       - "127.0.0.1:${API_PORT:-8111}:3000"
 
@@ -41,7 +59,7 @@ services:
       context: .
       dockerfile: apps/mobile/Dockerfile
       args:
-        EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-https://flowpedia-api.julsql.fr}
+        EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-https://flowpedia-api.julsql.fr/api}
     container_name: flowpedia-web
     restart: unless-stopped
     ports:
@@ -49,3 +67,4 @@ services:
 
 volumes:
   flowpedia-db-data:
+  flowpedia-redis-data:

@@ -54,7 +54,8 @@ Standard Nest feature modules wired in `app.module.ts`:
 
 - **wikipedia** — `WikipediaService` is the core: fetches summaries, popular/news/
   related title pools, full articles, and search from `xx.wikipedia.org`'s REST
-  API, with an **in-memory cache** (TTL per kind; MVP — meant to become Redis).
+  API, caching responses via `CacheService` (Redis when `REDIS_URL` is set,
+  in-memory fallback otherwise; TTL per kind).
   `parse-article.ts` strips Wikipedia HTML chrome into structured
   sections/infobox/links (the unit-tested part). Injected into most controllers.
 - **feed** — `FeedService.getFeed(tab, lang, cursor, seeds, seed, exclude)`.

@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Article, FeedResponse } from "@flowpedia/shared";
+import { CacheService } from "../cache/cache.service";
 import { collectLinks, parseArticleSections, parseInfobox } from "./parse-article";
 
 // Keep in sync with the mobile SUPPORTED_LOCALES.
@@ -21,16 +22,6 @@ const SUPPORTED_LANGS = [
   "tr",
 ] as const;
 type SupportedLang = (typeof SUPPORTED_LANGS)[number];
-
-interface CacheEntry {
-  article: Article;
-  expiresAt: number;
-}
-
-interface TitlesCacheEntry {
-  titles: string[];
-  expiresAt: number;
-}
 
 const POPULAR_TTL_MS = 6 * 60 * 60 * 1000;
 const NEWS_TTL_MS = 60 * 60 * 1000;
@@ -68,21 +59,18 @@ const SUMMARY_LABEL: Record<SupportedLang, string> = {
 };
 
 /**
- * Proxy + lightweight cache in front of the Wikimedia REST API.
- * MVP: in-memory cache. Next step: swap for Redis (REDIS_URL).
+ * Proxy + cache in front of the Wikimedia REST API. Caching is delegated to
+ * CacheService (Redis-backed, with an in-memory fallback when REDIS_URL is
+ * unset/unreachable).
  */
 @Injectable()
 export class WikipediaService {
   private readonly logger = new Logger(WikipediaService.name);
-  private readonly cache = new Map<string, CacheEntry>();
-  private readonly articleCache = new Map<string, CacheEntry>();
-  private readonly popularCache = new Map<SupportedLang, TitlesCacheEntry>();
-  private readonly newsCache = new Map<SupportedLang, TitlesCacheEntry>();
-  private readonly relatedCache = new Map<string, TitlesCacheEntry>();
-  private readonly searchCache = new Map<string, TitlesCacheEntry>();
-  private readonly categoryCache = new Map<string, TitlesCacheEntry>();
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly cache: CacheService,
+  ) {}
 
   private get defaultLang(): SupportedLang {
     const configured = this.config.get<string>("WIKIPEDIA_LANG", "fr");
@@ -112,10 +100,10 @@ export class WikipediaService {
   /** Fetch an article summary (page/summary endpoint), cached per language. */
   async getSummary(title: string, lang?: string): Promise<Article> {
     const language = this.normalizeLang(lang);
-    const key = `${language}:${title}`;
-    const cached = this.cache.get(key);
-    if (cached && cached.expiresAt > nowMs()) {
-      return cached.article;
+    const key = `summary:${language}:${title}`;
+    const cached = await this.cache.get<Article>(key);
+    if (cached) {
+      return cached;
     }
 
     const url = `https://${language}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(
@@ -135,7 +123,7 @@ export class WikipediaService {
 
     const data = (await res.json()) as WikiSummary;
     const article = this.toArticle(data, language);
-    this.cache.set(key, { article, expiresAt: nowMs() + this.ttlMs });
+    await this.cache.set(key, article, this.ttlMs);
     return article;
   }
 
@@ -145,10 +133,10 @@ export class WikipediaService {
    */
   async getArticle(title: string, lang?: string): Promise<Article> {
     const language = this.normalizeLang(lang);
-    const key = `${language}:${title}`;
-    const cached = this.articleCache.get(key);
-    if (cached && cached.expiresAt > nowMs()) {
-      return cached.article;
+    const key = `article:${language}:${title}`;
+    const cached = await this.cache.get<Article>(key);
+    if (cached) {
+      return cached;
     }
 
     const summary = await this.getSummary(title, language);
@@ -179,7 +167,7 @@ export class WikipediaService {
     }
 
     const article: Article = { ...summary, sections, links, infobox };
-    this.articleCache.set(key, { article, expiresAt: nowMs() + this.ttlMs });
+    await this.cache.set(key, article, this.ttlMs);
     return article;
   }
 
@@ -224,16 +212,16 @@ export class WikipediaService {
    * systems, ancient Egypt, history of numbers, etc. Cached per query.
    */
   private async getSearchPool(query: string, language: SupportedLang): Promise<string[]> {
-    const key = `${language}:${query.toLowerCase()}`;
-    const cached = this.searchCache.get(key);
-    if (cached && cached.expiresAt > nowMs()) {
-      return cached.titles;
+    const key = `search:${language}:${query.toLowerCase()}`;
+    const cached = await this.cache.get<string[]>(key);
+    if (cached) {
+      return cached;
     }
     const direct = await this.rawSearch(query, language, 20);
     const related = direct.length ? await this.getRelatedTitles([direct[0]], language) : [];
     const pool = [...new Set([...direct, ...related])];
     if (pool.length) {
-      this.searchCache.set(key, { titles: pool, expiresAt: nowMs() + SEARCH_TTL_MS });
+      await this.cache.set(key, pool, SEARCH_TTL_MS);
     }
     return pool;
   }
@@ -264,14 +252,15 @@ export class WikipediaService {
    */
   async getPopularTitles(lang?: string): Promise<string[]> {
     const language = this.normalizeLang(lang);
-    const cached = this.popularCache.get(language);
-    if (cached && cached.expiresAt > nowMs()) {
-      return cached.titles;
+    const key = `popular:${language}`;
+    const cached = await this.cache.get<string[]>(key);
+    if (cached) {
+      return cached;
     }
 
     const titles = await this.fetchTopViewed(language);
     if (titles.length) {
-      this.popularCache.set(language, { titles, expiresAt: nowMs() + POPULAR_TTL_MS });
+      await this.cache.set(key, titles, POPULAR_TTL_MS);
     }
     return titles;
   }
@@ -311,9 +300,10 @@ export class WikipediaService {
   /** Current-events article titles (Wikimedia featured "news"), per language. */
   async getNewsTitles(lang?: string): Promise<string[]> {
     const language = this.normalizeLang(lang);
-    const cached = this.newsCache.get(language);
-    if (cached && cached.expiresAt > nowMs()) {
-      return cached.titles;
+    const key = `news:${language}`;
+    const cached = await this.cache.get<string[]>(key);
+    if (cached) {
+      return cached;
     }
 
     const titles: string[] = [];
@@ -354,7 +344,7 @@ export class WikipediaService {
 
     const unique = [...new Set(titles)].slice(0, POPULAR_LIMIT);
     if (unique.length) {
-      this.newsCache.set(language, { titles: unique, expiresAt: nowMs() + NEWS_TTL_MS });
+      await this.cache.set(key, unique, NEWS_TTL_MS);
     }
     return unique;
   }
@@ -369,10 +359,10 @@ export class WikipediaService {
     if (!trimmed.length) {
       return [];
     }
-    const key = `${language}:${trimmed.join("|")}`;
-    const cached = this.relatedCache.get(key);
-    if (cached && cached.expiresAt > nowMs()) {
-      return cached.titles;
+    const key = `related:${language}:${trimmed.join("|")}`;
+    const cached = await this.cache.get<string[]>(key);
+    if (cached) {
+      return cached;
     }
 
     const srsearch = `morelike:${trimmed.join("|")}`;
@@ -393,7 +383,7 @@ export class WikipediaService {
         .filter((title) => !seedSet.has(title) && !isExcludedTitle(title));
       const unique = [...new Set(titles)].slice(0, POPULAR_LIMIT);
       if (unique.length) {
-        this.relatedCache.set(key, { titles: unique, expiresAt: nowMs() + RELATED_TTL_MS });
+        await this.cache.set(key, unique, RELATED_TTL_MS);
       }
       return unique;
     } catch (err) {
@@ -413,10 +403,10 @@ export class WikipediaService {
     lang?: string,
   ): Promise<{ label: string; targetId: string }[]> {
     const language = this.normalizeLang(lang);
-    const key = `${language}:${title}`;
-    const cached = this.categoryCache.get(key);
-    if (cached && cached.expiresAt > nowMs()) {
-      return cached.titles.map((targetId) => ({ label: targetId, targetId }));
+    const key = `category:${language}:${title}`;
+    const cached = await this.cache.get<string[]>(key);
+    if (cached) {
+      return cached.map((targetId) => ({ label: targetId, targetId }));
     }
 
     const categories = await this.fetchCategories(title, language);
@@ -449,7 +439,7 @@ export class WikipediaService {
     }
 
     if (merged.length) {
-      this.categoryCache.set(key, { titles: merged, expiresAt: nowMs() + CATEGORY_TTL_MS });
+      await this.cache.set(key, merged, CATEGORY_TTL_MS);
     }
     return merged.map((targetId) => ({ label: targetId, targetId }));
   }
