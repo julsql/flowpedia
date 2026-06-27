@@ -277,6 +277,13 @@ export default function ArticleScreen() {
     });
   }, []);
 
+  const openWikiButton = (
+    <Pressable onPress={openOriginal} style={styles.originalBtn}>
+      <FontAwesome name="wikipedia-w" size={16} color={colors.accentLinkText} />
+      <Text style={styles.originalBtnText}>{t("article.openOriginal")}</Text>
+    </Pressable>
+  );
+
   return (
     <ScreenContainer style={{ paddingTop: insets.top }}>
       <View style={styles.flex} {...panResponder.panHandlers}>
@@ -380,17 +387,13 @@ export default function ArticleScreen() {
               />
             ))}
 
-            {/* "Open on Wikipedia" sits right after the article, before the
-                related feed, so the source is clearly reachable. */}
-            <Pressable onPress={openOriginal} style={styles.originalBtn}>
-              <FontAwesome name="wikipedia-w" size={16} color={colors.accentLinkText} />
-              <Text style={styles.originalBtnText}>{t("article.openOriginal")}</Text>
-            </Pressable>
-
             {related.length ? (
               // Continuous related feed — keeps the reader bouncing topic to topic.
               <View style={styles.explore}>
-                <Text style={styles.exploreTitle}>{t("article.keepExploring")}</Text>
+                <View style={styles.exploreHeaderRow}>
+                  <Text style={styles.exploreTitle}>{t("article.keepExploring")}</Text>
+                  {openWikiButton}
+                </View>
                 <View style={styles.relatedFeed}>
                   {related.map((item) => (
                     <ArticleCard
@@ -407,7 +410,10 @@ export default function ArticleScreen() {
               </View>
             ) : article.links.length ? (
               <View style={styles.explore}>
-                <Text style={styles.exploreTitle}>{t("article.keepExploring")}</Text>
+                <View style={styles.exploreHeaderRow}>
+                  <Text style={styles.exploreTitle}>{t("article.keepExploring")}</Text>
+                  {openWikiButton}
+                </View>
                 <View style={styles.exploreChips}>
                   {article.links.map((link) => (
                     <Pressable
@@ -420,7 +426,9 @@ export default function ArticleScreen() {
                   ))}
                 </View>
               </View>
-            ) : null}
+            ) : (
+              <View style={styles.wikiAlone}>{openWikiButton}</View>
+            )}
 
             <Text style={styles.source}>{t("common.source")}</Text>
           </ScrollView>
@@ -829,14 +837,22 @@ const makeStyles = (colors: ThemeColors) =>
     backgroundColor: colors.field,
   },
   exploreChipText: { color: colors.accentLinkText, fontSize: 14 },
+  // Header row of the "keep exploring" section: title left, Wikipedia button
+  // right (so the related feed rises and less space is wasted).
+  exploreHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 12,
+  },
+  wikiAlone: { alignItems: "flex-end", marginTop: 20 },
   originalBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    alignSelf: "flex-start",
-    marginTop: 28,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: radii.pill,
     backgroundColor: colors.field,
   },

@@ -30,6 +30,8 @@ import { useLocale } from "../../src/i18n";
 // Instagram-style grid: 3 square tiles per row with hairline gaps.
 const GRID_COLS = 3;
 const GRID_GAP = 2;
+// Keep loading pages until the grid is tall enough to scroll (then onScroll pages on).
+const GRID_FILL_TARGET = 24;
 // Backdrop colors for image-less tiles (so the title reads like a cover).
 const TILE_COLORS = [
   "#8E6FB0",
@@ -184,6 +186,31 @@ export default function ExploreScreen() {
       loadingMoreRef.current = false;
     }
   }, [searchCursor, locale]);
+
+  // A feed page (5 items) doesn't fill the 3-column grid, so the ScrollView
+  // isn't scrollable and `onScroll` never fires to page further. Auto-load until
+  // there are enough tiles to scroll — then onScroll keeps the feed infinite.
+  useEffect(() => {
+    if (loadingMoreRef.current) {
+      return;
+    }
+    const isSearching = query.trim().length > 0;
+    if (isSearching) {
+      if (searchCursor && (results?.length ?? 0) > 0 && (results?.length ?? 0) < GRID_FILL_TARGET) {
+        void loadMoreSearch();
+      }
+    } else if (trendingCursor && trending.length > 0 && trending.length < GRID_FILL_TARGET) {
+      void loadMoreTrending();
+    }
+  }, [
+    query,
+    trending.length,
+    trendingCursor,
+    results,
+    searchCursor,
+    loadMoreTrending,
+    loadMoreSearch,
+  ]);
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
