@@ -122,6 +122,40 @@ describe("parseArticleSections — inline annotations", () => {
     expect(text).toContain("est la capitale");
     expect(text).toContain("de la France");
   });
+
+  it("keeps ordinal superscripts (1er, 2e)", () => {
+    const html = `<html><body><section data-mw-section-id="0"><p>Le 1<sup>er</sup> et le 2<sup>e</sup> jour<sup class="mw-ref"><a href="#c">[1]</a></sup>.</p></section></body></html>`;
+    const t = parseArticleSections(html, "Résumé")[0]
+      .paragraphs.flatMap((p) => p.runs.map((r) => r.text))
+      .join("");
+    expect(t).toContain("1er");
+    expect(t).toContain("2e");
+    expect(t).not.toContain("[1]");
+  });
+
+  it("drops the chronologie navigation box", () => {
+    const html = `<html><body><section data-mw-section-id="0"><div class="chronologie boite-grise"><p>1942 — 1943 — 1944</p></div><p>Vrai contenu.</p></section></body></html>`;
+    const t = parseArticleSections(html, "Résumé")[0]
+      .paragraphs.flatMap((p) => p.runs.map((r) => r.text))
+      .join(" ");
+    expect(t).not.toContain("1942 — 1943");
+    expect(t).toContain("Vrai contenu");
+  });
+
+  it("captures {{Article détaillé}} loupe links so the section stays visible", () => {
+    const html = `<html><body>
+      <section data-mw-section-id="0"><p>Intro.</p></section>
+      <section data-mw-section-id="1"><h2>Naissances</h2>
+        <div class="bandeau-cell loupe">Article détaillé : <a rel="mw:WikiLink" href="./Naissances_en_1950">Naissances en 1950</a>.</div>
+      </section>
+    </body></html>`;
+    const sections = parseArticleSections(html, "Résumé");
+    const naissances = sections.find((s) => s.title === "Naissances");
+    expect(naissances).toBeDefined();
+    expect(naissances?.mainLinks).toEqual([
+      { label: "Naissances en 1950", targetId: "Naissances_en_1950" },
+    ]);
+  });
 });
 
 const INFOBOX_HTML = `

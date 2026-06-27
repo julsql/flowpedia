@@ -36,5 +36,6 @@
   "profile.bio": "위키백과를 한 편씩 탐험 중.",
   "article.openOriginal": "위키백과에서 보기",
   "profile.emptyList": "아직 페이지가 없습니다",
-  "article.contents": "목차"
+  "article.contents": "목차",
+  "article.mainArticle": "본문"
 }

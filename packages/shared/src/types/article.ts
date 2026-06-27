@@ -29,6 +29,8 @@ export interface ArticleSection {
   level: number;
   paragraphs: ArticleParagraph[];
   images?: SectionImage[];
+  /** "Main article" links ({{Article détaillé}}) pointing to a dedicated page. */
+  mainLinks?: ArticleLink[];
 }
 
 /**

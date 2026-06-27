@@ -36,5 +36,6 @@
   "profile.bio": "Исследую Википедию, статья за статьёй.",
   "article.openOriginal": "Открыть в Википедии",
   "profile.emptyList": "Пока нет страниц",
-  "article.contents": "Содержание"
+  "article.contents": "Содержание",
+  "article.mainArticle": "Основная статья"
 }

@@ -36,5 +36,6 @@
   "profile.bio": "Esploro Wikipedia, un articolo alla volta.",
   "article.openOriginal": "Vedi su Wikipedia",
   "profile.emptyList": "Ancora nessuna pagina",
-  "article.contents": "Indice"
+  "article.contents": "Indice",
+  "article.mainArticle": "Approfondimento"
 }

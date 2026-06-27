@@ -1,5 +1,11 @@
 import { parse, type HTMLElement, type Node } from "node-html-parser";
-import type { ArticleInfobox, ArticleSection, InfoboxRow, TextRun } from "@flowpedia/shared";
+import type {
+  ArticleInfobox,
+  ArticleLink,
+  ArticleSection,
+  InfoboxRow,
+  TextRun,
+} from "@flowpedia/shared";
 
 const TEXT_NODE = 3;
 const MAX_SECTIONS = 40;
@@ -36,7 +42,7 @@ const BIOGRAPHY_HEADINGS = new Set<string>(
 // now so that bulleted sections like a filmography come through; reference lists
 // are still dropped via the "reference" class below.
 const SKIP_ANCESTOR_CLASS =
-  /infobox|navbox|reference|hatnote|metadata|mw-empty-elt|thumb|gallery|ambox|sidebar|noprint|mbox|toc/i;
+  /infobox|navbox|reference|hatnote|metadata|mw-empty-elt|thumb|gallery|ambox|sidebar|noprint|mbox|toc|chronologie|boite-grise/i;
 const SKIP_ANCESTOR_TAG = new Set(["figure", "table", "style"]);
 
 // Section headings to drop entirely (citations + external links), per the
@@ -132,7 +138,7 @@ function isExcludedSection(title: string): boolean {
  */
 export function parseArticleSections(html: string, leadTitle: string): ArticleSection[] {
   const root = parse(html, { comment: false });
-  const flow = root.querySelectorAll("h2, h3, h4, p, li, figure");
+  const flow = root.querySelectorAll("h2, h3, h4, p, li, figure, .loupe");
 
   const sections: ArticleSection[] = [];
   let current: ArticleSection = { id: "section-0", title: leadTitle, level: 2, paragraphs: [] };
@@ -142,13 +148,28 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
   let skip = false;
 
   const flush = () => {
-    if (current.paragraphs.length || (current.images && current.images.length)) {
+    if (
+      current.paragraphs.length ||
+      current.images?.length ||
+      current.mainLinks?.length
+    ) {
       sections.push(current);
     }
   };
 
   for (const node of flow) {
     const tag = node.rawTagName?.toLowerCase();
+    // {{Article détaillé}} pointer to a dedicated page (e.g. "Naissances en
+    // 1950") — keep it visible so sections that only link elsewhere still show.
+    if ((node.getAttribute("class") ?? "").includes("loupe")) {
+      if (!skip) {
+        const links = extractWikiLinks(node);
+        if (links.length) {
+          (current.mainLinks ??= []).push(...links);
+        }
+      }
+      continue;
+    }
     if (tag === "h2" || tag === "h3" || tag === "h4") {
       flush();
       const title = collapseWhitespace(node.text).trim();
@@ -184,6 +205,27 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
   flush();
 
   return sections.filter((s) => s.title.length > 0 || s.id === "section-0").slice(0, MAX_SECTIONS);
+}
+
+/** Distinct internal WikiLinks inside an element (e.g. a {{Article détaillé}}). */
+function extractWikiLinks(el: HTMLElement): ArticleLink[] {
+  const seen = new Set<string>();
+  const links: ArticleLink[] = [];
+  for (const a of el.querySelectorAll("a")) {
+    const rel = a.getAttribute("rel") ?? "";
+    const href = a.getAttribute("href") ?? "";
+    const label = collapseWhitespace(a.text).trim();
+    if (!rel.includes("mw:WikiLink") || !href.startsWith("./") || !label) {
+      continue;
+    }
+    const targetId = decodeURIComponent(href.slice(2).split("#")[0]);
+    if (targetId.includes(":") || seen.has(targetId)) {
+      continue;
+    }
+    seen.add(targetId);
+    links.push({ label, targetId });
+  }
+  return links;
 }
 
 /** Collect distinct internal links across sections (fallback "keep exploring"). */
@@ -252,9 +294,19 @@ function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
       if (isListItem && (tag === "ul" || tag === "ol")) {
         continue;
       }
-      // Drop tiny superscript annotations entirely (citation markers [1], the
-      // "Écouter ⓘ" pronunciation widget, edit links, non-printing chrome…).
-      if (tag === "sup" || isInlineAnnotation(el)) {
+      // Drop small page chrome (pronunciation "Écouter ⓘ" widget, edit links…).
+      if (isInlineAnnotation(el)) {
+        continue;
+      }
+      if (tag === "sup") {
+        // Drop citation markers ([1]) and any superscript holding a link, but
+        // keep short ordinal superscripts (1er, 2e, XIXe…).
+        if (el.querySelector("a") || /reference|mw-ref/i.test(el.getAttribute("class") ?? "")) {
+          continue;
+        }
+        if (el.text.trim().length <= 4) {
+          walk(el);
+        }
         continue;
       }
       if (tag === "a") {

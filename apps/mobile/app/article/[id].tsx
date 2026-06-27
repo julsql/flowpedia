@@ -50,8 +50,8 @@ export default function ArticleScreen() {
   const [error, setError] = useState(false);
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  // Tapped section image shown full-size in a lightbox.
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  // Tapped section image shown full-size in a lightbox (with its caption).
+  const [lightbox, setLightbox] = useState<{ url: string; caption?: string } | null>(null);
 
   // On a wide web window the table of contents sits in a fixed sidebar on the
   // right (easier to use); on mobile / narrow web it stays a horizontal bar.
@@ -280,11 +280,13 @@ export default function ArticleScreen() {
                 section={section}
                 showHeading={index > 0}
                 styles={styles}
+                colors={colors}
+                mainArticleLabel={t("article.mainArticle")}
                 onLayoutTop={(y) => {
                   sectionY.current[section.id] = y;
                 }}
                 onLinkPress={openLink}
-                onImagePress={(url) => setLightbox(largeImageUrl(url))}
+                onImagePress={(url, caption) => setLightbox({ url: largeImageUrl(url), caption })}
               />
             ))}
 
@@ -389,7 +391,16 @@ export default function ArticleScreen() {
       >
         <Pressable style={styles.lightbox} onPress={() => setLightbox(null)}>
           {lightbox ? (
-            <RemoteImage source={{ uri: lightbox }} style={styles.lightboxImage} resizeMode="contain" />
+            <>
+              <RemoteImage
+                source={{ uri: lightbox.url }}
+                style={styles.lightboxImage}
+                resizeMode="contain"
+              />
+              {lightbox.caption ? (
+                <Text style={styles.lightboxCaption}>{lightbox.caption}</Text>
+              ) : null}
+            </>
           ) : null}
           <Pressable style={styles.lightboxClose} onPress={() => setLightbox(null)} hitSlop={10}>
             <MaterialIcons name="close" size={28} color="#fff" />
@@ -404,15 +415,25 @@ interface SectionBlockProps {
   section: ArticleSection;
   showHeading: boolean;
   styles: ReturnType<typeof makeStyles>;
+  colors: ThemeColors;
+  mainArticleLabel: string;
   onLayoutTop: (y: number) => void;
   onLinkPress: (targetId: string) => void;
-  onImagePress: (url: string) => void;
+  onImagePress: (url: string, caption?: string) => void;
+}
+
+/** A paragraph that is essentially a list of links (e.g. the "sigles" pages). */
+function isLinkList(paragraph: ArticleSection["paragraphs"][number]): boolean {
+  const meaningful = paragraph.runs.filter((r) => r.text.trim().length > 0);
+  return meaningful.length >= 3 && meaningful.every((r) => Boolean(r.linkTargetId));
 }
 
 function SectionBlock({
   section,
   showHeading,
   styles,
+  colors,
+  mainArticleLabel,
   onLayoutTop,
   onLinkPress,
   onImagePress,
@@ -421,8 +442,31 @@ function SectionBlock({
   return (
     <View style={styles.section} onLayout={onLayout}>
       {showHeading ? <Text style={styles.sectionTitle}>{section.title}</Text> : null}
+
+      {/* {{Article détaillé}} pointer(s) to a dedicated page. */}
+      {section.mainLinks?.length ? (
+        <View style={styles.mainLinkBox}>
+          <MaterialIcons name="menu-book" size={16} color={colors.accentDark} />
+          <Text style={styles.mainLinkLabel}>{mainArticleLabel} : </Text>
+          {section.mainLinks.map((link, i) => (
+            <Text
+              key={link.targetId}
+              style={styles.mainLinkText}
+              onPress={() => onLinkPress(link.targetId)}
+            >
+              {i > 0 ? " · " : ""}
+              {link.label}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+
       {section.images?.map((img, i) => (
-        <Pressable key={`img-${i}`} style={styles.figure} onPress={() => onImagePress(img.url)}>
+        <Pressable
+          key={`img-${i}`}
+          style={styles.figure}
+          onPress={() => onImagePress(img.url, img.caption)}
+        >
           <RemoteImage
             source={{ uri: img.url }}
             style={[
@@ -434,23 +478,40 @@ function SectionBlock({
           {img.caption ? <Text style={styles.figureCaption}>{img.caption}</Text> : null}
         </Pressable>
       ))}
-      {section.paragraphs.map((paragraph, pIndex) => (
-        <Text key={pIndex} style={styles.paragraph}>
-          {paragraph.runs.map((run, rIndex) =>
-            run.linkTargetId ? (
-              <Text
-                key={rIndex}
-                style={styles.link}
-                onPress={() => onLinkPress(run.linkTargetId as string)}
-              >
-                {run.text}
-              </Text>
-            ) : (
-              <Text key={rIndex}>{run.text}</Text>
-            ),
-          )}
-        </Text>
-      ))}
+
+      {section.paragraphs.map((paragraph, pIndex) =>
+        isLinkList(paragraph) ? (
+          <View key={pIndex} style={styles.chipGrid}>
+            {paragraph.runs
+              .filter((r) => r.linkTargetId)
+              .map((run, rIndex) => (
+                <Pressable
+                  key={rIndex}
+                  style={styles.linkChip}
+                  onPress={() => onLinkPress(run.linkTargetId as string)}
+                >
+                  <Text style={styles.linkChipText}>{run.text.trim()}</Text>
+                </Pressable>
+              ))}
+          </View>
+        ) : (
+          <Text key={pIndex} style={styles.paragraph}>
+            {paragraph.runs.map((run, rIndex) =>
+              run.linkTargetId ? (
+                <Text
+                  key={rIndex}
+                  style={styles.link}
+                  onPress={() => onLinkPress(run.linkTargetId as string)}
+                >
+                  {run.text}
+                </Text>
+              ) : (
+                <Text key={rIndex}>{run.text}</Text>
+              ),
+            )}
+          </Text>
+        ),
+      )}
     </View>
   );
 }
@@ -511,8 +572,39 @@ const makeStyles = (colors: ThemeColors) =>
     alignItems: "center",
     justifyContent: "center",
   },
-  lightboxImage: { width: "100%", height: "85%" },
+  lightboxImage: { width: "100%", height: "78%" },
+  lightboxCaption: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+    paddingHorizontal: 24,
+    marginTop: 16,
+  },
   lightboxClose: { position: "absolute", top: 44, right: 20 },
+  // {{Article détaillé}} pointer.
+  mainLinkBox: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.field,
+    borderRadius: radii.media,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 12,
+  },
+  mainLinkLabel: { color: colors.muted, fontSize: 13, fontStyle: "italic" },
+  mainLinkText: { color: colors.accentLinkText, fontSize: 13, fontWeight: "600" },
+  // Link-list paragraph rendered as chips (e.g. the "sigles" pages).
+  chipGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  linkChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.pill,
+    backgroundColor: colors.field,
+  },
+  linkChipText: { color: colors.accentLinkText, fontSize: 14, fontWeight: "500" },
   category: {
     color: colors.accentDark,
     fontSize: 11,

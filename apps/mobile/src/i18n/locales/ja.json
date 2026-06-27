@@ -36,5 +36,6 @@
   "profile.bio": "ウィキペディアを一記事ずつ探索中。",
   "article.openOriginal": "Wikipediaで見る",
   "profile.emptyList": "まだページがありません",
-  "article.contents": "目次"
+  "article.contents": "目次",
+  "article.mainArticle": "詳細記事"
 }

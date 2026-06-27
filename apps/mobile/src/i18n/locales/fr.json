@@ -36,5 +36,6 @@
   "profile.bio": "J’explore Wikipédia, un article à la fois.",
   "article.openOriginal": "Voir sur Wikipédia",
   "profile.emptyList": "Aucune page pour l'instant",
-  "article.contents": "Sommaire"
+  "article.contents": "Sommaire",
+  "article.mainArticle": "Article détaillé"
 }
