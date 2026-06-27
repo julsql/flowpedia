@@ -50,6 +50,8 @@ export default function ArticleScreen() {
   const [related, setRelated] = useState<Article[]>([]);
   const [relatedCursor, setRelatedCursor] = useState<string | undefined>();
   const relatedSeed = useRef<number>(Math.floor(Math.random() * 1_000_000_000));
+  // Feed seeds for "keep exploring": the article + its "Articles connexes" links.
+  const relatedSeedsRef = useRef<string[]>([]);
   const loadingRelatedRef = useRef(false);
   const { id } = useLocalSearchParams<{ id: string }>();
   const articleId = decodeURIComponent(id ?? "");
@@ -151,13 +153,23 @@ export default function ArticleScreen() {
     [articleId, router, locale],
   );
 
-  // Load related articles for the bottom feed (resets per article).
+  // Load related articles for the bottom feed once the article is known, seeded
+  // by its "Articles connexes" links so "keep exploring" is based on them.
   useEffect(() => {
+    if (!article) {
+      return;
+    }
     let cancelled = false;
     setRelated([]);
     setRelatedCursor(undefined);
     relatedSeed.current = Math.floor(Math.random() * 1_000_000_000);
-    void fetchFeed("forYou", locale, undefined, [articleId], relatedSeed.current, [articleId])
+    relatedSeedsRef.current = [
+      articleId,
+      ...article.links.map((l) => l.targetId).filter((id) => !id.includes(":")),
+    ].slice(0, 6);
+    void fetchFeed("forYou", locale, undefined, relatedSeedsRef.current, relatedSeed.current, [
+      articleId,
+    ])
       .then((res) => {
         if (!cancelled) {
           setRelated(res.items.filter((a) => a.id !== articleId));
@@ -168,7 +180,7 @@ export default function ArticleScreen() {
     return () => {
       cancelled = true;
     };
-  }, [articleId, locale]);
+  }, [article, articleId, locale]);
 
   const loadMoreRelated = useCallback(async () => {
     if (!relatedCursor || loadingRelatedRef.current) {
@@ -180,7 +192,7 @@ export default function ArticleScreen() {
         "forYou",
         locale,
         relatedCursor,
-        [articleId],
+        relatedSeedsRef.current,
         relatedSeed.current,
         [articleId],
       );

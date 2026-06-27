@@ -133,6 +133,40 @@ const EXCLUDED_SECTION_TITLES = new Set<string>(
     "関連項目",
     "같이 보기",
     "ayrıca bakınız",
+    // "related articles" (often a standalone section, not under "see also")
+    "articles connexes",
+    "related articles",
+    "related pages",
+    "artículos relacionados",
+    "voci correlate",
+    "artigos relacionados",
+    "gerelateerde artikelen",
+    "powiązane artykuły",
+    "связанные статьи",
+    "σχετικά άρθρα",
+    "相关条目",
+    "相關條目",
+    "관련 문서",
+    "ilgili maddeler",
+  ].map((s) => s.toLowerCase()),
+);
+
+// Section titles whose links seed "keep exploring" (related articles, see also).
+const RELATED_SECTION_TITLES = new Set<string>(
+  [
+    "articles connexes",
+    "voir aussi",
+    "related articles",
+    "see also",
+    "voci correlate",
+    "véase también",
+    "siehe auch",
+    "ver também",
+    "zie ook",
+    "zobacz też",
+    "см. также",
+    "관련 문서",
+    "関連項目",
   ].map((s) => s.toLowerCase()),
 );
 
@@ -254,6 +288,43 @@ function extractWikiLinks(el: HTMLElement): ArticleLink[] {
     links.push({ label, targetId });
   }
   return links;
+}
+
+/**
+ * Collect the internal links from the "Articles connexes" / "See also" sections,
+ * to seed "keep exploring" (those sections are hidden in the body). Document
+ * order, so a heading toggles whether following list items count.
+ */
+export function parseRelatedLinks(html: string): ArticleLink[] {
+  const root = parse(html, { comment: false });
+  const seen = new Set<string>();
+  const links: ArticleLink[] = [];
+  let inRelated = false;
+  for (const node of root.querySelectorAll("h2, h3, h4, li")) {
+    const tag = node.rawTagName?.toLowerCase() ?? "";
+    if (tag === "h2" || tag === "h3" || tag === "h4") {
+      inRelated = RELATED_SECTION_TITLES.has(collapseWhitespace(node.text).trim().toLowerCase());
+      continue;
+    }
+    if (!inRelated) {
+      continue;
+    }
+    for (const a of node.querySelectorAll("a")) {
+      const rel = a.getAttribute("rel") ?? "";
+      const href = a.getAttribute("href") ?? "";
+      const label = collapseWhitespace(a.text).trim();
+      if (!rel.includes("mw:WikiLink") || !href.startsWith("./") || !label) {
+        continue;
+      }
+      const targetId = decodeURIComponent(href.slice(2).split("#")[0]);
+      if (targetId.includes(":") || seen.has(targetId)) {
+        continue;
+      }
+      seen.add(targetId);
+      links.push({ label, targetId });
+    }
+  }
+  return links.slice(0, 12);
 }
 
 /** Collect distinct internal links across sections (fallback "keep exploring"). */
@@ -470,8 +541,10 @@ export function parseCharts(html: string): ArticleChart[] {
       if (!seen.has(key)) {
         seen.add(key);
         const captionEl = box?.querySelector(".thumbcaption");
-        // Strip embedded <style>/<script> so the caption isn't polluted with CSS.
-        captionEl?.querySelectorAll("style, script").forEach((s) => s.remove());
+        // Strip the embedded legend list (ul/ol) and CSS so the title is just
+        // the chart's caption, not a dump of every slice (the legend is shown
+        // separately under the chart).
+        captionEl?.querySelectorAll("style, script, ul, ol").forEach((s) => s.remove());
         const caption = captionEl ? collapseWhitespace(captionEl.text).trim() : "";
         charts.push({ title: caption || undefined, slices });
       }

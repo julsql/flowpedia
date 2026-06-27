@@ -4,30 +4,67 @@ import {
   parseArticleSections,
   parseCharts,
   parseInfobox,
+  parseRelatedLinks,
 } from "./parse-article";
 
 describe("parseCharts", () => {
+  // The legend list lives *inside* the caption on real pages — its text must not
+  // leak into the chart title.
   const html = `
     <html><body>
       <div class="thumb"><div class="thumbinner">
         <img src="//upload.wikimedia.org/wikipedia/commons/thumb/1/18/Circle_frame.svg/250px-Circle_frame.svg.png" width="200"/>
-        <div class="thumbcaption">Religions en Norvège (2019)<style>.x{color:red}</style></div>
-        <ul>
-          <li><span class="legende" style="background:DodgerBlue"></span><a rel="mw:WikiLink" href="./Luthéranisme">Luthéranisme</a> (68,7 %)</li>
-          <li><span class="legende" style="background:#7D007D"></span><a rel="mw:WikiLink" href="./Catholicisme">Catholicisme</a> (3,08 %)</li>
-        </ul>
+        <div class="thumbcaption">Religions en Norvège (2019)<style>.x{color:red}</style>
+          <ul>
+            <li><span class="legende" style="background:DodgerBlue"></span><a rel="mw:WikiLink" href="./Luthéranisme">Luthéranisme</a> (68,7 %)</li>
+            <li><span class="legende" style="background:#7D007D"></span><a rel="mw:WikiLink" href="./Catholicisme">Catholicisme</a> (3,08 %)</li>
+          </ul>
+        </div>
       </div></div>
     </body></html>
   `;
   const charts = parseCharts(html);
 
-  it("reconstructs the pie slices (label, value, color) and clean title", () => {
+  it("reconstructs the pie slices (label, value, color)", () => {
     expect(charts).toHaveLength(1);
-    expect(charts[0].title).toBe("Religions en Norvège (2019)");
     expect(charts[0].slices).toEqual([
       { label: "Luthéranisme", value: 68.7, color: "DodgerBlue" },
       { label: "Catholicisme", value: 3.08, color: "#7D007D" },
     ]);
+  });
+
+  it("keeps the title clean (no legend dump)", () => {
+    expect(charts[0].title).toBe("Religions en Norvège (2019)");
+  });
+});
+
+describe("parseRelatedLinks", () => {
+  const html = `
+    <html><body>
+      <section data-mw-section-id="0"><p>Intro.</p></section>
+      <section><h2>Articles connexes</h2>
+        <ul>
+          <li><a rel="mw:WikiLink" href="./Christianisme_en_Norvège">Christianisme en Norvège</a></li>
+          <li><a rel="mw:WikiLink" href="./Islam_en_Norvège">Islam en Norvège</a></li>
+        </ul>
+      </section>
+      <section><h2>Histoire</h2>
+        <ul><li><a rel="mw:WikiLink" href="./Autre">Autre</a></li></ul>
+      </section>
+    </body></html>
+  `;
+
+  it("collects only the related-section links", () => {
+    expect(parseRelatedLinks(html).map((l) => l.targetId)).toEqual([
+      "Christianisme_en_Norvège",
+      "Islam_en_Norvège",
+    ]);
+  });
+
+  it("hides the 'Articles connexes' section from the body", () => {
+    const titles = parseArticleSections(html, "Résumé").map((s) => s.title);
+    expect(titles).not.toContain("Articles connexes");
+    expect(titles).toContain("Histoire");
   });
 });
 

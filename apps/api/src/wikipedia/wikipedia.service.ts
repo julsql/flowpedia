@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import type { Article, FeedResponse } from "@flowpedia/shared";
+import type { Article, ArticleLink, FeedResponse } from "@flowpedia/shared";
 import { CacheService } from "../cache/cache.service";
 import {
   collectLinks,
@@ -8,6 +8,7 @@ import {
   parseArticleSections,
   parseCharts,
   parseInfobox,
+  parseRelatedLinks,
 } from "./parse-article";
 
 // Keep in sync with the mobile SUPPORTED_LOCALES.
@@ -151,10 +152,14 @@ export class WikipediaService {
     let sections = summary.sections;
     let infobox = summary.infobox;
     let charts: Article["charts"];
+    // Links from the page's "Articles connexes"/"See also" (hidden) sections —
+    // the basis for "keep exploring".
+    let relatedLinks: ArticleLink[] = [];
     try {
       const html = await this.fetchArticleHtml(summary.title, language);
       sections = parseArticleSections(html, leadTitle);
       infobox = parseInfobox(html);
+      relatedLinks = parseRelatedLinks(html);
       const parsedCharts = parseCharts(html);
       charts = parsedCharts.length ? parsedCharts : undefined;
     } catch (err) {
@@ -168,9 +173,12 @@ export class WikipediaService {
       ];
     }
 
-    // "Keep exploring" = pages from the same categories/portals; fall back to
-    // inline links if the page has no usable topical category.
-    let links = await this.getRelatedByCategory(summary.title, language).catch(() => []);
+    // "Keep exploring" basis: the page's own "Articles connexes" links first,
+    // then same-category pages, then inline links as a last resort.
+    let links: ArticleLink[] = relatedLinks;
+    if (!links.length) {
+      links = await this.getRelatedByCategory(summary.title, language).catch(() => []);
+    }
     if (!links.length) {
       links = collectLinks(sections).slice(0, ARTICLE_LINKS_LIMIT);
     }
