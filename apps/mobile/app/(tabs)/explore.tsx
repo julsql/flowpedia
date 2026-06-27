@@ -304,5 +304,11 @@ const makeStyles = (colors: ThemeColors) =>
     cellTitle: { color: "#fff", fontSize: 12, fontWeight: "600", padding: 8, lineHeight: 15 },
     // Image-less tile: colored backdrop with the title centered, like a cover.
     cellFallback: { alignItems: "center", justifyContent: "center", padding: 8 },
-    cellFallbackText: { color: "#fff", fontSize: 13, fontWeight: "700", textAlign: "center" },
+    cellFallbackText: {
+      color: "#fff",
+      fontSize: 18,
+      lineHeight: 22,
+      fontWeight: "800",
+      textAlign: "center",
+    },
   });
