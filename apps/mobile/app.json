@@ -8,7 +8,10 @@
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "backgroundColor": "#121110",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
       "backgroundColor": "#121110"
     },
     "ios": {
@@ -16,11 +19,16 @@
       "bundleIdentifier": "app.flowpedia.mobile"
     },
     "android": {
-      "package": "app.flowpedia.mobile"
+      "package": "app.flowpedia.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#121110"
+      }
     },
     "web": {
       "bundler": "metro",
-      "output": "single"
+      "output": "single",
+      "favicon": "./assets/icon.png"
     },
     "plugins": ["expo-router", "expo-localization"],
     "experiments": {
