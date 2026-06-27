@@ -3,7 +3,9 @@ import type {
   ArticleInfobox,
   ArticleLink,
   ArticleSection,
+  ArticleTable,
   InfoboxRow,
+  TableCell,
   TextRun,
 } from "@flowpedia/shared";
 
@@ -14,6 +16,12 @@ const MAX_INFOBOX_ROWS = 16; // total label/value rows kept (headings not counte
 const PER_BLOCK_ROWS = 3; // facts kept per theme when an infobox spans many blocks
 const MAX_INFOBOX_SCAN = 140; // scan deep enough across a multi-table (v3) infobox
 const MIN_SECTION_IMAGE_WIDTH = 100; // skip tiny inline icons/flags
+const MAX_TABLE_ROWS = 60; // cap a long list-table (e.g. a month of deaths)
+const MAX_TABLE_COLS = 6;
+// Table columns that are references, not content (dropped). Covers the supported
+// languages' "source/references/notes" header words.
+const REF_COLUMN_HEADER =
+  /^(source|sources|référ|reference|ref\.?|réf\.?|notes?|fuente|quelle|fonte|bron|źródło|источник|πηγή|出典|参考|出処|출처|kaynak)/i;
 
 // Infobox "biography" section headings — for a person we keep only these facts
 // (birth, death, nationality, places…) and drop the office/function blocks.
@@ -139,7 +147,7 @@ function isExcludedSection(title: string): boolean {
  */
 export function parseArticleSections(html: string, leadTitle: string): ArticleSection[] {
   const root = parse(html, { comment: false });
-  const flow = root.querySelectorAll("h2, h3, h4, p, li, pre, figure, .loupe");
+  const flow = root.querySelectorAll("h2, h3, h4, p, li, pre, figure, table.wikitable, .loupe");
 
   const sections: ArticleSection[] = [];
   let current: ArticleSection = { id: "section-0", title: leadTitle, level: 2, paragraphs: [] };
@@ -152,6 +160,7 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
     if (
       current.paragraphs.length ||
       current.images?.length ||
+      current.tables?.length ||
       current.mainLinks?.length
     ) {
       sections.push(current);
@@ -203,6 +212,12 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
       const image = figureImage(node);
       if (image) {
         (current.images ??= []).push(image);
+      }
+    } else if (!skip && tag === "table" && isContentNode(node)) {
+      // Content tables (e.g. the per-month list on a "Deaths in 2026" page).
+      const table = buildTable(node);
+      if (table) {
+        (current.tables ??= []).push(table);
       }
     }
   }
@@ -411,6 +426,89 @@ function figureImage(figure: HTMLElement) {
   const cap = figure.querySelector("figcaption");
   const caption = cap ? collapseWhitespace(cap.text).trim() : "";
   return { url, caption: caption || undefined, width, height: toInt(img.getAttribute("height")) };
+}
+
+/** A single table cell's runs (so links inside the table stay tappable). */
+function cellRuns(cell: HTMLElement): TableCell {
+  return normalizeRuns(buildRuns(cell, false));
+}
+
+/**
+ * Build a content table, resolving rowspans (e.g. a date cell that spans several
+ * rows) into a full grid and dropping reference/source columns. Capped in size
+ * so a long list page (a month of deaths) stays manageable in the feed.
+ */
+function buildTable(table: HTMLElement): ArticleTable | undefined {
+  const trs = table.querySelectorAll("tr");
+  if (trs.length < 2) {
+    return undefined;
+  }
+  const headerCells = trs[0].querySelectorAll("th, td").filter((c) => c.parentNode === trs[0]);
+  const headers = headerCells.map((c) => collapseWhitespace(c.text).trim());
+  const colCount = Math.min(headers.length, MAX_TABLE_COLS);
+  if (colCount < 2) {
+    return undefined;
+  }
+
+  // Walk the data rows, carrying rowspanned cells forward so columns stay aligned.
+  const active: ({ cell: TableCell; left: number } | null)[] = new Array(colCount).fill(null);
+  const grid: TableCell[][] = [];
+  for (let r = 1; r < trs.length && grid.length < MAX_TABLE_ROWS; r += 1) {
+    const cells = trs[r].querySelectorAll("th, td").filter((c) => c.parentNode === trs[r]);
+    if (!cells.length) {
+      continue;
+    }
+    const row: TableCell[] = [];
+    let ci = 0;
+    for (let col = 0; col < colCount; col += 1) {
+      const span = active[col];
+      if (span) {
+        row.push(span.cell);
+        span.left -= 1;
+        if (span.left <= 0) {
+          active[col] = null;
+        }
+        continue;
+      }
+      const cell = cells[ci];
+      ci += 1;
+      if (!cell) {
+        row.push([]);
+        continue;
+      }
+      const runs = cellRuns(cell);
+      row.push(runs);
+      const rowspan = toInt(cell.getAttribute("rowspan"));
+      if (rowspan && rowspan > 1) {
+        active[col] = { cell: runs, left: rowspan - 1 };
+      }
+    }
+    grid.push(row);
+  }
+  if (!grid.length) {
+    return undefined;
+  }
+
+  // Keep content columns: drop reference/source columns and fully-empty ones.
+  const keep: number[] = [];
+  for (let col = 0; col < colCount; col += 1) {
+    if (REF_COLUMN_HEADER.test(headers[col] ?? "")) {
+      continue;
+    }
+    const hasContent =
+      (headers[col] ?? "").length > 0 || grid.some((row) => (row[col]?.length ?? 0) > 0);
+    if (hasContent) {
+      keep.push(col);
+    }
+  }
+  if (keep.length < 2) {
+    return undefined;
+  }
+
+  return {
+    headers: keep.map((col) => headers[col] ?? ""),
+    rows: grid.map((row) => keep.map((col) => row[col] ?? [])),
+  };
 }
 
 /** Clean visible text of an element (drop citation markers, collapse spaces). */

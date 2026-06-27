@@ -18,8 +18,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import type { Article, ArticleSection } from "@flowpedia/shared";
-import { fetchArticle, largeImageUrl, sendEvents } from "../../src/api/client";
+import { fetchArticle, fetchFeed, largeImageUrl, sendEvents } from "../../src/api/client";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
+import { ArticleCard } from "../../src/components/ArticleCard";
 import { InfoCard } from "../../src/components/InfoCard";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { useLibrary } from "../../src/library/LibraryProvider";
@@ -42,6 +43,12 @@ export default function ArticleScreen() {
   const { t, locale } = useLocale();
   const { isSaved, toggleSave, isLiked, toggleLike, markRead } = useLibrary();
   const { openShare } = useShare();
+  // "Keep exploring" — an infinite feed of related articles (related-to-this +
+  // popular), so the reader keeps bouncing instead of hitting a dead end.
+  const [related, setRelated] = useState<Article[]>([]);
+  const [relatedCursor, setRelatedCursor] = useState<string | undefined>();
+  const relatedSeed = useRef<number>(Math.floor(Math.random() * 1_000_000_000));
+  const loadingRelatedRef = useRef(false);
   const { id } = useLocalSearchParams<{ id: string }>();
   const articleId = decodeURIComponent(id ?? "");
 
@@ -116,6 +123,48 @@ export default function ArticleScreen() {
     [articleId, router, locale],
   );
 
+  // Load related articles for the bottom feed (resets per article).
+  useEffect(() => {
+    let cancelled = false;
+    setRelated([]);
+    setRelatedCursor(undefined);
+    relatedSeed.current = Math.floor(Math.random() * 1_000_000_000);
+    void fetchFeed("forYou", locale, undefined, [articleId], relatedSeed.current, [articleId])
+      .then((res) => {
+        if (!cancelled) {
+          setRelated(res.items.filter((a) => a.id !== articleId));
+          setRelatedCursor(res.nextCursor);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [articleId, locale]);
+
+  const loadMoreRelated = useCallback(async () => {
+    if (!relatedCursor || loadingRelatedRef.current) {
+      return;
+    }
+    loadingRelatedRef.current = true;
+    try {
+      const res = await fetchFeed(
+        "forYou",
+        locale,
+        relatedCursor,
+        [articleId],
+        relatedSeed.current,
+        [articleId],
+      );
+      setRelated((prev) => [...prev, ...res.items.filter((a) => a.id !== articleId)]);
+      setRelatedCursor(res.nextCursor);
+    } catch {
+      // keep current list on pagination failure
+    } finally {
+      loadingRelatedRef.current = false;
+    }
+  }, [relatedCursor, locale, articleId]);
+
   const jumpToSection = useCallback((sectionId: string) => {
     const y = sectionY.current[sectionId];
     if (y !== undefined) {
@@ -130,7 +179,8 @@ export default function ArticleScreen() {
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const offsetY = e.nativeEvent.contentOffset.y;
+      const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+      const offsetY = contentOffset.y;
       const y = offsetY + SCROLL_OFFSET + 1;
       let current: string | null = article?.sections[0]?.id ?? null;
       for (const section of article?.sections ?? []) {
@@ -143,8 +193,12 @@ export default function ArticleScreen() {
         setActiveSection(current);
       }
       setShowScrollTop(offsetY > SCROLL_TOP_THRESHOLD);
+      // Near the bottom → pull more related articles (infinite "keep exploring").
+      if (offsetY + layoutMeasurement.height >= contentSize.height - 800) {
+        void loadMoreRelated();
+      }
     },
-    [article, activeSection],
+    [article, activeSection, loadMoreRelated],
   );
 
   // Keep the active chip in view as the active section changes.
@@ -298,7 +352,25 @@ export default function ArticleScreen() {
               />
             ))}
 
-            {article.links.length ? (
+            {related.length ? (
+              // Continuous related feed — keeps the reader bouncing topic to topic.
+              <View style={styles.explore}>
+                <Text style={styles.exploreTitle}>{t("article.keepExploring")}</Text>
+                <View style={styles.relatedFeed}>
+                  {related.map((item) => (
+                    <ArticleCard
+                      key={item.id}
+                      article={item}
+                      onOpen={() => openLink(item.id)}
+                      onShare={openShare}
+                    />
+                  ))}
+                </View>
+                {relatedCursor ? (
+                  <ActivityIndicator color={colors.muted} style={styles.relatedLoader} />
+                ) : null}
+              </View>
+            ) : article.links.length ? (
               <View style={styles.explore}>
                 <Text style={styles.exploreTitle}>{t("article.keepExploring")}</Text>
                 <View style={styles.exploreChips}>
@@ -487,6 +559,49 @@ function SectionBlock({
         </Pressable>
       ))}
 
+      {section.tables?.map((table, tIndex) => (
+        <ScrollView
+          key={`table-${tIndex}`}
+          horizontal
+          showsHorizontalScrollIndicator
+          style={styles.tableScroll}
+        >
+          <View>
+            <View style={[styles.tableRow, styles.tableHeaderRow]}>
+              {table.headers.map((header, cIndex) => (
+                <Text key={cIndex} style={[styles.tableCell, styles.tableHeaderCell]}>
+                  {header}
+                </Text>
+              ))}
+            </View>
+            {table.rows.map((row, rIndex) => (
+              <View
+                key={rIndex}
+                style={[styles.tableRow, rIndex % 2 === 1 && styles.tableRowAlt]}
+              >
+                {row.map((cell, cIndex) => (
+                  <Text key={cIndex} style={styles.tableCell}>
+                    {cell.map((run, runIndex) =>
+                      run.linkTargetId ? (
+                        <Text
+                          key={runIndex}
+                          style={styles.link}
+                          onPress={() => onLinkPress(run.linkTargetId as string)}
+                        >
+                          {run.text}
+                        </Text>
+                      ) : (
+                        <Text key={runIndex}>{run.text}</Text>
+                      ),
+                    )}
+                  </Text>
+                ))}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      ))}
+
       {section.paragraphs.map((paragraph, pIndex) =>
         isLinkList(paragraph) ? (
           <View key={pIndex} style={styles.chipGrid}>
@@ -635,6 +750,28 @@ const makeStyles = (colors: ThemeColors) =>
     marginBottom: 8,
   },
   paragraph: { color: colors.textSecondary, fontSize: 16, lineHeight: 26, marginBottom: 12 },
+  // Content tables (wikitables) — horizontally scrollable, aligned columns.
+  tableScroll: {
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.separator,
+    borderRadius: radii.media,
+  },
+  tableRow: { flexDirection: "row" },
+  tableHeaderRow: { backgroundColor: colors.field },
+  tableRowAlt: { backgroundColor: colors.surface },
+  tableCell: {
+    width: 140,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.separator,
+  },
+  tableHeaderCell: { color: colors.textPrimary, fontWeight: "700", fontSize: 12 },
   link: {
     color: colors.accentLinkText,
     textDecorationLine: "underline",
@@ -647,6 +784,10 @@ const makeStyles = (colors: ThemeColors) =>
     fontWeight: "600",
     marginBottom: 12,
   },
+  // Cards carry their own horizontal padding — cancel the content padding so
+  // they sit edge-to-edge in the centered column, like the home feed.
+  relatedFeed: { gap: spacing.cardGap, marginHorizontal: -spacing.screenPadding },
+  relatedLoader: { marginTop: 20 },
   exploreChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   exploreChip: {
     paddingHorizontal: 14,

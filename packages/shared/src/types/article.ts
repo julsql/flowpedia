@@ -21,6 +21,18 @@ export interface SectionImage {
   height?: number;
 }
 
+/** A table cell — runs so links inside the table stay tappable. */
+export type TableCell = TextRun[];
+
+/**
+ * A content table (Wikipedia "wikitable"), e.g. the per-month list on a
+ * "Deaths in 2026" page. Rendered as a real table, not flattened to prose.
+ */
+export interface ArticleTable {
+  headers: string[];
+  rows: TableCell[][];
+}
+
 /** An article section (Summary, Habitat, Intelligence…) — see handoff screen 3. */
 export interface ArticleSection {
   id: string;
@@ -29,6 +41,8 @@ export interface ArticleSection {
   level: number;
   paragraphs: ArticleParagraph[];
   images?: SectionImage[];
+  /** Content tables (wikitables) in this section. */
+  tables?: ArticleTable[];
   /** "Main article" links ({{Article détaillé}}) pointing to a dedicated page. */
   mainLinks?: ArticleLink[];
 }

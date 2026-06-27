@@ -346,6 +346,49 @@ describe("parseInfobox — multi-theme (Infobox V3 div with sub-tables)", () => 
   });
 });
 
+const TABLE_HTML = `
+<html><body>
+  <section data-mw-section-id="1">
+    <h2>Janvier</h2>
+    <table class="wikitable sortable">
+      <tr><th>Date</th><th>Nom</th><th>Activités</th><th>Âge</th><th>Source</th></tr>
+      <tr>
+        <td rowspan="2">31 janvier</td>
+        <td><a rel="mw:WikiLink" href="./Nataša_Bokal">Nataša Bokal</a></td>
+        <td>Skieuse slovène.</td>
+        <td>58</td>
+        <td><a rel="mw:ExtLink" href="https://x">(en)</a></td>
+      </tr>
+      <tr>
+        <td><a rel="mw:WikiLink" href="./Michel_Cartaud">Michel Cartaud</a></td>
+        <td>Homme politique.</td>
+        <td>78</td>
+        <td></td>
+      </tr>
+    </table>
+  </section>
+</body></html>
+`;
+
+describe("parseArticleSections — content tables", () => {
+  const sections = parseArticleSections(TABLE_HTML, "Résumé");
+  const table = sections.find((s) => s.title === "Janvier")?.tables?.[0];
+
+  it("parses the wikitable and drops the Source (references) column", () => {
+    expect(table?.headers).toEqual(["Date", "Nom", "Activités", "Âge"]);
+  });
+
+  it("resolves rowspans so the date carries to the next row", () => {
+    const dates = table?.rows.map((row) => row[0].map((r) => r.text).join(""));
+    expect(dates).toEqual(["31 janvier", "31 janvier"]);
+  });
+
+  it("keeps internal links inside cells tappable", () => {
+    const nameCell = table?.rows[0][1];
+    expect(nameCell?.[0]).toEqual({ text: "Nataša Bokal", linkTargetId: "Nataša_Bokal" });
+  });
+});
+
 describe("parseArticleSections — figures", () => {
   it("attaches section figures (https url + caption), not in the lead", () => {
     const sections = parseArticleSections(INFOBOX_HTML, "Résumé");
