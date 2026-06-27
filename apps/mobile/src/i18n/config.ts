@@ -96,6 +96,9 @@ void i18n.use(initReactI18next).init({
   fallbackLng: "en",
   interpolation: { escapeValue: false },
   returnNull: false,
+  // Hermes (React Native) has no full Intl.PluralRules; v3 plural handling
+  // avoids the runtime warning and works with our single-form keys.
+  compatibilityJSON: "v3",
 });
 
 void AsyncStorage.getItem(STORAGE_KEY).then((saved) => {

@@ -35,5 +35,6 @@
   "profile.interests": "Интересы",
   "profile.bio": "Исследую Википедию, статья за статьёй.",
   "article.openOriginal": "Открыть в Википедии",
-  "profile.emptyList": "Пока нет страниц"
+  "profile.emptyList": "Пока нет страниц",
+  "article.contents": "Содержание"
 }

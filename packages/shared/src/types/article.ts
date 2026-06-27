@@ -29,10 +29,17 @@ export interface ArticleSection {
   images?: SectionImage[];
 }
 
-/** A single fact row in the summary card (infobox), e.g. "Born → 1867". */
+/**
+ * A row in the summary card. Either a key fact ("Born → 1867") or a group
+ * heading that gives the following facts their context (e.g. an office held,
+ * "President of France", above its election/term rows).
+ */
 export interface InfoboxRow {
-  label: string;
+  /** Absent on heading rows. */
+  label?: string;
   value: string;
+  /** True when this row is a section title rather than a label/value fact. */
+  heading?: boolean;
 }
 
 /** Structured summary card extracted from the Wikipedia infobox. */

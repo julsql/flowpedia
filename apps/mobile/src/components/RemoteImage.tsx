@@ -1,21 +1,18 @@
 import { Image, type ImageProps, type ImageURISource } from "react-native";
+import { proxiedImageUrl } from "../api/client";
 
-// Wikimedia's User-Agent policy rejects generic/library agents (e.g. the native
-// okhttp loader) with 403 — which is why images load on web (real browser UA)
-// but not on a device. Sending a descriptive UA fixes it.
-const USER_AGENT = "Flowpedia/1.0 (https://github.com/julsql/flowpedia)";
-
-/** <Image> that attaches a Wikimedia-friendly User-Agent to remote URIs. */
+/**
+ * <Image> for remote (Wikimedia) URIs. Routes them through the API image proxy,
+ * which loads them with a compliant User-Agent — devices otherwise get 403s or
+ * can't reach the image host directly (images would load on web but not mobile).
+ */
 export function RemoteImage({ source, ...rest }: ImageProps) {
-  let withAgent = source;
+  let resolved = source;
   if (source && typeof source === "object" && !Array.isArray(source)) {
     const uriSource = source as ImageURISource;
     if (uriSource.uri) {
-      withAgent = {
-        ...uriSource,
-        headers: { "User-Agent": USER_AGENT, ...(uriSource.headers ?? {}) },
-      };
+      resolved = { ...uriSource, uri: proxiedImageUrl(uriSource.uri) };
     }
   }
-  return <Image source={withAgent} {...rest} />;
+  return <Image source={resolved} {...rest} />;
 }

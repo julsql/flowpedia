@@ -141,6 +141,34 @@ describe("parseInfobox", () => {
   });
 });
 
+const OFFICES_HTML = `
+<html><body>
+  <table class="infobox">
+    <tr><th colspan="2">Charles de Gaulle</th></tr>
+    <tr><td colspan="2"><img src="//upload.wikimedia.org/cdg.jpg" width="200" height="250"/></td></tr>
+    <tr><th colspan="2">Président de la République française</th></tr>
+    <tr><th>Élection</th><td>21 décembre 1958</td></tr>
+    <tr><th>Réélection</th><td>19 décembre 1965</td></tr>
+    <tr><th colspan="2">Président du Conseil</th></tr>
+    <tr><th>Investiture</th><td>1 juin 1958</td></tr>
+  </table>
+</body></html>
+`;
+
+describe("parseInfobox — office headings", () => {
+  const box = parseInfobox(OFFICES_HTML);
+
+  it("keeps office titles as heading rows (skipping the page-title heading)", () => {
+    expect(box?.rows).toEqual([
+      { value: "Président de la République française", heading: true },
+      { label: "Élection", value: "21 décembre 1958" },
+      { label: "Réélection", value: "19 décembre 1965" },
+      { value: "Président du Conseil", heading: true },
+      { label: "Investiture", value: "1 juin 1958" },
+    ]);
+  });
+});
+
 describe("parseArticleSections — figures", () => {
   it("attaches section figures (https url + caption), not in the lead", () => {
     const sections = parseArticleSections(INFOBOX_HTML, "Résumé");

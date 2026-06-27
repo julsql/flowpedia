@@ -5,6 +5,18 @@ import type { Locale } from "../i18n";
 // LAN IP instead of localhost (e.g. http://192.168.1.20:3000/api).
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api";
 
+/**
+ * Route a remote image through the API proxy. Devices can't always load
+ * Wikimedia images directly (UA policy / no direct route), but they can always
+ * reach the API. Non-http uris are returned unchanged.
+ */
+export function proxiedImageUrl(uri: string): string {
+  if (!/^https?:\/\//i.test(uri)) {
+    return uri;
+  }
+  return `${BASE_URL}/image?u=${encodeURIComponent(uri)}`;
+}
+
 // Temporary anonymous user id, attached to every signal. Set by UserProvider.
 let currentUserId: string | undefined;
 export function setCurrentUserId(id: string): void {

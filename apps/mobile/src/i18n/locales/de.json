@@ -35,5 +35,6 @@
   "profile.interests": "Interessen",
   "profile.bio": "Wikipedia entdecken, Artikel für Artikel.",
   "article.openOriginal": "Auf Wikipedia ansehen",
-  "profile.emptyList": "Noch keine Seiten"
+  "profile.emptyList": "Noch keine Seiten",
+  "article.contents": "Inhalt"
 }

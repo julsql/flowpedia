@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   type LayoutChangeEvent,
   type NativeScrollEvent,
@@ -23,8 +25,13 @@ import { useLibrary } from "../../src/library/LibraryProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
 import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
+import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
 
 const SCROLL_OFFSET = 12;
+const TOC_WIDTH = 220;
+const TOC_GAP = 24;
+// The "scroll to top" button appears past this scroll distance.
+const SCROLL_TOP_THRESHOLD = 700;
 
 export default function ArticleScreen() {
   const insets = useSafeAreaInsets();
@@ -41,6 +48,14 @@ export default function ArticleScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // On a wide web window the table of contents sits in a fixed sidebar on the
+  // right (easier to use); on mobile / narrow web it stays a horizontal bar.
+  const { width: windowWidth } = useWindowDimensions();
+  const tocAsSidebar =
+    Platform.OS === "web" && windowWidth >= CONTENT_MAX_WIDTH + 2 * (TOC_WIDTH + TOC_GAP);
+  const tocRightOffset = (windowWidth - CONTENT_MAX_WIDTH) / 2 - TOC_WIDTH - TOC_GAP;
 
   const scrollRef = useRef<ScrollView>(null);
   const sectionY = useRef<Record<string, number>>({});
@@ -98,9 +113,14 @@ export default function ArticleScreen() {
     setActiveSection(sectionId);
   }, []);
 
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, []);
+
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = e.nativeEvent.contentOffset.y + SCROLL_OFFSET + 1;
+      const offsetY = e.nativeEvent.contentOffset.y;
+      const y = offsetY + SCROLL_OFFSET + 1;
       let current: string | null = article?.sections[0]?.id ?? null;
       for (const section of article?.sections ?? []) {
         const top = sectionY.current[section.id];
@@ -111,6 +131,7 @@ export default function ArticleScreen() {
       if (current !== activeSection) {
         setActiveSection(current);
       }
+      setShowScrollTop(offsetY > SCROLL_TOP_THRESHOLD);
     },
     [article, activeSection],
   );
@@ -169,7 +190,7 @@ export default function ArticleScreen() {
         </View>
       ) : (
         <>
-          {article.sections.length > 1 ? (
+          {article.sections.length > 1 && !tocAsSidebar ? (
             <View style={[styles.chipsBar, centeredColumn]}>
               <ScrollView
                 ref={chipsScrollRef}
@@ -248,6 +269,43 @@ export default function ArticleScreen() {
             </Pressable>
             <Text style={styles.source}>{t("common.source")}</Text>
           </ScrollView>
+
+          {/* Web: fixed table-of-contents sidebar on the right. */}
+          {article.sections.length > 1 && tocAsSidebar ? (
+            <View style={[styles.tocSidebar, { right: Math.max(TOC_GAP, tocRightOffset) }]}>
+              <Text style={styles.tocTitle}>{t("article.contents")}</Text>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {article.sections.map((section) => {
+                  const active = section.id === activeSection;
+                  return (
+                    <Pressable
+                      key={section.id}
+                      onPress={() => jumpToSection(section.id)}
+                      style={styles.tocItem}
+                    >
+                      <View style={[styles.tocBar, !active && styles.tocBarHidden]} />
+                      <Text
+                        style={[styles.tocText, active && styles.tocTextActive]}
+                        numberOfLines={2}
+                      >
+                        {section.title}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {showScrollTop ? (
+            <Pressable
+              onPress={scrollToTop}
+              style={[styles.toTop, { bottom: insets.bottom + 24 }]}
+              hitSlop={6}
+            >
+              <MaterialIcons name="keyboard-arrow-up" size={28} color={colors.bg} />
+            </Pressable>
+          ) : null}
         </>
       )}
     </ScreenContainer>
@@ -397,4 +455,35 @@ const makeStyles = (colors: ThemeColors) =>
   },
   originalBtnText: { color: colors.accentLinkText, fontSize: 14, fontWeight: "600" },
   source: { color: colors.mutedLight, fontSize: 12, marginTop: 16 },
+  // Web TOC sidebar.
+  tocSidebar: { position: "absolute", top: 16, width: 220, maxHeight: "82%" },
+  tocTitle: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 10,
+  },
+  tocItem: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
+  tocBar: { width: 3, height: 16, borderRadius: 2, backgroundColor: colors.accent },
+  tocBarHidden: { backgroundColor: "transparent" },
+  tocText: { color: colors.textSecondary, fontSize: 14, flex: 1 },
+  tocTextActive: { color: colors.textPrimary, fontWeight: "600" },
+  // Scroll-to-top button.
+  toTop: {
+    position: "absolute",
+    right: 20,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
 });

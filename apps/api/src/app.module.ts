@@ -5,6 +5,7 @@ import { FeedModule } from "./feed/feed.module";
 import { ArticlesModule } from "./articles/articles.module";
 import { SearchModule } from "./search/search.module";
 import { EventsModule } from "./events/events.module";
+import { ImagesModule } from "./images/images.module";
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { EventsModule } from "./events/events.module";
     ArticlesModule,
     SearchModule,
     EventsModule,
+    ImagesModule,
   ],
 })
 export class AppModule {}

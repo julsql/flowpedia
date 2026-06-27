@@ -35,5 +35,6 @@
   "profile.interests": "Zainteresowania",
   "profile.bio": "Odkrywam Wikipedię, artykuł po artykule.",
   "article.openOriginal": "Zobacz na Wikipedii",
-  "profile.emptyList": "Brak stron"
+  "profile.emptyList": "Brak stron",
+  "article.contents": "Spis treści"
 }

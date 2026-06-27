@@ -335,16 +335,32 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
   }
 
   const rows: InfoboxRow[] = [];
+  let sawHeading = false;
   for (const tr of table.querySelectorAll("tr")) {
     if (rows.length >= MAX_INFOBOX_ROWS) {
       break;
     }
     const th = tr.querySelector("th");
     const td = tr.querySelector("td");
-    // Label/value rows only — section headers (th, colspan) and the image row
-    // (td only) are skipped.
-    if (!th || !td) {
+
+    // A lone heading cell (e.g. an office title like "President of France") —
+    // gives the rows below it their context. The very first one is the page
+    // title (redundant with the article title), so it's dropped.
+    if (th && !td) {
+      const heading = cleanCellText(th);
+      if (!heading || heading.length > 80) {
+        continue;
+      }
+      if (!sawHeading) {
+        sawHeading = true; // skip the page-title heading
+        continue;
+      }
+      rows.push({ value: heading, heading: true });
       continue;
+    }
+
+    if (!th || !td) {
+      continue; // image row (td only) or empty
     }
     const label = cleanCellText(th);
     const value = cleanCellText(td);
@@ -352,6 +368,11 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
       continue;
     }
     rows.push({ label, value });
+  }
+
+  // Drop a trailing heading with no facts under it.
+  while (rows.length && rows[rows.length - 1].heading) {
+    rows.pop();
   }
 
   if (!image && !rows.length) {

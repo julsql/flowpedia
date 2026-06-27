@@ -35,5 +35,6 @@
   "profile.interests": "Interesses",
   "profile.bio": "Wikipedia ontdekken, artikel voor artikel.",
   "article.openOriginal": "Bekijk op Wikipedia",
-  "profile.emptyList": "Nog geen pagina's"
+  "profile.emptyList": "Nog geen pagina's",
+  "article.contents": "Inhoud"
 }

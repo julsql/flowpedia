@@ -35,5 +35,6 @@
   "profile.interests": "興味",
   "profile.bio": "ウィキペディアを一記事ずつ探索中。",
   "article.openOriginal": "Wikipediaで見る",
-  "profile.emptyList": "まだページがありません"
+  "profile.emptyList": "まだページがありません",
+  "article.contents": "目次"
 }

@@ -44,16 +44,22 @@ export function InfoCard({ article, colors }: InfoCardProps) {
       ) : null}
       {rows.length ? (
         <View style={styles.facts}>
-          {rows.map((row, i) => (
-            <View key={i} style={styles.factRow}>
-              <Text style={styles.factLabel} numberOfLines={2}>
-                {row.label}
-              </Text>
-              <Text style={styles.factValue} numberOfLines={3}>
+          {rows.map((row, i) =>
+            row.heading ? (
+              <Text key={i} style={[styles.heading, i > 0 && styles.headingSpaced]}>
                 {row.value}
               </Text>
-            </View>
-          ))}
+            ) : (
+              <View key={i} style={styles.factRow}>
+                <Text style={styles.factLabel} numberOfLines={2}>
+                  {row.label}
+                </Text>
+                <Text style={styles.factValue} numberOfLines={3}>
+                  {row.value}
+                </Text>
+              </View>
+            ),
+          )}
         </View>
       ) : null}
     </View>
@@ -74,6 +80,19 @@ const makeStyles = (colors: ThemeColors) =>
     },
     image: { borderRadius: radii.media, backgroundColor: colors.field, alignSelf: "flex-start" },
     facts: { flex: 1, justifyContent: "center", gap: 7 },
+    heading: {
+      color: colors.accentDark,
+      fontSize: 12,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    },
+    headingSpaced: {
+      marginTop: 5,
+      paddingTop: 9,
+      borderTopWidth: 1,
+      borderTopColor: colors.separator,
+    },
     factRow: { flexDirection: "row", gap: 8 },
     factLabel: { color: colors.muted, fontSize: 12, width: 92, lineHeight: 17 },
     factValue: { color: colors.textPrimary, fontSize: 13, flex: 1, lineHeight: 17 },
