@@ -32,3 +32,6 @@ yarn-error.*
 # temp / handoff extraction
 maquettes_extract/
 *.zip
+
+# Local APK builds (do not commit)
+*.apk
