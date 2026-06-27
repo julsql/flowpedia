@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Article, FeedResponse } from "@flowpedia/shared";
 import { CacheService } from "../cache/cache.service";
-import { collectLinks, parseArticleSections, parseInfobox } from "./parse-article";
+import { collectLinks, isScaffoldImage, parseArticleSections, parseInfobox } from "./parse-article";
 
 // Keep in sync with the mobile SUPPORTED_LOCALES.
 const SUPPORTED_LANGS = [
@@ -587,14 +587,16 @@ export class WikipediaService {
   }
 
   private toArticle(data: WikiSummary, language: SupportedLang): Article {
+    const rawImage = data.thumbnail?.source ?? data.originalimage?.source;
+    const image = isScaffoldImage(rawImage) ? undefined : rawImage;
     return {
       id: data.titles?.canonical ?? data.title,
       category: data.description ?? "Wikipedia",
       title: data.title,
       summary: data.extract ?? "",
-      image: data.thumbnail?.source ?? data.originalimage?.source,
-      imageWidth: data.originalimage?.width ?? data.thumbnail?.width,
-      imageHeight: data.originalimage?.height ?? data.thumbnail?.height,
+      image,
+      imageWidth: image ? data.originalimage?.width ?? data.thumbnail?.width : undefined,
+      imageHeight: image ? data.originalimage?.height ?? data.thumbnail?.height : undefined,
       readingMinutes: estimateReadingMinutes(data.extract ?? ""),
       // Sections & internal links are filled by getArticle (detail screen only).
       sections: [],

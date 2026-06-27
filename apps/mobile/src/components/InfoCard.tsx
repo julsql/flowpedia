@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import type { Article } from "@flowpedia/shared";
 import { RemoteImage } from "./RemoteImage";
@@ -29,8 +29,9 @@ export function InfoCard({ article, colors }: InfoCardProps) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useLocale();
   const { width: windowWidth } = useWindowDimensions();
-  // On a phone, stack the image on top so the facts get the full card width.
-  const stacked = windowWidth < STACK_BREAKPOINT;
+  // Stack the image on top (facts get the full card width) on every phone, and
+  // on a narrow web window. Only a wide web window keeps the side-by-side layout.
+  const stacked = Platform.OS !== "web" || windowWidth < STACK_BREAKPOINT;
   const [expanded, setExpanded] = useState(false);
   const infobox = article.infobox;
   const image = infobox?.image ?? article.image;
@@ -40,6 +41,18 @@ export function InfoCard({ article, colors }: InfoCardProps) {
 
   if (!image && allRows.length === 0) {
     return null;
+  }
+
+  const ratioSolo = width && height ? width / height : 1.6;
+  // No infobox facts → show just the lead image (no empty bordered card).
+  if (allRows.length === 0) {
+    return (
+      <RemoteImage
+        source={{ uri: image }}
+        style={[styles.soloImage, { aspectRatio: ratioSolo }]}
+        resizeMode="cover"
+      />
+    );
   }
 
   const canExpand = allRows.length > COLLAPSED_ROWS + 1;
@@ -105,6 +118,16 @@ const makeStyles = (colors: ThemeColors) =>
       borderColor: colors.separator,
     },
     cardStacked: { flexDirection: "column", gap: 12 },
+    // Lead image shown alone (page without an infobox).
+    soloImage: {
+      width: "100%",
+      maxWidth: 480,
+      maxHeight: 340,
+      alignSelf: "center",
+      marginTop: 16,
+      borderRadius: radii.media,
+      backgroundColor: colors.field,
+    },
     image: { borderRadius: radii.media, backgroundColor: colors.field, alignSelf: "flex-start" },
     imageStacked: {
       width: "100%",

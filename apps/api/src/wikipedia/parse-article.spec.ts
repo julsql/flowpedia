@@ -1,4 +1,23 @@
-import { collectLinks, parseArticleSections, parseInfobox } from "./parse-article";
+import {
+  collectLinks,
+  isScaffoldImage,
+  parseArticleSections,
+  parseInfobox,
+} from "./parse-article";
+
+describe("isScaffoldImage", () => {
+  it("flags the empty pie-chart frame but keeps real images", () => {
+    expect(
+      isScaffoldImage(
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Circle_frame.svg/250px-Circle_frame.svg.png",
+      ),
+    ).toBe(true);
+    expect(isScaffoldImage("https://upload.wikimedia.org/.../60px-Flag_of_Norway.svg.png")).toBe(
+      false,
+    );
+    expect(isScaffoldImage(undefined)).toBe(false);
+  });
+});
 
 const HTML = `
 <html><body>

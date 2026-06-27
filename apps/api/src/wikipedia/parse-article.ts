@@ -407,9 +407,19 @@ function toInt(value: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+// Chart scaffolds (e.g. the empty pie-chart frame, on which Wikipedia overlays
+// the data via CSS) render as a meaningless black circle — never use them as an
+// article/infobox image.
+const SCAFFOLD_IMAGE = /Circle_frame|Pie_chart_blank|Blank(_|%20)?map/i;
+
+/** Whether an image src is a non-photo chart scaffold we should ignore. */
+export function isScaffoldImage(src: string | undefined): boolean {
+  return !!src && SCAFFOLD_IMAGE.test(src);
+}
+
 /** Resolve a Parsoid image src (often protocol-relative) to an https URL. */
 function resolveImageUrl(src: string | undefined): string | undefined {
-  if (!src) {
+  if (!src || isScaffoldImage(src)) {
     return undefined;
   }
   if (src.startsWith("//")) {
