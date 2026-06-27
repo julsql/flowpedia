@@ -4,7 +4,7 @@ RUN corepack enable
 WORKDIR /repo
 
 # The API URL is baked into the JS bundle at build time (EXPO_PUBLIC_*).
-ARG EXPO_PUBLIC_API_URL=https://flowpedia-api.julsql.fr
+ARG EXPO_PUBLIC_API_URL=https://flowpedia-api.julsql.fr/api
 ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}
 
 # Manifests first so the install layer is cached across source changes.
