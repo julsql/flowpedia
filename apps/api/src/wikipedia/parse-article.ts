@@ -5,7 +5,32 @@ const TEXT_NODE = 3;
 const MAX_SECTIONS = 40;
 const MAX_PARAGRAPHS_PER_SECTION = 80;
 const MAX_INFOBOX_ROWS = 14;
+const MAX_INFOBOX_SCAN = 80; // scan deep enough to reach the biography block
 const MIN_SECTION_IMAGE_WIDTH = 100; // skip tiny inline icons/flags
+
+// Infobox "biography" section headings — for a person we keep only these facts
+// (birth, death, nationality, places…) and drop the office/function blocks.
+const BIOGRAPHY_HEADINGS = new Set<string>(
+  [
+    "biographie",
+    "biography",
+    "biografía",
+    "biografie",
+    "leben",
+    "biografia",
+    "życiorys",
+    "životopis",
+    "биография",
+    "βιογραφία",
+    "传记",
+    "生平",
+    "経歴",
+    "略歴",
+    "생애",
+    "biyografi",
+    "yaşamı",
+  ].map((s) => s.toLowerCase()),
+);
 
 // Wrappers whose content is chrome, not article prose. Lists (ul/ol) are kept
 // now so that bulleted sections like a filmography come through; reference lists
@@ -72,6 +97,25 @@ const EXCLUDED_SECTION_TITLES = new Set<string>(
     "外部リンク",
     "외부 링크",
     "dış bağlantılar",
+    // "see also" / appendices (whole block hidden)
+    "see also",
+    "voir aussi",
+    "annexes",
+    "véase también",
+    "siehe auch",
+    "voci correlate",
+    "altri progetti",
+    "ver também",
+    "zie ook",
+    "zobacz też",
+    "zobacz także",
+    "см. также",
+    "δείτε επίσης",
+    "参见",
+    "另見",
+    "関連項目",
+    "같이 보기",
+    "ayrıca bakınız",
   ].map((s) => s.toLowerCase()),
 );
 
@@ -91,7 +135,7 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
   const flow = root.querySelectorAll("h2, h3, h4, p, li, figure");
 
   const sections: ArticleSection[] = [];
-  let current: ArticleSection = { id: "section-0", title: leadTitle, paragraphs: [] };
+  let current: ArticleSection = { id: "section-0", title: leadTitle, level: 2, paragraphs: [] };
   // Whether the current h2 (and so its sub-headings) is an excluded section.
   let excludedH2 = false;
   // Whether the current heading's content should be skipped.
@@ -114,7 +158,8 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
       } else {
         skip = excludedH2 || isExcludedSection(title);
       }
-      current = { id: `section-${sections.length + 1}`, title, paragraphs: [] };
+      const level = tag === "h2" ? 2 : tag === "h3" ? 3 : 4;
+      current = { id: `section-${sections.length + 1}`, title, level, paragraphs: [] };
     } else if (!skip && (tag === "p" || tag === "li") && isContentNode(node)) {
       if (current.paragraphs.length >= MAX_PARAGRAPHS_PER_SECTION) {
         continue;
@@ -334,12 +379,14 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
     }
   }
 
-  const rows: InfoboxRow[] = [];
+  let collected: InfoboxRow[] = [];
   let sawHeading = false;
+  let scanned = 0;
   for (const tr of table.querySelectorAll("tr")) {
-    if (rows.length >= MAX_INFOBOX_ROWS) {
+    if (scanned >= MAX_INFOBOX_SCAN) {
       break;
     }
+    scanned += 1;
     const th = tr.querySelector("th");
     const td = tr.querySelector("td");
 
@@ -355,7 +402,7 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
         sawHeading = true; // skip the page-title heading
         continue;
       }
-      rows.push({ value: heading, heading: true });
+      collected.push({ value: heading, heading: true });
       continue;
     }
 
@@ -367,13 +414,24 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
     if (!label || !value || label.length > 40 || value.length > 180) {
       continue;
     }
-    rows.push({ label, value });
+    collected.push({ label, value });
   }
 
-  // Drop a trailing heading with no facts under it.
-  while (rows.length && rows[rows.length - 1].heading) {
-    rows.pop();
+  // For a person, the infobox lists offices/functions first, then a "Biography"
+  // block with the classic facts (born/died/nationality/places). When present,
+  // keep only those facts and drop the function blocks + headings.
+  const bioIndex = collected.findIndex(
+    (r) => r.heading && BIOGRAPHY_HEADINGS.has(r.value.toLowerCase()),
+  );
+  if (bioIndex >= 0) {
+    collected = collected.slice(bioIndex + 1).filter((r) => !r.heading);
   }
+
+  // Drop a trailing heading with no facts under it, then cap.
+  while (collected.length && collected[collected.length - 1].heading) {
+    collected.pop();
+  }
+  const rows = collected.slice(0, MAX_INFOBOX_ROWS);
 
   if (!image && !rows.length) {
     return undefined;

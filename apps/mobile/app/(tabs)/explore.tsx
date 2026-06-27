@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Article } from "@flowpedia/shared";
 import { fetchFeed, fetchSearch } from "../../src/api/client";
@@ -29,7 +29,9 @@ export default function ExploreScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useLocale();
 
-  const [query, setQuery] = useState("");
+  // A search theme can be pushed from elsewhere (e.g. profile interest chips).
+  const params = useLocalSearchParams<{ q?: string }>();
+  const [query, setQuery] = useState(params.q ?? "");
   const [trending, setTrending] = useState<Article[]>([]);
   const [trendingCursor, setTrendingCursor] = useState<string | undefined>();
   const [results, setResults] = useState<Article[] | null>(null);
@@ -39,6 +41,13 @@ export default function ExploreScreen() {
   // The query currently backing `results`, so paginated loads stay coherent.
   const activeQueryRef = useRef("");
   const seedRef = useRef<number>(Math.floor(Math.random() * 1_000_000_000));
+
+  // Apply an incoming search theme (Explore tab may already be mounted).
+  useEffect(() => {
+    if (params.q) {
+      setQuery(params.q);
+    }
+  }, [params.q]);
 
   useEffect(() => {
     void fetchFeed("popular", locale, undefined, [], seedRef.current)

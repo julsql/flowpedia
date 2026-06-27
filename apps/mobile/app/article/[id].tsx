@@ -147,6 +147,44 @@ export default function ArticleScreen() {
     }
   }, [activeSection]);
 
+  // Table of contents = top-level sections only (h2). Sub-sections (h3) are
+  // nested under their parent and shown only in the web sidebar.
+  const sections = article?.sections ?? [];
+  const topSections = useMemo(() => sections.filter((s) => (s.level ?? 2) <= 2), [sections]);
+  const tocTree = useMemo(() => {
+    const tree: { section: ArticleSection; children: ArticleSection[] }[] = [];
+    for (const s of sections) {
+      if ((s.level ?? 2) <= 2) {
+        tree.push({ section: s, children: [] });
+      } else if (tree.length) {
+        tree[tree.length - 1].children.push(s);
+      }
+    }
+    return tree;
+  }, [sections]);
+  // The top-level section that contains the active (possibly sub-) section.
+  const activeTopId = useMemo(() => {
+    if (!activeSection) {
+      return null;
+    }
+    const idx = sections.findIndex((s) => s.id === activeSection);
+    for (let i = idx; i >= 0; i -= 1) {
+      if ((sections[i].level ?? 2) <= 2) {
+        return sections[i].id;
+      }
+    }
+    return sections[0]?.id ?? null;
+  }, [sections, activeSection]);
+
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = useCallback((id: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
   return (
     <ScreenContainer style={{ paddingTop: insets.top }}>
       <View style={[styles.header, centeredColumn]}>
@@ -190,7 +228,7 @@ export default function ArticleScreen() {
         </View>
       ) : (
         <>
-          {article.sections.length > 1 && !tocAsSidebar ? (
+          {topSections.length > 1 && !tocAsSidebar ? (
             <View style={[styles.chipsBar, centeredColumn]}>
               <ScrollView
                 ref={chipsScrollRef}
@@ -198,8 +236,8 @@ export default function ArticleScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.chipsRow}
               >
-                {article.sections.map((section) => {
-                  const active = section.id === activeSection;
+                {topSections.map((section) => {
+                  const active = section.id === activeTopId;
                   return (
                     <Pressable
                       key={section.id}
@@ -270,27 +308,57 @@ export default function ArticleScreen() {
             <Text style={styles.source}>{t("common.source")}</Text>
           </ScrollView>
 
-          {/* Web: fixed table-of-contents sidebar on the right. */}
-          {article.sections.length > 1 && tocAsSidebar ? (
+          {/* Web: fixed table-of-contents sidebar on the right, with collapsible
+              sub-sections (collapsed by default). */}
+          {topSections.length > 1 && tocAsSidebar ? (
             <View style={[styles.tocSidebar, { right: Math.max(TOC_GAP, tocRightOffset) }]}>
               <Text style={styles.tocTitle}>{t("article.contents")}</Text>
               <ScrollView showsVerticalScrollIndicator={false}>
-                {article.sections.map((section) => {
-                  const active = section.id === activeSection;
+                {tocTree.map(({ section, children }) => {
+                  const active = section.id === activeTopId;
+                  const open = expandedGroups.has(section.id) || section.id === activeTopId;
                   return (
-                    <Pressable
-                      key={section.id}
-                      onPress={() => jumpToSection(section.id)}
-                      style={styles.tocItem}
-                    >
-                      <View style={[styles.tocBar, !active && styles.tocBarHidden]} />
-                      <Text
-                        style={[styles.tocText, active && styles.tocTextActive]}
-                        numberOfLines={2}
-                      >
-                        {section.title}
-                      </Text>
-                    </Pressable>
+                    <View key={section.id}>
+                      <View style={styles.tocItem}>
+                        <View style={[styles.tocBar, !active && styles.tocBarHidden]} />
+                        <Pressable style={styles.tocItemLabel} onPress={() => jumpToSection(section.id)}>
+                          <Text
+                            style={[styles.tocText, active && styles.tocTextActive]}
+                            numberOfLines={2}
+                          >
+                            {section.title}
+                          </Text>
+                        </Pressable>
+                        {children.length ? (
+                          <Pressable onPress={() => toggleGroup(section.id)} hitSlop={8}>
+                            <MaterialIcons
+                              name={open ? "expand-less" : "expand-more"}
+                              size={20}
+                              color={colors.muted}
+                            />
+                          </Pressable>
+                        ) : null}
+                      </View>
+                      {open
+                        ? children.map((child) => {
+                            const childActive = child.id === activeSection;
+                            return (
+                              <Pressable
+                                key={child.id}
+                                onPress={() => jumpToSection(child.id)}
+                                style={styles.tocSubItem}
+                              >
+                                <Text
+                                  style={[styles.tocSubText, childActive && styles.tocTextActive]}
+                                  numberOfLines={2}
+                                >
+                                  {child.title}
+                                </Text>
+                              </Pressable>
+                            );
+                          })
+                        : null}
+                    </View>
                   );
                 })}
               </ScrollView>
@@ -466,10 +534,13 @@ const makeStyles = (colors: ThemeColors) =>
     marginBottom: 10,
   },
   tocItem: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
+  tocItemLabel: { flex: 1 },
   tocBar: { width: 3, height: 16, borderRadius: 2, backgroundColor: colors.accent },
   tocBarHidden: { backgroundColor: "transparent" },
-  tocText: { color: colors.textSecondary, fontSize: 14, flex: 1 },
+  tocText: { color: colors.textSecondary, fontSize: 14 },
   tocTextActive: { color: colors.textPrimary, fontWeight: "600" },
+  tocSubItem: { paddingVertical: 4, paddingLeft: 11 },
+  tocSubText: { color: colors.textTertiary, fontSize: 13 },
   // Scroll-to-top button.
   toTop: {
     position: "absolute",

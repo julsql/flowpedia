@@ -166,7 +166,9 @@ export class WikipediaService {
 
     // Fallback so the screen is never empty if HTML/parse fails.
     if (!sections.length && summary.summary) {
-      sections = [{ id: "section-0", title: leadTitle, paragraphs: [{ runs: [{ text: summary.summary }] }] }];
+      sections = [
+        { id: "section-0", title: leadTitle, level: 2, paragraphs: [{ runs: [{ text: summary.summary }] }] },
+      ];
     }
 
     // "Keep exploring" = pages from the same categories/portals; fall back to

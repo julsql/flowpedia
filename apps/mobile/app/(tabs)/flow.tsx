@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  PanResponder,
   Platform,
   Pressable,
   StyleSheet,
@@ -137,11 +138,25 @@ function FlowItem({ article, height }: { article: Article; height: number }) {
     router.push({ pathname: "/article/[id]", params: { id: encodeURIComponent(article.id) } });
   };
 
+  // Swipe left to open the article (without stealing the vertical paging or the
+  // action-button taps: only claims clearly-horizontal leftward gestures).
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, g) => g.dx < -14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.2,
+      onPanResponderRelease: (_, g) => {
+        if (g.dx < -45) {
+          open();
+        }
+      },
+    }),
+  ).current;
+
   const liked = isLiked(article.id);
   const saved = isSaved(article.id);
 
   return (
-    <Pressable style={[styles.item, { height }]} onPress={open}>
+    <View style={[styles.item, { height }]} {...pan.panHandlers}>
       {article.image ? (
         <RemoteImage source={{ uri: article.image }} style={styles.image} resizeMode="cover" />
       ) : (
@@ -152,6 +167,14 @@ function FlowItem({ article, height }: { article: Article; height: number }) {
         style={styles.gradient}
         pointerEvents="none"
       />
+      {/* Background tap layer (sits under the action buttons & text). */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={open} />
+
+      {/* Swipe-to-read affordance: chevron on the right, vertically centered. */}
+      <View style={styles.readHint} pointerEvents="none">
+        <MaterialIcons name="chevron-left" size={36} color="rgba(255,255,255,0.92)" />
+        <Text style={styles.readHintText}>{t("flow.swipeHint")}</Text>
+      </View>
 
       <View style={styles.actions}>
         <Pressable style={styles.action} onPress={() => toggleLike(article)} hitSlop={8}>
@@ -179,12 +202,8 @@ function FlowItem({ article, height }: { article: Article; height: number }) {
         <Text style={styles.summary} numberOfLines={3}>
           {article.summary}
         </Text>
-        <View style={styles.hintRow}>
-          <MaterialIcons name="keyboard-arrow-up" size={20} color="rgba(255,255,255,0.85)" />
-          <Text style={styles.hint}>{t("flow.swipeHint")}</Text>
-        </View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -210,6 +229,19 @@ const styles = StyleSheet.create({
   },
   title: { color: "#fff", fontSize: 26, fontWeight: "700", lineHeight: 31 },
   summary: { color: "rgba(255,255,255,0.9)", fontSize: 15, lineHeight: 22, marginTop: 10 },
-  hintRow: { flexDirection: "row", alignItems: "center", marginTop: 16 },
-  hint: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "500" },
+  readHint: {
+    position: "absolute",
+    right: 6,
+    top: 0,
+    bottom: 0,
+    width: 58,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  readHintText: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 11,
+    fontWeight: "600",
+    textAlign: "center",
+  },
 });

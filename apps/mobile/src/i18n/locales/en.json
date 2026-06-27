@@ -11,7 +11,7 @@
   "explore.trending": "Trending today",
   "explore.noResults": "No results",
   "shared.empty": "Articles you share will appear here.",
-  "flow.swipeHint": "Swipe up to read",
+  "flow.swipeHint": "Swipe to read",
   "article.readMore": "Read more",
   "article.showLess": "Show less",
   "article.minRead": "{{count}} min read",

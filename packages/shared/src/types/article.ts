@@ -25,6 +25,8 @@ export interface SectionImage {
 export interface ArticleSection {
   id: string;
   title: string;
+  /** Heading depth: 2 = top-level (h2/lead), 3+ = sub-section. */
+  level: number;
   paragraphs: ArticleParagraph[];
   images?: SectionImage[];
 }

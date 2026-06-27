@@ -58,6 +58,9 @@ export default function ProfileScreen() {
   const openArticle = (id: string) =>
     router.push({ pathname: "/article/[id]", params: { id: encodeURIComponent(id) } });
 
+  const searchInterest = (interest: string) =>
+    router.push({ pathname: "/(tabs)/explore", params: { q: interest } });
+
   const listArticles = openList === "liked" ? liked : openList === "saved" ? saved : [];
 
   return (
@@ -134,15 +137,15 @@ export default function ProfileScreen() {
             <Text style={styles.sectionLabel}>{t("profile.interests")}</Text>
             <View style={styles.chips}>
               {interests.map((interest) => (
-                <Pressable
-                  key={interest}
-                  style={styles.interestChip}
-                  onPress={() => muteInterest(interest)}
-                  hitSlop={6}
-                >
-                  <Text style={styles.interestChipText}>{interest}</Text>
-                  <MaterialIcons name="close" size={15} color={colors.interestChipText} />
-                </Pressable>
+                <View key={interest} style={styles.interestChip}>
+                  {/* Tap the label to search this theme; tap the cross to mute it. */}
+                  <Pressable onPress={() => searchInterest(interest)} hitSlop={6}>
+                    <Text style={styles.interestChipText}>{interest}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => muteInterest(interest)} hitSlop={8}>
+                    <MaterialIcons name="close" size={15} color={colors.interestChipText} />
+                  </Pressable>
+                </View>
               ))}
             </View>
           </View>

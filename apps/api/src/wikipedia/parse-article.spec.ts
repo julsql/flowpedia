@@ -169,6 +169,35 @@ describe("parseInfobox — office headings", () => {
   });
 });
 
+const PERSON_HTML = `
+<html><body>
+  <table class="infobox">
+    <tr><th colspan="2">Charles de Gaulle</th></tr>
+    <tr><td colspan="2"><img src="//upload.wikimedia.org/cdg.jpg" width="200" height="250"/></td></tr>
+    <tr><th colspan="2">Président de la République française</th></tr>
+    <tr><th>Élection</th><td>21 décembre 1958</td></tr>
+    <tr><th colspan="2">Biographie</th></tr>
+    <tr><th>Nom de naissance</th><td>Charles André Joseph Marie de Gaulle</td></tr>
+    <tr><th>Naissance</th><td>22 novembre 1890</td></tr>
+    <tr><th>Décès</th><td>9 novembre 1970</td></tr>
+    <tr><th>Nationalité</th><td>Française</td></tr>
+  </table>
+</body></html>
+`;
+
+describe("parseInfobox — person keeps only biography facts", () => {
+  const box = parseInfobox(PERSON_HTML);
+
+  it("drops the function blocks and keeps the biography facts", () => {
+    expect(box?.rows).toEqual([
+      { label: "Nom de naissance", value: "Charles André Joseph Marie de Gaulle" },
+      { label: "Naissance", value: "22 novembre 1890" },
+      { label: "Décès", value: "9 novembre 1970" },
+      { label: "Nationalité", value: "Française" },
+    ]);
+  });
+});
+
 describe("parseArticleSections — figures", () => {
   it("attaches section figures (https url + caption), not in the lead", () => {
     const sections = parseArticleSections(INFOBOX_HTML, "Résumé");
