@@ -1,12 +1,16 @@
-import { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import type { Article } from "@flowpedia/shared";
 import { RemoteImage } from "./RemoteImage";
+import { useLocale } from "../i18n";
 import { radii, type ThemeColors } from "../theme";
 
 // Target image width inside the card (the rest is the facts column).
 const IMAGE_WIDTH = 132;
 const IMAGE_MAX_HEIGHT = 200;
+// Facts shown before the "show more" toggle (big infoboxes like a company).
+const COLLAPSED_ROWS = 7;
 
 interface InfoCardProps {
   article: Article;
@@ -20,15 +24,20 @@ interface InfoCardProps {
  */
 export function InfoCard({ article, colors }: InfoCardProps) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { t } = useLocale();
+  const [expanded, setExpanded] = useState(false);
   const infobox = article.infobox;
   const image = infobox?.image ?? article.image;
   const width = infobox?.image ? infobox.imageWidth : article.imageWidth;
   const height = infobox?.image ? infobox.imageHeight : article.imageHeight;
-  const rows = infobox?.rows ?? [];
+  const allRows = infobox?.rows ?? [];
 
-  if (!image && rows.length === 0) {
+  if (!image && allRows.length === 0) {
     return null;
   }
+
+  const canExpand = allRows.length > COLLAPSED_ROWS + 1;
+  const rows = canExpand && !expanded ? allRows.slice(0, COLLAPSED_ROWS) : allRows;
 
   const ratio = width && height ? width / height : undefined;
   const imageHeight = ratio ? Math.min(IMAGE_WIDTH / ratio, IMAGE_MAX_HEIGHT) : 150;
@@ -42,7 +51,7 @@ export function InfoCard({ article, colors }: InfoCardProps) {
           resizeMode="cover"
         />
       ) : null}
-      {rows.length ? (
+      {allRows.length ? (
         <View style={styles.facts}>
           {rows.map((row, i) =>
             row.heading ? (
@@ -60,6 +69,22 @@ export function InfoCard({ article, colors }: InfoCardProps) {
               </View>
             ),
           )}
+          {canExpand ? (
+            <Pressable
+              style={styles.toggle}
+              onPress={() => setExpanded((v) => !v)}
+              hitSlop={6}
+            >
+              <Text style={styles.toggleText}>
+                {expanded ? t("article.showLess") : t("article.readMore")}
+              </Text>
+              <MaterialIcons
+                name={expanded ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                size={18}
+                color={colors.accent}
+              />
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -96,4 +121,6 @@ const makeStyles = (colors: ThemeColors) =>
     factRow: { flexDirection: "row", gap: 8 },
     factLabel: { color: colors.muted, fontSize: 12, width: 92, lineHeight: 17 },
     factValue: { color: colors.textPrimary, fontSize: 13, flex: 1, lineHeight: 17 },
+    toggle: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 2 },
+    toggleText: { color: colors.accent, fontSize: 13, fontWeight: "600" },
   });

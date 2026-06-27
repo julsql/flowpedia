@@ -138,7 +138,7 @@ function isExcludedSection(title: string): boolean {
  */
 export function parseArticleSections(html: string, leadTitle: string): ArticleSection[] {
   const root = parse(html, { comment: false });
-  const flow = root.querySelectorAll("h2, h3, h4, p, li, figure, .loupe");
+  const flow = root.querySelectorAll("h2, h3, h4, p, li, pre, figure, .loupe");
 
   const sections: ArticleSection[] = [];
   let current: ArticleSection = { id: "section-0", title: leadTitle, level: 2, paragraphs: [] };
@@ -181,11 +181,14 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
       }
       const level = tag === "h2" ? 2 : tag === "h3" ? 3 : 4;
       current = { id: `section-${sections.length + 1}`, title, level, paragraphs: [] };
-    } else if (!skip && (tag === "p" || tag === "li") && isContentNode(node)) {
+    } else if (!skip && (tag === "p" || tag === "li" || tag === "pre") && isContentNode(node)) {
       if (current.paragraphs.length >= MAX_PARAGRAPHS_PER_SECTION) {
         continue;
       }
-      const runs = normalizeRuns(buildRuns(node, tag === "li"));
+      // node-html-parser keeps <pre> content as raw text, so re-parse its HTML
+      // to recover the inner elements (link lists in the "sigles" pages).
+      const source = tag === "pre" ? parse(node.innerHTML) : node;
+      const runs = normalizeRuns(buildRuns(source, tag === "li"));
       if (runs.length) {
         // Prefix list items with a bullet so they read as a list.
         if (tag === "li") {
@@ -218,8 +221,10 @@ function extractWikiLinks(el: HTMLElement): ArticleLink[] {
     if (!rel.includes("mw:WikiLink") || !href.startsWith("./") || !label) {
       continue;
     }
+    // Keep namespaced targets here (a {{Catégorie détaillée}} points to a
+    // Category: page) — the UI opens those on Wikipedia.
     const targetId = decodeURIComponent(href.slice(2).split("#")[0]);
-    if (targetId.includes(":") || seen.has(targetId)) {
+    if (seen.has(targetId)) {
       continue;
     }
     seen.add(targetId);
@@ -421,9 +426,41 @@ function cleanCellText(el: HTMLElement): string {
  * Extract the emblematic Wikipedia summary card (infobox) into structured key
  * facts — rendered as our own "profile header" card, not raw Wikipedia chrome.
  */
+/** Count label/value (th+td) rows in a table. */
+function labelValueRowCount(table: HTMLElement): number {
+  let n = 0;
+  for (const tr of table.querySelectorAll("tr")) {
+    if (tr.querySelector("th") && tr.querySelector("td")) {
+      n += 1;
+    }
+  }
+  return n;
+}
+
+/**
+ * Find the page's main infobox. Wikipedia uses many flavours: class "infobox"
+ * (countries, companies), "taxobox" (species), or a bare table with a
+ * "Données clés" caption (films). We pick the richest candidate.
+ */
+function findInfoboxTable(root: HTMLElement): HTMLElement | undefined {
+  // The main infobox is the first infobox-like table (in the lead), not the
+  // richest — large content wikitables (city lists, tracklists) would win on
+  // row count otherwise.
+  for (const table of root.querySelectorAll("table")) {
+    const cls = table.getAttribute("class") ?? "";
+    const caption = table.querySelector("caption")?.text?.toLowerCase() ?? "";
+    const looksInfobox =
+      /infobox|taxobox/i.test(cls) || /données clés|key data|fiche technique/i.test(caption);
+    if (looksInfobox && labelValueRowCount(table) >= 2) {
+      return table;
+    }
+  }
+  return undefined;
+}
+
 export function parseInfobox(html: string): ArticleInfobox | undefined {
   const root = parse(html, { comment: false });
-  const table = root.querySelector("table.infobox");
+  const table = findInfoboxTable(root);
   if (!table) {
     return undefined;
   }

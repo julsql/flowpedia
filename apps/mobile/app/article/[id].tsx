@@ -102,10 +102,18 @@ export default function ArticleScreen() {
 
   const openLink = useCallback(
     (targetId: string) => {
+      // Namespaced targets (e.g. "Catégorie:…") aren't articles — open them on
+      // Wikipedia instead of trying to render them.
+      if (targetId.includes(":")) {
+        void Linking.openURL(
+          `https://${locale}.wikipedia.org/wiki/${encodeURIComponent(targetId)}`,
+        );
+        return;
+      }
       sendEvents([{ articleId, type: "linkClick", ts: Date.now() }]);
       router.push({ pathname: "/article/[id]", params: { id: encodeURIComponent(targetId) } });
     },
-    [articleId, router],
+    [articleId, router, locale],
   );
 
   const jumpToSection = useCallback((sectionId: string) => {

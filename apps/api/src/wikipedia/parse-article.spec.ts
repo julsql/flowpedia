@@ -142,6 +142,23 @@ describe("parseArticleSections — inline annotations", () => {
     expect(t).toContain("Vrai contenu");
   });
 
+  it("captures link lists inside <pre> (sigles index pages) as link runs", () => {
+    const html = `<html><body><section data-mw-section-id="1"><h2>A</h2><pre><span class="page_h"><a rel="mw:WikiLink" href="./A10">A10</a></span> <a rel="mw:WikiLink" href="./A11">A11</a> <a rel="mw:WikiLink" href="./A12">A12</a></pre></section></body></html>`;
+    const sections = parseArticleSections(html, "Résumé");
+    const a = sections.find((s) => s.title === "A");
+    const links = a?.paragraphs.flatMap((p) => p.runs.filter((r) => r.linkTargetId)) ?? [];
+    expect(links.map((l) => l.linkTargetId)).toEqual(["A10", "A11", "A12"]);
+  });
+
+  it("keeps a {{Catégorie détaillée}} link (namespaced) so the section shows", () => {
+    const html = `<html><body><section data-mw-section-id="1"><h2>Fondations</h2><div class="loupe">Voir la catégorie : <a rel="mw:WikiLink" href="./Catégorie:Fondation_en_1950">Fondation en 1950</a>.</div></section></body></html>`;
+    const sections = parseArticleSections(html, "Résumé");
+    const f = sections.find((s) => s.title === "Fondations");
+    expect(f?.mainLinks).toEqual([
+      { label: "Fondation en 1950", targetId: "Catégorie:Fondation_en_1950" },
+    ]);
+  });
+
   it("captures {{Article détaillé}} loupe links so the section stays visible", () => {
     const html = `<html><body>
       <section data-mw-section-id="0"><p>Intro.</p></section>
@@ -238,6 +255,29 @@ const PERSON_HTML = `
   </table>
 </body></html>
 `;
+
+describe("parseInfobox — detection across flavours", () => {
+  it("detects a taxobox (species classification)", () => {
+    const html = `<html><body><table class="taxobox_classification"><tr><th>Règne</th><td>Animalia</td></tr><tr><th>Classe</th><td>Mammalia</td></tr></table></body></html>`;
+    expect(parseInfobox(html)?.rows).toEqual([
+      { label: "Règne", value: "Animalia" },
+      { label: "Classe", value: "Mammalia" },
+    ]);
+  });
+
+  it("detects a bare 'Données clés' table (film infobox)", () => {
+    const html = `<html><body><table><caption class="hidden">Données clés</caption><tr><th>Réalisation</th><td>Christopher Nolan</td></tr><tr><th>Durée</th><td>148 minutes</td></tr></table></body></html>`;
+    expect(parseInfobox(html)?.rows).toEqual([
+      { label: "Réalisation", value: "Christopher Nolan" },
+      { label: "Durée", value: "148 minutes" },
+    ]);
+  });
+
+  it("ignores large content wikitables", () => {
+    const html = `<html><body><table class="wikitable"><tr><th>Paris</th><td>13000000</td></tr><tr><th>Lyon</th><td>2000000</td></tr><tr><th>Nice</th><td>1000000</td></tr></table></body></html>`;
+    expect(parseInfobox(html)).toBeUndefined();
+  });
+});
 
 describe("parseInfobox — person keeps only biography facts", () => {
   const box = parseInfobox(PERSON_HTML);

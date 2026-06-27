@@ -1,0 +1,41 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.0
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: ENV_FILE
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+            echo "Pulling latest code..."
+            git pull origin main
+            echo "Writing .env from GitHub secret..."
+            printf '%s' "$ENV_FILE" > .env
+            chmod 600 .env
+            echo "Building & starting containers..."
+            docker compose -f docker-compose.prod.yml up --build -d
+            echo "Cleaning unused images..."
+            docker image prune -f

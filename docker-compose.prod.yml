@@ -1,0 +1,51 @@
+# Production stack: Postgres + API + web (Expo export served by nginx).
+# Each public service is bound to 127.0.0.1 only — the host nginx reverse-proxies
+# flowpedia.julsql.fr and flowpedia-api.julsql.fr to these loopback ports.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: flowpedia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flowpedia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-flowpedia}
+    volumes:
+      - flowpedia-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flowpedia}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: flowpedia-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      WIKIPEDIA_USER_AGENT: ${WIKIPEDIA_USER_AGENT}
+      WIKIPEDIA_LANG: ${WIKIPEDIA_LANG:-fr}
+      ARTICLE_CACHE_TTL: ${ARTICLE_CACHE_TTL:-86400}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-flowpedia}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-flowpedia}
+    ports:
+      - "127.0.0.1:${API_PORT:-8111}:3000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/mobile/Dockerfile
+      args:
+        EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-https://flowpedia-api.julsql.fr}
+    container_name: flowpedia-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8110}:80"
+
+volumes:
+  flowpedia-db-data:

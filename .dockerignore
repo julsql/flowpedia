@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+**/dist
+**/build
+**/.expo
+**/.expo-shared
+**/web-build
+.git
+.github
+.idea
+.vscode
+**/*.log
+*.zip
+design
+**/.env
+**/.env.*.local

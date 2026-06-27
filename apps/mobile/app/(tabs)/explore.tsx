@@ -193,7 +193,11 @@ export default function ExploreScreen() {
               {grid.map((article) => (
                 <Pressable key={article.id} style={styles.cell} onPress={() => open(article)}>
                   {article.image ? (
-                    <RemoteImage source={{ uri: article.image }} style={styles.cellImage} />
+                    <RemoteImage
+                      source={{ uri: article.image }}
+                      style={styles.cellImage}
+                      resizeMode="contain"
+                    />
                   ) : (
                     <View style={[styles.cellImage, styles.cellPlaceholder]} />
                   )}
@@ -239,13 +243,15 @@ const makeStyles = (colors: ThemeColors) =>
     grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
     cell: {
       width: "48%",
-      height: 130,
+      aspectRatio: 1,
       borderRadius: radii.media,
       overflow: "hidden",
       marginBottom: 12,
       justifyContent: "flex-end",
       backgroundColor: colors.field,
     },
+    // Whole image shown (no crop) on a neutral square; different ratios fit
+    // inside the same square cell.
     cellImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
     cellPlaceholder: { backgroundColor: colors.separatorThick },
     cellGradient: { position: "absolute", left: 0, right: 0, bottom: 0, height: "70%" },

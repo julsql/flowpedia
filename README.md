@@ -147,6 +147,52 @@ After clearing once, `pnpm mobile` works normally again.
 pnpm test
 ```
 
+## Deployment
+
+Production runs three containers from `docker-compose.prod.yml` — Postgres, the
+API, and the Expo web bundle served by nginx — behind the host nginx:
+
+| Service | Domain | Container | Loopback port |
+| --- | --- | --- | --- |
+| Web | `flowpedia.julsql.fr` | `flowpedia-web` | `127.0.0.1:8110` |
+| API | `flowpedia-api.julsql.fr` | `flowpedia-api` | `127.0.0.1:8111` |
+
+The web bundle calls the API over HTTPS, and the future mobile app points at the
+same `flowpedia-api.julsql.fr`. `EXPO_PUBLIC_API_URL` is baked into the web bundle
+at **build time** (a compose `build.args`), so it can't be changed at runtime.
+
+### CI/CD
+
+Push to `main` triggers `.github/workflows/deploy.yml` (or run it manually). It
+SSHes into the server, writes `.env` from the `ENV_FILE` secret, then
+`docker compose -f docker-compose.prod.yml up --build -d`.
+
+GitHub repo secrets required: `SSH_HOST`, `SSH_USER`, `SSH_KEY`, `DEPLOY_PATH`
+(the repo path on the server), and `ENV_FILE` (the full `.env`, see
+`.env.example`).
+
+### First-time server setup
+
+```bash
+# 1. Clone into DEPLOY_PATH, create the prod env
+git clone <repo> /path/to/flowpedia && cd /path/to/flowpedia
+cp .env.example .env   # set POSTGRES_PASSWORD + a valid WIKIPEDIA_USER_AGENT
+
+# 2. Bring the stack up (or just push to main)
+docker compose -f docker-compose.prod.yml up --build -d
+
+# 3. Host nginx vhosts + TLS
+sudo cp infra/nginx/flowpedia.julsql.fr.conf      /etc/nginx/conf.d/
+sudo cp infra/nginx/flowpedia-api.julsql.fr.conf  /etc/nginx/conf.d/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d flowpedia.julsql.fr -d flowpedia-api.julsql.fr
+```
+
+DNS: point both `flowpedia.julsql.fr` and `flowpedia-api.julsql.fr` (A/AAAA) at
+the server. CORS is open on the API, so the cross-origin web → API calls work.
+User signals are persisted to Postgres; if the DB is down the API still serves
+(events are logged only).
+
 ## Wikipedia / licensing
 
 Content comes from the Wikimedia REST API. A custom `User-Agent` is required, and
