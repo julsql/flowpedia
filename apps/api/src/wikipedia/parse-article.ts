@@ -156,8 +156,9 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
   // Whether the current heading's content should be skipped.
   let skip = false;
 
-  const flush = () => {
+  const flush = (force = false) => {
     if (
+      force ||
       current.paragraphs.length ||
       current.images?.length ||
       current.tables?.length ||
@@ -181,7 +182,12 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
       continue;
     }
     if (tag === "h2" || tag === "h3" || tag === "h4") {
-      flush();
+      const incomingLevel = tag === "h2" ? 2 : tag === "h3" ? 3 : 4;
+      // Keep an empty top-level heading that parents sub-sections, so big
+      // categories whose text lives entirely in sub-sections (e.g. "Biographie",
+      // "Carrière") stay visible in the body and the table of contents.
+      const keepEmptyParent = !skip && current.level <= 2 && incomingLevel > 2;
+      flush(keepEmptyParent);
       const title = collapseWhitespace(node.text).trim();
       if (tag === "h2") {
         excludedH2 = isExcludedSection(title);
@@ -189,8 +195,7 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
       } else {
         skip = excludedH2 || isExcludedSection(title);
       }
-      const level = tag === "h2" ? 2 : tag === "h3" ? 3 : 4;
-      current = { id: `section-${sections.length + 1}`, title, level, paragraphs: [] };
+      current = { id: `section-${sections.length + 1}`, title, level: incomingLevel, paragraphs: [] };
     } else if (!skip && (tag === "p" || tag === "li" || tag === "pre") && isContentNode(node)) {
       if (current.paragraphs.length >= MAX_PARAGRAPHS_PER_SECTION) {
         continue;

@@ -12,7 +12,8 @@ export class SearchController {
     @Query("q") q?: string,
     @Query("lang") lang?: string,
     @Query("cursor") cursor?: string,
+    @Query("exact") exact?: string,
   ): Promise<FeedResponse> {
-    return this.wikipedia.search(q ?? "", lang, cursor);
+    return this.wikipedia.search(q ?? "", lang, cursor, exact === "1" || exact === "true");
   }
 }

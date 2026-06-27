@@ -175,65 +175,122 @@ export class WikipediaService {
     const url = `https://${language}.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(
       title,
     )}`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
-    });
-    if (!res.ok) {
-      throw new Error(`Wikipedia HTML ${res.status} for ${title}`);
+    // Full-article HTML is large; a slow/dropped fetch must not silently fall
+    // back to the bare summary. Time-box each attempt and retry once.
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
+      try {
+        const res = await fetch(url, {
+          headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          throw new Error(`Wikipedia HTML ${res.status} for ${title}`);
+        }
+        return await res.text();
+      } catch (err) {
+        lastErr = err;
+      } finally {
+        clearTimeout(timer);
+      }
     }
-    return res.text();
+    throw lastErr instanceof Error ? lastErr : new Error(`Wikipedia HTML fetch failed for ${title}`);
   }
 
-  /** Raw full-text search → titles. */
-  private async rawSearch(query: string, language: SupportedLang, limit: number): Promise<string[]> {
+  /** Raw full-text search → titles + the engine's spelling suggestion, if any. */
+  private async rawSearch(
+    query: string,
+    language: SupportedLang,
+    limit: number,
+  ): Promise<{ titles: string[]; suggestion?: string }> {
     const url =
       `https://${language}.wikipedia.org/w/api.php?action=query&list=search` +
-      `&srsearch=${encodeURIComponent(query)}&srlimit=${limit}&srnamespace=0&format=json&origin=*`;
+      `&srsearch=${encodeURIComponent(query)}&srlimit=${limit}&srnamespace=0` +
+      `&srinfo=suggestion&format=json&origin=*`;
     try {
       const res = await fetch(url, {
         headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
       });
       if (!res.ok) {
-        return [];
+        return { titles: [] };
       }
-      const data = (await res.json()) as { query?: { search?: { title: string }[] } };
-      return (data.query?.search ?? [])
+      const data = (await res.json()) as {
+        query?: { search?: { title: string }[]; searchinfo?: { suggestion?: string } };
+      };
+      const titles = (data.query?.search ?? [])
         .map((s) => s.title)
         .filter((title) => !isExcludedTitle(title));
+      return { titles, suggestion: data.query?.searchinfo?.suggestion };
     } catch (err) {
       this.logger.warn(`search failed for "${query}": ${String(err)}`);
-      return [];
+      return { titles: [] };
     }
   }
 
   /**
    * Broad theme pool for Explore: direct matches expanded with "more like" the
    * best match, so a query like "Egyptian alphabet" also surfaces other writing
-   * systems, ancient Egypt, history of numbers, etc. Cached per query.
+   * systems, ancient Egypt, history of numbers, etc. Cached per query, alongside
+   * the engine's "did you mean" suggestion.
    */
-  private async getSearchPool(query: string, language: SupportedLang): Promise<string[]> {
+  private async getSearchPool(
+    query: string,
+    language: SupportedLang,
+  ): Promise<{ pool: string[]; suggestion?: string }> {
     const key = `search:${language}:${query.toLowerCase()}`;
-    const cached = await this.cache.get<string[]>(key);
+    const cached = await this.cache.get<{ pool: string[]; suggestion?: string }>(key);
     if (cached) {
       return cached;
     }
-    const direct = await this.rawSearch(query, language, 20);
+    const { titles: direct, suggestion } = await this.rawSearch(query, language, 20);
     const related = direct.length ? await this.getRelatedTitles([direct[0]], language) : [];
     const pool = [...new Set([...direct, ...related])];
-    if (pool.length) {
-      await this.cache.set(key, pool, SEARCH_TTL_MS);
+    const result = { pool, suggestion };
+    if (pool.length || suggestion) {
+      await this.cache.set(key, result, SEARCH_TTL_MS);
     }
-    return pool;
+    return result;
   }
 
-  /** Paginated theme search for Explore (continuous scroll). */
-  async search(query: string, lang?: string, cursor?: string): Promise<FeedResponse> {
+  /**
+   * Paginated theme search for Explore (continuous scroll). Typo-tolerant: with
+   * no direct hits it auto-searches the engine's spelling suggestion (reporting
+   * the correction so the UI can offer the literal query); when hits exist but a
+   * better spelling is suggested, it's returned as a "did you mean".
+   * `exact` skips the auto-correction (the user asked for the literal query).
+   */
+  async search(
+    query: string,
+    lang?: string,
+    cursor?: string,
+    exact = false,
+  ): Promise<FeedResponse> {
     const language = this.normalizeLang(lang);
     const q = query.trim();
     if (!q) {
       return { items: [] };
     }
-    const pool = await this.getSearchPool(q, language);
+    const first = await this.getSearchPool(q, language);
+    let pool = first.pool;
+    // Wikipedia only suggests a spelling when it thinks the query is misspelled.
+    // When it does, auto-search the correction (its direct hits for the typo are
+    // usually irrelevant fuzzy matches) — like "Showing results for X".
+    const sug =
+      first.suggestion && first.suggestion.toLowerCase() !== q.toLowerCase()
+        ? first.suggestion
+        : undefined;
+
+    let correctedQuery: string | undefined;
+    if (!exact && sug) {
+      const alt = await this.getSearchPool(sug, language);
+      if (alt.pool.length) {
+        pool = alt.pool;
+        correctedQuery = sug;
+      }
+    }
+
     const offset = cursor ? Number(cursor) : 0;
     const slice = pool.slice(offset, offset + SEARCH_PAGE_SIZE);
     const settled = await Promise.allSettled(
@@ -243,7 +300,11 @@ export class WikipediaService {
       .filter((r): r is PromiseFulfilledResult<Article> => r.status === "fulfilled")
       .map((r) => r.value);
     const nextOffset = offset + SEARCH_PAGE_SIZE;
-    return { items, nextCursor: nextOffset < pool.length ? String(nextOffset) : undefined };
+    return {
+      items,
+      nextCursor: nextOffset < pool.length ? String(nextOffset) : undefined,
+      ...(correctedQuery ? { correctedQuery, originalQuery: q } : {}),
+    };
   }
 
   /**

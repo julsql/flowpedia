@@ -379,6 +379,33 @@ const TABLE_HTML = `
 </body></html>
 `;
 
+describe("parseArticleSections — top-level headings with only sub-sections", () => {
+  const html = `
+    <html><body>
+      <section data-mw-section-id="0"><p>Intro.</p></section>
+      <section><h2>Biographie</h2>
+        <section><h3>Origines</h3><p>Né à Roubaix.</p></section>
+        <section><h3>Formation</h3><p>Polytechnique.</p></section>
+      </section>
+      <section><h2>Carrière</h2>
+        <section><h3>Débuts</h3><p>Promoteur.</p></section>
+      </section>
+    </body></html>
+  `;
+  const sections = parseArticleSections(html, "Résumé");
+
+  it("keeps an empty parent h2 (whose text is all in sub-sections) navigable", () => {
+    const tops = sections.filter((s) => s.level <= 2).map((s) => s.title);
+    expect(tops).toEqual(["Résumé", "Biographie", "Carrière"]);
+  });
+
+  it("still emits the sub-sections with their content", () => {
+    expect(sections.find((s) => s.title === "Origines")?.paragraphs[0].runs[0].text).toContain(
+      "Roubaix",
+    );
+  });
+});
+
 describe("parseArticleSections — content tables", () => {
   const sections = parseArticleSections(TABLE_HTML, "Résumé");
   const table = sections.find((s) => s.title === "Janvier")?.tables?.[0];
