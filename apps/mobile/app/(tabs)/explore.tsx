@@ -6,21 +6,48 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Article } from "@flowpedia/shared";
 import { fetchFeed, fetchSearch } from "../../src/api/client";
-import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
+import {
+  CONTENT_MAX_WIDTH,
+  ScreenContainer,
+  centeredColumn,
+} from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { SkeletonCell } from "../../src/components/SkeletonCard";
 import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
+
+// Instagram-style grid: 3 square tiles per row with hairline gaps.
+const GRID_COLS = 3;
+const GRID_GAP = 2;
+// Backdrop colors for image-less tiles (so the title reads like a cover).
+const TILE_COLORS = [
+  "#8E6FB0",
+  "#5A7DAF",
+  "#4F9D8C",
+  "#C18B5A",
+  "#B0586E",
+  "#6B7FA0",
+  "#9A7B4F",
+  "#7E8B5A",
+];
+
+function tileColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return TILE_COLORS[hash % TILE_COLORS.length];
+}
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
@@ -28,6 +55,13 @@ export default function ExploreScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useLocale();
+
+  // Square tile size: 3 per row inside the centered column, minus the gaps.
+  const { width: windowWidth } = useWindowDimensions();
+  const tileSize = useMemo(() => {
+    const columnWidth = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 2 * spacing.screenPadding;
+    return Math.floor((columnWidth - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS);
+  }, [windowWidth]);
 
   // A search theme can be pushed from elsewhere (e.g. profile interest chips).
   const params = useLocalSearchParams<{ q?: string }>();
@@ -141,8 +175,19 @@ export default function ExploreScreen() {
     [results, loadMoreSearch, loadMoreTrending],
   );
 
-  const showingResults = results !== null;
-  const grid = showingResults ? results : trending;
+  // While a search is active, never fall back to trending — show skeletons until
+  // the results arrive, then the grid.
+  const searching = query.trim().length > 0;
+  const showSkeletons = searching && (loading || results === null);
+  const grid = searching ? (results ?? []) : trending;
+  const hasMore = searching ? searchCursor : trendingCursor;
+
+  const cellMargin = (i: number) => ({
+    marginRight: i % GRID_COLS === GRID_COLS - 1 ? 0 : GRID_GAP,
+    marginBottom: GRID_GAP,
+    width: tileSize,
+    height: tileSize,
+  });
 
   return (
     <ScreenContainer style={{ paddingTop: insets.top + 12 }}>
@@ -172,17 +217,17 @@ export default function ExploreScreen() {
         scrollEventThrottle={200}
         onScroll={onScroll}
       >
-        {!showingResults ? (
+        {!searching ? (
           <View style={styles.trendingHeader}>
             <MaterialIcons name="trending-up" size={20} color={colors.accent} />
             <Text style={styles.trendingTitle}>{t("explore.trending")}</Text>
           </View>
         ) : null}
 
-        {loading ? (
+        {showSkeletons ? (
           <View style={styles.grid}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <SkeletonCell key={i} style={styles.cell} />
+            {Array.from({ length: 12 }).map((_, i) => (
+              <SkeletonCell key={i} style={[styles.cell, cellMargin(i)]} />
             ))}
           </View>
         ) : grid.length === 0 ? (
@@ -190,31 +235,30 @@ export default function ExploreScreen() {
         ) : (
           <>
             <View style={styles.grid}>
-              {grid.map((article) => (
-                <Pressable key={article.id} style={styles.cell} onPress={() => open(article)}>
+              {grid.map((article, i) => (
+                <Pressable
+                  key={article.id}
+                  style={[styles.cell, cellMargin(i)]}
+                  onPress={() => open(article)}
+                >
                   {article.image ? (
                     <RemoteImage
                       source={{ uri: article.image }}
                       style={styles.cellImage}
-                      resizeMode="contain"
+                      resizeMode="cover"
                     />
                   ) : (
-                    <View style={[styles.cellImage, styles.cellPlaceholder]} />
+                    // No image → a colored backdrop with the title, like a cover.
+                    <View style={[styles.cellImage, styles.cellFallback, { backgroundColor: tileColor(article.id) }]}>
+                      <Text style={styles.cellFallbackText} numberOfLines={4}>
+                        {article.title}
+                      </Text>
+                    </View>
                   )}
-                  <LinearGradient
-                    colors={["transparent", "rgba(0,0,0,0.8)"]}
-                    style={styles.cellGradient}
-                    pointerEvents="none"
-                  />
-                  <Text style={styles.cellTitle} numberOfLines={2}>
-                    {article.title}
-                  </Text>
                 </Pressable>
               ))}
             </View>
-            {(showingResults ? searchCursor : trendingCursor) ? (
-              <ActivityIndicator color={colors.muted} style={styles.loader} />
-            ) : null}
+            {hasMore ? <ActivityIndicator color={colors.muted} style={styles.loader} /> : null}
           </>
         )}
       </ScrollView>
@@ -240,20 +284,11 @@ const makeStyles = (colors: ThemeColors) =>
     trendingTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: "600" },
     loader: { marginTop: 20, marginBottom: 12 },
     empty: { color: colors.textSecondary, fontSize: 15, marginTop: 40, textAlign: "center" },
-    grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
-    cell: {
-      width: "48%",
-      aspectRatio: 1,
-      borderRadius: radii.media,
-      overflow: "hidden",
-      marginBottom: 12,
-      justifyContent: "flex-end",
-      backgroundColor: colors.field,
-    },
-    // Whole image shown (no crop) on a neutral square; different ratios fit
-    // inside the same square cell.
-    cellImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
-    cellPlaceholder: { backgroundColor: colors.separatorThick },
-    cellGradient: { position: "absolute", left: 0, right: 0, bottom: 0, height: "70%" },
-    cellTitle: { color: "#fff", fontSize: 14, fontWeight: "600", padding: 10 },
+    grid: { flexDirection: "row", flexWrap: "wrap" },
+    // Instagram-style square tile (sharp corners, hairline gaps via margins).
+    cell: { overflow: "hidden", backgroundColor: colors.field },
+    cellImage: { width: "100%", height: "100%" },
+    // Image-less tile: colored backdrop with the title centered, like a cover.
+    cellFallback: { alignItems: "center", justifyContent: "center", padding: 8 },
+    cellFallbackText: { color: "#fff", fontSize: 13, fontWeight: "700", textAlign: "center" },
   });
