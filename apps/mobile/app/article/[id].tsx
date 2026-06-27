@@ -380,6 +380,13 @@ export default function ArticleScreen() {
               />
             ))}
 
+            {/* "Open on Wikipedia" sits right after the article, before the
+                related feed, so the source is clearly reachable. */}
+            <Pressable onPress={openOriginal} style={styles.originalBtn}>
+              <FontAwesome name="wikipedia-w" size={16} color={colors.accentLinkText} />
+              <Text style={styles.originalBtnText}>{t("article.openOriginal")}</Text>
+            </Pressable>
+
             {related.length ? (
               // Continuous related feed — keeps the reader bouncing topic to topic.
               <View style={styles.explore}>
@@ -415,10 +422,6 @@ export default function ArticleScreen() {
               </View>
             ) : null}
 
-            <Pressable onPress={openOriginal} style={styles.originalBtn}>
-              <FontAwesome name="wikipedia-w" size={16} color={colors.accentLinkText} />
-              <Text style={styles.originalBtnText}>{t("article.openOriginal")}</Text>
-            </Pressable>
             <Text style={styles.source}>{t("common.source")}</Text>
           </ScrollView>
 
