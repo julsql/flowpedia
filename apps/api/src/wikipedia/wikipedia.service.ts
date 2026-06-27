@@ -30,6 +30,11 @@ const SUPPORTED_LANGS = [
 ] as const;
 type SupportedLang = (typeof SUPPORTED_LANGS)[number];
 
+// Bump this whenever the parsed Article/summary shape changes, so a deploy
+// invalidates stale cached objects instead of serving the old structure for the
+// 24h TTL (Redis survives restarts). Last bump: hide "related" sections + charts.
+const CACHE_SCHEMA_VERSION = "v2";
+
 const POPULAR_TTL_MS = 6 * 60 * 60 * 1000;
 const NEWS_TTL_MS = 60 * 60 * 1000;
 const RELATED_TTL_MS = 10 * 60 * 1000;
@@ -118,7 +123,7 @@ export class WikipediaService {
   /** Fetch an article summary (page/summary endpoint), cached per language. */
   async getSummary(title: string, lang?: string): Promise<Article> {
     const language = this.normalizeLang(lang);
-    const key = `summary:${language}:${title}`;
+    const key = `summary:${CACHE_SCHEMA_VERSION}:${language}:${title}`;
     const cached = await this.cache.get<Article>(key);
     if (cached) {
       return cached;
@@ -151,7 +156,7 @@ export class WikipediaService {
    */
   async getArticle(title: string, lang?: string): Promise<Article> {
     const language = this.normalizeLang(lang);
-    const key = `article:${language}:${title}`;
+    const key = `article:${CACHE_SCHEMA_VERSION}:${language}:${title}`;
     const cached = await this.cache.get<Article>(key);
     if (cached) {
       return cached;
