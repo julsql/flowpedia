@@ -186,6 +186,26 @@ describe("parseArticleSections — lists & excluded sections", () => {
   });
 });
 
+describe("parseArticleSections — long content tables", () => {
+  // A month-of-deaths page is a single wikitable with ~200 rows; keep them all
+  // (the old 60-row cap stopped halfway through the month).
+  const rows = Array.from(
+    { length: 200 },
+    (_, i) => `<tr><td>${i + 1} juin</td><td>Person ${i + 1}</td></tr>`,
+  ).join("");
+  const html = `<html><body><section data-mw-section-id="0"><table class="wikitable"><tr><th>Date</th><th>Nom</th></tr>${rows}</table></section></body></html>`;
+  const sections = parseArticleSections(html, "Décès en juin 2026");
+
+  it("keeps the whole month, not just the first rows", () => {
+    const table = sections.flatMap((s) => s.tables ?? [])[0];
+    expect(table).toBeDefined();
+    expect(table!.headers).toEqual(["Date", "Nom"]);
+    expect(table!.rows.length).toBe(200);
+    const lastCell = table!.rows[199][1].map((run) => run.text).join("");
+    expect(lastCell).toBe("Person 200");
+  });
+});
+
 describe("parseArticleSections — inline annotations", () => {
   const html = `
     <html><body><section data-mw-section-id="0">

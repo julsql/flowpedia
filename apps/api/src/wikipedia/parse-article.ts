@@ -18,7 +18,7 @@ const MAX_INFOBOX_ROWS = 16; // total label/value rows kept (headings not counte
 const PER_BLOCK_ROWS = 3; // facts kept per theme when an infobox spans many blocks
 const MAX_INFOBOX_SCAN = 140; // scan deep enough across a multi-table (v3) infobox
 const MIN_SECTION_IMAGE_WIDTH = 100; // skip tiny inline icons/flags
-const MAX_TABLE_ROWS = 60; // cap a long list-table (e.g. a month of deaths)
+const MAX_TABLE_ROWS = 400; // cap a long list-table (a full month of deaths is ~250 rows)
 const MAX_TABLE_COLS = 6;
 // Table columns that are references, not content (dropped). Covers the supported
 // languages' "source/references/notes" header words.
