@@ -305,12 +305,23 @@ export default function ExploreScreen() {
                       </Text>
                     </>
                   ) : (
-                    // No image → a colored backdrop with the title, like a cover.
-                    <View style={[styles.cellImage, styles.cellFallback, { backgroundColor: tileColor(article.id) }]}>
-                      <Text style={styles.cellFallbackText} numberOfLines={4}>
+                    // No image → a colored backdrop with the title shown big, and
+                    // the same bottom title overlay as image tiles (uniform look).
+                    <>
+                      <View style={[styles.cellImage, styles.cellFallback, { backgroundColor: tileColor(article.id) }]}>
+                        <Text style={styles.cellFallbackText} numberOfLines={4}>
+                          {article.title}
+                        </Text>
+                      </View>
+                      <LinearGradient
+                        colors={["transparent", "rgba(0,0,0,0.75)"]}
+                        style={styles.cellGradient}
+                        pointerEvents="none"
+                      />
+                      <Text style={styles.cellTitle} numberOfLines={3}>
                         {article.title}
                       </Text>
-                    </View>
+                    </>
                   )}
                 </Pressable>
               ))}
