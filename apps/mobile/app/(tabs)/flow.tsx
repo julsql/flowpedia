@@ -17,7 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import type { Article } from "@flowpedia/shared";
-import { fetchFeed, sendEvents } from "../../src/api/client";
+import { fetchFeed, largeImageUrl, sendEvents } from "../../src/api/client";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { useLibrary } from "../../src/library/LibraryProvider";
@@ -287,7 +287,13 @@ function FlowItem({ article, height }: { article: Article; height: number }) {
   return (
     <View style={[styles.item, { height }]} {...pan.panHandlers}>
       {article.image ? (
-        <RemoteImage source={{ uri: article.image }} style={styles.image} resizeMode="cover" />
+        // Full-screen view → use a large render of the image, not the small
+        // summary thumbnail (which would be pixelated).
+        <RemoteImage
+          source={{ uri: largeImageUrl(article.image, 1280) }}
+          style={styles.image}
+          resizeMode="cover"
+        />
       ) : (
         // No image → a colored cover with the title shown big.
         <View style={[styles.image, styles.cover, { backgroundColor: coverColor(article.id) }]}>
