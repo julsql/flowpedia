@@ -139,8 +139,10 @@ export default function ProfileScreen() {
               {interests.map((interest) => (
                 <View key={interest} style={styles.interestChip}>
                   {/* Tap the label to search this theme; tap the cross to mute it. */}
-                  <Pressable onPress={() => searchInterest(interest)} hitSlop={6}>
-                    <Text style={styles.interestChipText}>{interest}</Text>
+                  <Pressable onPress={() => searchInterest(interest)} hitSlop={6} style={styles.interestChipLabel}>
+                    <Text style={styles.interestChipText} numberOfLines={1}>
+                      {interest}
+                    </Text>
                   </Pressable>
                   <Pressable onPress={() => muteInterest(interest)} hitSlop={8}>
                     <MaterialIcons name="close" size={15} color={colors.interestChipText} />
@@ -291,7 +293,9 @@ const makeStyles = (colors: ThemeColors) =>
       paddingVertical: 7,
       borderRadius: radii.pill,
       backgroundColor: colors.interestChipBg,
+      maxWidth: "100%",
     },
+    interestChipLabel: { flexShrink: 1 },
     interestChipText: { color: colors.interestChipText, fontSize: 13, fontWeight: "500" },
     savedGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     savedCell: { width: "31%" },
