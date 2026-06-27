@@ -2,7 +2,13 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Article, FeedResponse } from "@flowpedia/shared";
 import { CacheService } from "../cache/cache.service";
-import { collectLinks, isScaffoldImage, parseArticleSections, parseInfobox } from "./parse-article";
+import {
+  collectLinks,
+  isScaffoldImage,
+  parseArticleSections,
+  parseCharts,
+  parseInfobox,
+} from "./parse-article";
 
 // Keep in sync with the mobile SUPPORTED_LOCALES.
 const SUPPORTED_LANGS = [
@@ -144,10 +150,13 @@ export class WikipediaService {
 
     let sections = summary.sections;
     let infobox = summary.infobox;
+    let charts: Article["charts"];
     try {
       const html = await this.fetchArticleHtml(summary.title, language);
       sections = parseArticleSections(html, leadTitle);
       infobox = parseInfobox(html);
+      const parsedCharts = parseCharts(html);
+      charts = parsedCharts.length ? parsedCharts : undefined;
     } catch (err) {
       this.logger.warn(`article HTML parse failed for ${title}: ${String(err)}`);
     }
@@ -166,7 +175,7 @@ export class WikipediaService {
       links = collectLinks(sections).slice(0, ARTICLE_LINKS_LIMIT);
     }
 
-    const article: Article = { ...summary, sections, links, infobox };
+    const article: Article = { ...summary, sections, links, infobox, charts };
     await this.cache.set(key, article, this.ttlMs);
     return article;
   }

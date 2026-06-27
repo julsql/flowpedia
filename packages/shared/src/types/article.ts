@@ -33,6 +33,24 @@ export interface ArticleTable {
   rows: TableCell[][];
 }
 
+/** One slice of a pie chart (e.g. a religion's share). */
+export interface ChartSlice {
+  label: string;
+  /** Percentage (0–100). */
+  value: number;
+  /** CSS color (named or hex) from the source chart. */
+  color: string;
+}
+
+/**
+ * A pie chart reconstructed from a Wikipedia CSS pie (which can't be shown as an
+ * image — it's an empty frame with CSS-overlaid slices), so we can draw it.
+ */
+export interface ArticleChart {
+  title?: string;
+  slices: ChartSlice[];
+}
+
 /** An article section (Summary, Habitat, Intelligence…) — see handoff screen 3. */
 export interface ArticleSection {
   id: string;
@@ -93,6 +111,8 @@ export interface Article {
   links: ArticleLink[];
   /** Emblematic Wikipedia summary card (key facts), when the page has one. */
   infobox?: ArticleInfobox;
+  /** Pie charts reconstructed from the page (e.g. a religion breakdown). */
+  charts?: ArticleChart[];
   likes: number;
   liked: boolean;
   saved: boolean;

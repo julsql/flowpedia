@@ -23,6 +23,7 @@ import { fetchArticle, fetchFeed, largeImageUrl, sendEvents } from "../../src/ap
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { ArticleCard } from "../../src/components/ArticleCard";
 import { InfoCard } from "../../src/components/InfoCard";
+import { PieChartCard } from "../../src/components/PieChart";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
@@ -370,6 +371,10 @@ export default function ArticleScreen() {
             <Text style={styles.title}>{article.title}</Text>
 
             <InfoCard article={article} colors={colors} />
+
+            {article.charts?.map((chart, i) => (
+              <PieChartCard key={`chart-${i}`} chart={chart} colors={colors} />
+            ))}
 
             {article.sections.map((section, index) => (
               <SectionBlock

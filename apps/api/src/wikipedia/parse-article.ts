@@ -1,9 +1,11 @@
 import { parse, type HTMLElement, type Node } from "node-html-parser";
 import type {
+  ArticleChart,
   ArticleInfobox,
   ArticleLink,
   ArticleSection,
   ArticleTable,
+  ChartSlice,
   InfoboxRow,
   TableCell,
   TextRun,
@@ -415,6 +417,67 @@ const SCAFFOLD_IMAGE = /Circle_frame|Pie_chart_blank|Blank(_|%20)?map/i;
 /** Whether an image src is a non-photo chart scaffold we should ignore. */
 export function isScaffoldImage(src: string | undefined): boolean {
   return !!src && SCAFFOLD_IMAGE.test(src);
+}
+
+/**
+ * Reconstruct Wikipedia CSS pie charts (an empty Circle_frame with CSS-overlaid
+ * slices — not a real image) into structured data, so the app can draw them.
+ * The slices come from the legend list next to the frame: a colored swatch + a
+ * label + a percentage.
+ */
+export function parseCharts(html: string): ArticleChart[] {
+  const root = parse(html, { comment: false });
+  const charts: ArticleChart[] = [];
+  const seen = new Set<string>();
+
+  for (const img of root.querySelectorAll("img")) {
+    if (!/Circle_frame/i.test(img.getAttribute("src") ?? "")) {
+      continue;
+    }
+    // Climb to the container that also holds the legend list.
+    let box: HTMLElement | null = img.parentNode as HTMLElement | null;
+    let depth = 0;
+    while (box && box.rawTagName && depth < 6 && !box.querySelector("ul li, ol li")) {
+      box = box.parentNode as HTMLElement | null;
+      depth += 1;
+    }
+    const list = box?.querySelector("ul, ol");
+    if (!list) {
+      continue;
+    }
+
+    const slices: ChartSlice[] = [];
+    for (const li of list.querySelectorAll("li")) {
+      const swatch = li.querySelector("span[style]");
+      const color = (swatch?.getAttribute("style") ?? "")
+        .match(/background(?:-color)?:\s*([^;]+)/i)?.[1]
+        ?.trim();
+      const text = collapseWhitespace(li.text);
+      const pct = text.match(/([\d]+(?:[.,]\d+)?)\s*%/);
+      if (!color || !pct) {
+        continue;
+      }
+      const value = Number.parseFloat(pct[1].replace(",", "."));
+      const label = text.replace(/\(?\s*[\d.,]+\s*%\s*\)?\s*$/, "").trim();
+      if (!label || !Number.isFinite(value)) {
+        continue;
+      }
+      slices.push({ label, value, color });
+    }
+
+    if (slices.length >= 2) {
+      const key = slices.map((s) => `${s.label}:${s.value}`).join("|");
+      if (!seen.has(key)) {
+        seen.add(key);
+        const captionEl = box?.querySelector(".thumbcaption");
+        // Strip embedded <style>/<script> so the caption isn't polluted with CSS.
+        captionEl?.querySelectorAll("style, script").forEach((s) => s.remove());
+        const caption = captionEl ? collapseWhitespace(captionEl.text).trim() : "";
+        charts.push({ title: caption || undefined, slices });
+      }
+    }
+  }
+  return charts.slice(0, 4);
 }
 
 /** Resolve a Parsoid image src (often protocol-relative) to an https URL. */

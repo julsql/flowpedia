@@ -2,8 +2,34 @@ import {
   collectLinks,
   isScaffoldImage,
   parseArticleSections,
+  parseCharts,
   parseInfobox,
 } from "./parse-article";
+
+describe("parseCharts", () => {
+  const html = `
+    <html><body>
+      <div class="thumb"><div class="thumbinner">
+        <img src="//upload.wikimedia.org/wikipedia/commons/thumb/1/18/Circle_frame.svg/250px-Circle_frame.svg.png" width="200"/>
+        <div class="thumbcaption">Religions en Norvège (2019)<style>.x{color:red}</style></div>
+        <ul>
+          <li><span class="legende" style="background:DodgerBlue"></span><a rel="mw:WikiLink" href="./Luthéranisme">Luthéranisme</a> (68,7 %)</li>
+          <li><span class="legende" style="background:#7D007D"></span><a rel="mw:WikiLink" href="./Catholicisme">Catholicisme</a> (3,08 %)</li>
+        </ul>
+      </div></div>
+    </body></html>
+  `;
+  const charts = parseCharts(html);
+
+  it("reconstructs the pie slices (label, value, color) and clean title", () => {
+    expect(charts).toHaveLength(1);
+    expect(charts[0].title).toBe("Religions en Norvège (2019)");
+    expect(charts[0].slices).toEqual([
+      { label: "Luthéranisme", value: 68.7, color: "DodgerBlue" },
+      { label: "Catholicisme", value: 3.08, color: "#7D007D" },
+    ]);
+  });
+});
 
 describe("isScaffoldImage", () => {
   it("flags the empty pie-chart frame but keeps real images", () => {
