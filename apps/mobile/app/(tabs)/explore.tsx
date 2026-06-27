@@ -11,6 +11,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -242,11 +243,21 @@ export default function ExploreScreen() {
                   onPress={() => open(article)}
                 >
                   {article.image ? (
-                    <RemoteImage
-                      source={{ uri: article.image }}
-                      style={styles.cellImage}
-                      resizeMode="cover"
-                    />
+                    <>
+                      <RemoteImage
+                        source={{ uri: article.image }}
+                        style={styles.cellImage}
+                        resizeMode="cover"
+                      />
+                      <LinearGradient
+                        colors={["transparent", "rgba(0,0,0,0.75)"]}
+                        style={styles.cellGradient}
+                        pointerEvents="none"
+                      />
+                      <Text style={styles.cellTitle} numberOfLines={3}>
+                        {article.title}
+                      </Text>
+                    </>
                   ) : (
                     // No image → a colored backdrop with the title, like a cover.
                     <View style={[styles.cellImage, styles.cellFallback, { backgroundColor: tileColor(article.id) }]}>
@@ -286,8 +297,11 @@ const makeStyles = (colors: ThemeColors) =>
     empty: { color: colors.textSecondary, fontSize: 15, marginTop: 40, textAlign: "center" },
     grid: { flexDirection: "row", flexWrap: "wrap" },
     // Instagram-style square tile (sharp corners, hairline gaps via margins).
-    cell: { overflow: "hidden", backgroundColor: colors.field },
-    cellImage: { width: "100%", height: "100%" },
+    cell: { overflow: "hidden", backgroundColor: colors.field, justifyContent: "flex-end" },
+    cellImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+    // Title overlaid on the image (gradient for legibility).
+    cellGradient: { position: "absolute", left: 0, right: 0, bottom: 0, height: "60%" },
+    cellTitle: { color: "#fff", fontSize: 12, fontWeight: "600", padding: 8, lineHeight: 15 },
     // Image-less tile: colored backdrop with the title centered, like a cover.
     cellFallback: { alignItems: "center", justifyContent: "center", padding: 8 },
     cellFallbackText: { color: "#fff", fontSize: 13, fontWeight: "700", textAlign: "center" },
