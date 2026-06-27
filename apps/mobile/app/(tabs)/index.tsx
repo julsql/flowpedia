@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -67,6 +77,9 @@ export default function FeedScreen() {
 
   // New shuffle seed per session → reloads bring fresh content.
   const seedRef = useRef<number>(Math.floor(Math.random() * 1_000_000_000));
+  // Whether the list is scrolled to the very top (gates web pull-to-refresh).
+  const atTopRef = useRef(true);
+  const refreshingRef = useRef(false);
 
   const load = useCallback(
     async (nextTab: FeedTab, clear = true) => {
@@ -107,11 +120,54 @@ export default function FeedScreen() {
   }, [load, tab]);
 
   const onRefresh = useCallback(async () => {
+    if (refreshingRef.current) {
+      return;
+    }
+    refreshingRef.current = true;
     setRefreshing(true);
     seedRef.current = Math.floor(Math.random() * 1_000_000_000);
     await load(tab, false);
     setRefreshing(false);
+    refreshingRef.current = false;
   }, [load, tab]);
+
+  // Web has no native pull-to-refresh (RefreshControl is a no-op): when the list
+  // is at the top and the user keeps scrolling up, reload with fresh proposals.
+  useEffect(() => {
+    if (Platform.OS !== "web") {
+      return;
+    }
+    let acc = 0;
+    let resetTimer: ReturnType<typeof setTimeout> | undefined;
+    const onWheel = (e: WheelEvent) => {
+      if (!atTopRef.current || refreshingRef.current || e.deltaY >= 0) {
+        acc = 0;
+        return;
+      }
+      acc += -e.deltaY;
+      if (resetTimer) {
+        clearTimeout(resetTimer);
+      }
+      resetTimer = setTimeout(() => {
+        acc = 0;
+      }, 300);
+      if (acc > 260) {
+        acc = 0;
+        void onRefresh();
+      }
+    };
+    window.addEventListener("wheel", onWheel, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      if (resetTimer) {
+        clearTimeout(resetTimer);
+      }
+    };
+  }, [onRefresh]);
+
+  const onListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    atTopRef.current = e.nativeEvent.contentOffset.y <= 1;
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (!cursor || loading) {
@@ -167,6 +223,15 @@ export default function FeedScreen() {
         <FlashList
           data={articles}
           keyExtractor={(item) => item.id}
+          onScroll={onListScroll}
+          scrollEventThrottle={32}
+          ListHeaderComponent={
+            refreshing && Platform.OS === "web" ? (
+              <View style={[centeredColumn, styles.webRefresh]}>
+                <ActivityIndicator color={colors.accent} />
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => (
             <View style={centeredColumn}>
               <ArticleCard article={item} onOpen={openArticle} onShare={openShare} />
@@ -219,6 +284,7 @@ const makeStyles = (colors: ThemeColors) =>
       marginTop: 8,
     },
     separator: { height: spacing.cardGap, backgroundColor: colors.separatorThick },
+    webRefresh: { paddingVertical: 14 },
     center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
     errorText: { color: colors.textSecondary, fontSize: 15 },
     retryBtn: {
