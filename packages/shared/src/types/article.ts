@@ -128,6 +128,12 @@ export interface Article {
   category: string;
   title: string;
   summary: string;
+  /**
+   * Broad topic ids the article belongs to (e.g. "sport", "history"), inferred
+   * from its title/description. Used to build the profile's interest chips —
+   * stable ids the app localizes to short, global category labels.
+   */
+  topics?: string[];
   /** Highlight image (thumbnail/lead). Absent when Wikipedia provides none. */
   image?: string;
   /** Lead image natural size, so the reader can keep its aspect ratio. */

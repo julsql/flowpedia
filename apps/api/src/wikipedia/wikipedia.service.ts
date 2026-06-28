@@ -11,6 +11,7 @@ import {
   parseInfobox,
   parseRelatedLinks,
 } from "./parse-article";
+import { classifyTopics } from "./topics";
 
 // Keep in sync with the mobile SUPPORTED_LOCALES.
 const SUPPORTED_LANGS = [
@@ -33,8 +34,8 @@ type SupportedLang = (typeof SUPPORTED_LANGS)[number];
 
 // Bump this whenever the parsed Article/summary shape changes, so a deploy
 // invalidates stale cached objects instead of serving the old structure for the
-// 24h TTL (Redis survives restarts). Last bump: longer list-tables (deaths).
-const CACHE_SCHEMA_VERSION = "v3";
+// 24h TTL (Redis survives restarts). Last bump: broad topics for interests.
+const CACHE_SCHEMA_VERSION = "v9";
 
 const POPULAR_TTL_MS = 6 * 60 * 60 * 1000;
 const NEWS_TTL_MS = 60 * 60 * 1000;
@@ -637,11 +638,14 @@ export class WikipediaService {
   private toArticle(data: WikiSummary, language: SupportedLang): Article {
     const rawImage = data.thumbnail?.source ?? data.originalimage?.source;
     const image = isScaffoldImage(rawImage) ? undefined : rawImage;
+    // Broad topics for the profile's interest chips, from title + description.
+    const topics = classifyTopics(`${data.title} ${data.description ?? ""}`);
     return {
       id: data.titles?.canonical ?? data.title,
       category: data.description ?? "Wikipedia",
       title: data.title,
       summary: data.extract ?? "",
+      topics: topics.length ? topics : undefined,
       image,
       imageWidth: image ? data.originalimage?.width ?? data.thumbnail?.width : undefined,
       imageHeight: image ? data.originalimage?.height ?? data.thumbnail?.height : undefined,
