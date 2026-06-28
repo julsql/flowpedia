@@ -19,6 +19,10 @@ interface LibraryValue {
   recordShare: (article: Article) => void;
   /** Record an article as read (opened) — feeds the profile "Read" stat. */
   markRead: (article: Article) => void;
+  /** Remove a single article from the reading history. */
+  removeRead: (id: string) => void;
+  /** Wipe the whole reading history (really deletes the stored data). */
+  clearRead: () => void;
   /** Liked article ids, most recent first (recommendation seeds). */
   likedIds: string[];
   liked: Article[];
@@ -123,13 +127,25 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
     const markRead = (article: Article) => {
       setRead((prev) => {
-        if (prev.some((a) => a.id === article.id)) {
-          return prev;
-        }
-        const next = [compact(article), ...prev];
+        // Move to the front on re-open so the list reads as a recency-ordered
+        // history (most recently opened first). Capped so it can't grow forever.
+        const next = [compact(article), ...prev.filter((a) => a.id !== article.id)].slice(0, 200);
         void AsyncStorage.setItem(READ_KEY, JSON.stringify(next));
         return next;
       });
+    };
+
+    const removeRead = (id: string) => {
+      setRead((prev) => {
+        const next = prev.filter((a) => a.id !== id);
+        void AsyncStorage.setItem(READ_KEY, JSON.stringify(next));
+        return next;
+      });
+    };
+
+    const clearRead = () => {
+      setRead([]);
+      void AsyncStorage.removeItem(READ_KEY);
     };
 
     const muteInterest = (category: string) => {
@@ -150,6 +166,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       toggleSave,
       recordShare,
       markRead,
+      removeRead,
+      clearRead,
       likedIds: liked.map((a) => a.id),
       liked,
       saved,
