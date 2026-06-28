@@ -115,3 +115,39 @@ the seeds; shown ids accumulate in `exclude`.
   valid `User-Agent` is mandatory for all Wikimedia calls.
 - Visual source of truth: `design/README.md` (Direction A). README "What works
   now" maps features to handoff screen numbers.
+
+## Accessibility (WCAG — target AAA, AA minimum)
+
+Every new or changed UI must meet these rules. Target **WCAG 2.1 AAA**; where AAA
+is impossible without breaking the design (e.g. it would flatten the visual
+hierarchy), fall back to **AA** and say so.
+
+- **Color contrast** (1.4.6 AAA / 1.4.3 AA): text ≥ **7:1** (AAA), or ≥ **4.5:1**
+  (AA) when 7:1 isn't workable; large text (≥18pt, or ≥14pt bold) ≥ 4.5:1; UI
+  components & icons ≥ 3:1 (1.4.11). Colors live in
+  `packages/shared/src/design/tokens.ts` — both light & dark palettes must pass.
+  Annotate each text token with its measured ratio. Never introduce a raw color
+  in a component; use a token.
+- **Names & roles** (4.1.2): every interactive element (`Pressable`,
+  `TextInput`, tappable `Text`) needs an `accessibilityRole`
+  (`button`/`link`/`tab`/`radio`/`imagebutton`/`search`…) and an
+  `accessibilityLabel`. A `placeholder` is **not** a label — inputs need an
+  explicit `accessibilityLabel`.
+- **States** (4.1.2): reflect toggle/selection state with `accessibilityState`
+  (`selected` for like/save/tabs, `expanded` for collapsibles, `disabled` for
+  disabled controls). Don't rely on icon shape or color alone to convey state.
+- **Touch targets** (2.5.5 AAA): interactive targets ≥ **44×44 px**. For small
+  icon buttons add `hitSlop` (≈12) or padding to reach it.
+- **Images**: meaningful images get an `accessibilityLabel` (carry it on the
+  wrapping `Pressable`); decorative/duplicated images are hidden from the screen
+  reader (`accessibilityElementsHidden` + `importantForAccessibility="no-hide-descendants"`)
+  to avoid double announcements.
+- **Don't rely on color alone** (1.4.1): pair color with text, icon, or shape
+  (e.g. charts always show a textual label + value, not just a colored swatch).
+- **Dynamic content** (4.1.3): announce live changes with
+  `accessibilityLiveRegion` (e.g. the in-page search result counter).
+- **Text resizing** (1.4.4): never set `allowFontScaling={false}`; let OS font
+  scaling work.
+- **i18n**: a11y strings are `a11y.*` keys in `src/i18n/locales/`. Add them to
+  `en.json` (the canonical/typed locale) at minimum; other locales fall back to
+  English via `fallbackLng`. Never hard-code a11y text in components.
