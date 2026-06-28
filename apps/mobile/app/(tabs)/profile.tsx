@@ -26,16 +26,39 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-/** Top distinct categories across the user's activity → interest chips. */
+// A topic only becomes an interest once the user has opened/kept this many
+// articles of it — so a one-off page doesn't create a bogus "interest".
+const MIN_INTEREST_COUNT = 3;
+const MAX_INTERESTS = 8;
+
+/**
+ * Top broad topics across the user's activity → interest chips. Uses the
+ * articles' `topics` ids (short, global categories), counted across distinct
+ * articles, kept only past a threshold. Returns the topic ids, most frequent
+ * first. The screen localizes each id to a clear, simple label.
+ */
 function deriveInterests(articles: Article[]): string[] {
   const counts = new Map<string, number>();
+  const seen = new Set<string>();
   for (const a of articles) {
-    const c = a.category?.trim();
-    if (c && c.toLowerCase() !== "wikipedia") {
-      counts.set(c, (counts.get(c) ?? 0) + 1);
+    if (seen.has(a.id)) {
+      continue; // an article both read and liked counts once
+    }
+    seen.add(a.id);
+    for (const topic of a.topics ?? []) {
+      counts.set(topic, (counts.get(topic) ?? 0) + 1);
     }
   }
-  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([c]) => c);
+  return [...counts.entries()]
+    .filter(([, n]) => n >= MIN_INTEREST_COUNT)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, MAX_INTERESTS)
+    .map(([id]) => id);
+}
+
+/** Localize a topic id ("sport") to a short, clear label ("Sport"). */
+function topicLabel(id: string, t: (key: TranslationKey) => string): string {
+  return t(`topic.${id}` as TranslationKey);
 }
 
 export default function ProfileScreen() {
@@ -45,10 +68,10 @@ export default function ProfileScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale, setLocale } = useLocale();
   const user = useUser();
-  const { read, liked, saved, mutedInterests, muteInterest } = useLibrary();
+  const { read, liked, saved, mutedInterests, muteInterest, removeRead, clearRead } = useLibrary();
 
-  // Which list (liked / saved) is expanded under the stats, if any.
-  const [openList, setOpenList] = useState<"liked" | "saved" | null>(null);
+  // Which list (history / liked / saved) is expanded under the stats, if any.
+  const [openList, setOpenList] = useState<"read" | "liked" | "saved" | null>(null);
 
   const interests = useMemo(() => {
     const muted = new Set(mutedInterests);
@@ -61,7 +84,8 @@ export default function ProfileScreen() {
   const searchInterest = (interest: string) =>
     router.push({ pathname: "/(tabs)/explore", params: { q: interest } });
 
-  const listArticles = openList === "liked" ? liked : openList === "saved" ? saved : [];
+  const listArticles =
+    openList === "read" ? read : openList === "liked" ? liked : openList === "saved" ? saved : [];
 
   return (
     <ScreenContainer style={{ paddingTop: insets.top + 16 }}>
@@ -80,7 +104,15 @@ export default function ProfileScreen() {
 
         {/* Stats — Liked / Saved are tappable to reveal their pages. */}
         <View style={styles.stats}>
-          <Stat styles={styles} value={read.length} label={t("profile.read")} />
+          <Stat
+            styles={styles}
+            colors={colors}
+            value={read.length}
+            label={t("profile.read")}
+            icon="history"
+            active={openList === "read"}
+            onPress={() => setOpenList((v) => (v === "read" ? null : "read"))}
+          />
           <View style={styles.statDivider} />
           <Stat
             styles={styles}
@@ -103,9 +135,21 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {/* Liked / saved list (toggled from the stats above). */}
+        {/* History / liked / saved list (toggled from the stats above). */}
         {openList ? (
           <View style={styles.section}>
+            {openList === "read" && listArticles.length > 0 ? (
+              <View style={styles.listHeader}>
+                <Pressable
+                  onPress={clearRead}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.clearAll")}
+                >
+                  <Text style={styles.listClear}>{t("common.clearAll")}</Text>
+                </Pressable>
+              </View>
+            ) : null}
             {listArticles.length === 0 ? (
               <Text style={styles.emptyList}>{t("profile.emptyList")}</Text>
             ) : (
@@ -115,12 +159,30 @@ export default function ProfileScreen() {
                     key={article.id}
                     style={styles.savedCell}
                     onPress={() => openArticle(article.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("a11y.openArticle", { title: article.title })}
                   >
                     {article.image ? (
-                      <RemoteImage source={{ uri: article.image }} style={styles.savedImage} />
+                      <RemoteImage
+                        source={{ uri: article.image }}
+                        style={styles.savedImage}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
+                      />
                     ) : (
                       <View style={[styles.savedImage, styles.savedPlaceholder]} />
                     )}
+                    {openList === "read" ? (
+                      <Pressable
+                        style={styles.deleteBadge}
+                        onPress={() => removeRead(article.id)}
+                        hitSlop={12}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("a11y.removeFromHistory")}
+                      >
+                        <MaterialIcons name="close" size={14} color="#fff" />
+                      </Pressable>
+                    ) : null}
                     <Text style={styles.savedCaption} numberOfLines={2}>
                       {article.title}
                     </Text>
@@ -136,19 +198,33 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>{t("profile.interests")}</Text>
             <View style={styles.chips}>
-              {interests.map((interest) => (
-                <View key={interest} style={styles.interestChip}>
+              {interests.map((interestId) => {
+                const label = topicLabel(interestId, t);
+                return (
+                <View key={interestId} style={styles.interestChip}>
                   {/* Tap the label to search this theme; tap the cross to mute it. */}
-                  <Pressable onPress={() => searchInterest(interest)} hitSlop={6} style={styles.interestChipLabel}>
+                  <Pressable
+                    onPress={() => searchInterest(label)}
+                    hitSlop={10}
+                    style={styles.interestChipLabel}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("a11y.searchInterest", { interest: label })}
+                  >
                     <Text style={styles.interestChipText} numberOfLines={1}>
-                      {interest}
+                      {label}
                     </Text>
                   </Pressable>
-                  <Pressable onPress={() => muteInterest(interest)} hitSlop={8}>
+                  <Pressable
+                    onPress={() => muteInterest(interestId)}
+                    hitSlop={12}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("a11y.muteInterest", { interest: label })}
+                  >
                     <MaterialIcons name="close" size={15} color={colors.interestChipText} />
                   </Pressable>
                 </View>
-              ))}
+                );
+              })}
             </View>
           </View>
         ) : null}
@@ -164,6 +240,9 @@ export default function ProfileScreen() {
                   key={optionMode}
                   onPress={() => setMode(optionMode)}
                   style={[styles.segmentItem, active && styles.segmentItemActive]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={t(label)}
                 >
                   <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
                     {t(label)}
@@ -188,6 +267,9 @@ export default function ProfileScreen() {
                   key={code}
                   onPress={() => setLocale(code)}
                   style={[styles.langChip, active && styles.langChipActive]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={LOCALE_LABELS[code]}
                 >
                   <Text style={[styles.langChipText, active && styles.langChipTextActive]}>
                     {LOCALE_LABELS[code]}
@@ -215,7 +297,7 @@ function Stat({
   label: string;
   styles: ReturnType<typeof makeStyles>;
   colors?: ThemeColors;
-  icon?: "favorite" | "bookmark";
+  icon?: "favorite" | "bookmark" | "history";
   active?: boolean;
   onPress?: () => void;
 }) {
@@ -238,7 +320,13 @@ function Stat({
   );
   if (onPress) {
     return (
-      <Pressable style={styles.stat} onPress={onPress}>
+      <Pressable
+        style={styles.stat}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: active }}
+        accessibilityLabel={`${value} ${label}`}
+      >
         {content}
       </Pressable>
     );
@@ -297,8 +385,22 @@ const makeStyles = (colors: ThemeColors) =>
     },
     interestChipLabel: { flexShrink: 1 },
     interestChipText: { color: colors.interestChipText, fontSize: 13, fontWeight: "500" },
+    listHeader: { flexDirection: "row", justifyContent: "flex-end", marginBottom: 10 },
+    listClear: { color: colors.accentLinkText, fontSize: 13, fontWeight: "600" },
     savedGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     savedCell: { width: "31%" },
+    // Per-item delete badge on a history thumbnail.
+    deleteBadge: {
+      position: "absolute",
+      top: 4,
+      right: 4,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: "rgba(0,0,0,0.6)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
     savedImage: {
       width: "100%",
       height: 90,

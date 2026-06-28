@@ -65,8 +65,16 @@ export function PieChartCard({ chart, colors }: PieChartCardProps) {
       </View>
       <View style={styles.legend}>
         {slices.map((s, i) => (
-          <View key={i} style={styles.legendRow}>
-            <View style={[styles.swatch, { backgroundColor: s.color }]} />
+          <View
+            key={i}
+            style={styles.legendRow}
+            accessible
+            accessibilityLabel={`${s.label}: ${formatPct(s.value)}`}
+          >
+            <View
+              style={[styles.swatch, { backgroundColor: s.color }]}
+              importantForAccessibility="no"
+            />
             <Text style={styles.legendLabel} numberOfLines={2}>
               {s.label}
             </Text>
@@ -97,7 +105,13 @@ const makeStyles = (colors: ThemeColors) =>
     chartWrap: { alignItems: "center", marginBottom: 16 },
     legend: { gap: 9 },
     legendRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-    swatch: { width: 14, height: 14, borderRadius: 4 },
+    swatch: {
+      width: 14,
+      height: 14,
+      borderRadius: 4,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.separator,
+    },
     legendLabel: { flex: 1, color: colors.textSecondary, fontSize: 14, lineHeight: 18 },
     legendValue: { color: colors.textPrimary, fontSize: 14, fontWeight: "600" },
   });

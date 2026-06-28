@@ -72,9 +72,19 @@ export function ArticleCard({ article, onShare, onOpen }: ArticleCardProps) {
         ) : null}
       </View>
 
-      <Pressable onPress={() => onOpen?.(article)}>
+      <Pressable
+        onPress={() => onOpen?.(article)}
+        accessibilityRole="button"
+        accessibilityLabel={t("a11y.openArticle", { title: article.title })}
+      >
         {article.image ? (
-          <RemoteImage source={{ uri: article.image }} style={styles.image} resizeMode="contain" />
+          <RemoteImage
+            source={{ uri: article.image }}
+            style={styles.image}
+            resizeMode="contain"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
         ) : (
           // No image → a colored cover with the title shown big.
           <View style={[styles.image, styles.imageFallback, { backgroundColor: coverColor(article.id) }]}>
@@ -95,7 +105,13 @@ export function ArticleCard({ article, onShare, onOpen }: ArticleCardProps) {
       </Text>
 
       {canExpand ? (
-        <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={8}>
+        <Pressable
+          onPress={() => setExpanded((v) => !v)}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+          accessibilityLabel={expanded ? t("a11y.showLess") : t("a11y.showMore")}
+        >
           <View style={styles.readMoreRow}>
             <Text style={styles.readMore}>
               {expanded ? t("article.showLess") : t("article.readMore")}
@@ -111,18 +127,37 @@ export function ArticleCard({ article, onShare, onOpen }: ArticleCardProps) {
 
       <View style={styles.actions}>
         <View style={styles.actionsLeft}>
-          <Pressable style={styles.actionBtn} onPress={() => toggleLike(article)} hitSlop={8}>
+          <Pressable
+            style={styles.actionBtn}
+            onPress={() => toggleLike(article)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityState={{ selected: liked }}
+            accessibilityLabel={liked ? t("a11y.liked") : t("a11y.like")}
+          >
             <MaterialIcons
               name={liked ? "favorite" : "favorite-border"}
               size={24}
               color={liked ? colors.like : colors.textPrimary}
             />
           </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => onShare?.(article)} hitSlop={8}>
+          <Pressable
+            style={styles.actionBtn}
+            onPress={() => onShare?.(article)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y.share")}
+          >
             <MaterialIcons name="send" size={22} color={colors.textPrimary} />
           </Pressable>
         </View>
-        <Pressable onPress={() => toggleSave(article)} hitSlop={8}>
+        <Pressable
+          onPress={() => toggleSave(article)}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityState={{ selected: saved }}
+          accessibilityLabel={saved ? t("a11y.saved") : t("a11y.save")}
+        >
           <MaterialIcons
             name={saved ? "bookmark" : "bookmark-border"}
             size={24}

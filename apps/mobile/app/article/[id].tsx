@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Linking,
   Modal,
   PanResponder,
@@ -9,14 +10,15 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
-  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import type { Article, ArticleSection } from "@flowpedia/shared";
 import {
@@ -27,12 +29,14 @@ import {
   sendEvents,
 } from "../../src/api/client";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
+import { Ancestry } from "../../src/components/Ancestry";
 import { ArticleCard } from "../../src/components/ArticleCard";
 import { InfoCard } from "../../src/components/InfoCard";
 import { PieChartCard } from "../../src/components/PieChart";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
+import { useArticleSpeech } from "../../src/speech/useArticleSpeech";
 import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
@@ -42,6 +46,24 @@ const TOC_WIDTH = 220;
 const TOC_GAP = 24;
 // The "scroll to top" button appears past this scroll distance.
 const SCROLL_TOP_THRESHOLD = 700;
+// Height of the slide-in title sub-header.
+const SUBHEADER_HEIGHT = 40;
+// A section becomes "active" when its heading reaches this fraction down the
+// viewport — the upper-reading zone, not the very top edge.
+const ACTIVE_SECTION_LINE = 0.3;
+
+// The article body is a virtualized list of blocks, so even very long pages
+// (every section, full tables, the whole ancestry…) render without mounting
+// everything at once — no parsing caps needed for performance.
+type ArticleBlock =
+  | { type: "head" }
+  | { type: "section"; section: ArticleSection; index: number }
+  | { type: "ancestry" }
+  | { type: "exploreHeader" }
+  | { type: "related"; article: Article }
+  | { type: "exploreChips" }
+  | { type: "wikiAlone" }
+  | { type: "source" };
 
 export default function ArticleScreen() {
   const insets = useSafeAreaInsets();
@@ -67,10 +89,32 @@ export default function ArticleScreen() {
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Read the article aloud with the device's native TTS (no model/network).
+  const {
+    available: speechAvailable,
+    speaking,
+    paused,
+    currentSectionId,
+    toggle: toggleSpeech,
+    stop: stopSpeech,
+    readFromSection,
+  } = useArticleSpeech(article, locale);
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   // Tapped section image shown full-size in a lightbox (with its caption).
   const [lightbox, setLightbox] = useState<{ url: string; caption?: string } | null>(null);
+  // A slim secondary header carrying the page title slides in below the summary
+  // bar when the reader scrolls up (mid-page), and retracts when scrolling down.
+  const subHeaderAnim = useRef(new Animated.Value(0)).current;
+  const subShownRef = useRef(false);
+  const lastYRef = useRef(0);
+  // After tapping a summary chip, briefly freeze active-section detection so the
+  // programmatic scroll doesn't immediately re-select a neighbour.
+  const jumpLockRef = useRef(0);
+  // In-page search ("find on page").
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [activeMatch, setActiveMatch] = useState(0);
 
   // On a wide web window the table of contents sits in a fixed sidebar on the
   // right (easier to use); on mobile / narrow web it stays a horizontal bar.
@@ -78,9 +122,13 @@ export default function ArticleScreen() {
   const tocAsSidebar =
     Platform.OS === "web" && windowWidth >= CONTENT_MAX_WIDTH + 2 * (TOC_WIDTH + TOC_GAP);
   const tocRightOffset = (windowWidth - CONTENT_MAX_WIDTH) / 2 - TOC_WIDTH - TOC_GAP;
+  // Usable width of the centered content column (for stretching narrow tables).
+  const contentWidth = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 2 * spacing.screenPadding;
 
-  const scrollRef = useRef<ScrollView>(null);
-  const sectionY = useRef<Record<string, number>>({});
+  const listRef = useRef<FlashListRef<ArticleBlock>>(null);
+  // sectionId → block index, for jump-to-section / find-scroll (kept in a ref so
+  // the scroll callbacks always read the latest mapping).
+  const sectionBlockIndexRef = useRef<Map<string, number>>(new Map());
   // The chips strip scrolls to follow the active section as the reader advances.
   const chipsScrollRef = useRef<ScrollView>(null);
   const chipLayout = useRef<Record<string, { x: number; width: number }>>({});
@@ -96,6 +144,16 @@ export default function ArticleScreen() {
   const goBack = useCallback(() => {
     if (router.canGoBack()) {
       router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
+  }, [router]);
+
+  // Jump straight back to the home feed — escape a deep chain of bounced links
+  // without tapping "back" many times. Clears the article stack when possible.
+  const goHome = useCallback(() => {
+    if (router.canDismiss()) {
+      router.dismissAll();
     } else {
       router.replace("/(tabs)");
     }
@@ -227,40 +285,71 @@ export default function ArticleScreen() {
   }, [relatedCursor, locale, articleId]);
 
   const jumpToSection = useCallback((sectionId: string) => {
-    const y = sectionY.current[sectionId];
-    if (y !== undefined) {
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - SCROLL_OFFSET), animated: true });
+    const idx = sectionBlockIndexRef.current.get(sectionId);
+    if (idx !== undefined) {
+      listRef.current?.scrollToIndex({ index: idx, viewOffset: SCROLL_OFFSET, animated: true });
     }
+    jumpLockRef.current = Date.now() + 650;
     setActiveSection(sectionId);
   }, []);
 
   const scrollToTop = useCallback(() => {
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, []);
+
+  const setSubHeader = useCallback(
+    (show: boolean) => {
+      if (subShownRef.current === show) {
+        return;
+      }
+      subShownRef.current = show;
+      Animated.timing(subHeaderAnim, {
+        toValue: show ? 1 : 0,
+        duration: 180,
+        useNativeDriver: true,
+      }).start();
+    },
+    [subHeaderAnim],
+  );
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
-      const offsetY = contentOffset.y;
-      const y = offsetY + SCROLL_OFFSET + 1;
-      let current: string | null = article?.sections[0]?.id ?? null;
-      for (const section of article?.sections ?? []) {
-        const top = sectionY.current[section.id];
-        if (top !== undefined && top <= y) {
-          current = section.id;
-        }
-      }
-      if (current !== activeSection) {
-        setActiveSection(current);
-      }
+      const offsetY = e.nativeEvent.contentOffset.y;
       setShowScrollTop(offsetY > SCROLL_TOP_THRESHOLD);
-      // Near the bottom → pull more related articles (infinite "keep exploring").
-      if (offsetY + layoutMeasurement.height >= contentSize.height - 800) {
-        void loadMoreRelated();
+      // Slide the title sub-header in on scroll-up (mid-page), out on scroll-down
+      // or near the top (where the on-page title is already visible).
+      const dy = offsetY - lastYRef.current;
+      lastYRef.current = offsetY;
+      if (offsetY < 90) {
+        setSubHeader(false);
+      } else if (dy < -6) {
+        setSubHeader(true);
+      } else if (dy > 6) {
+        setSubHeader(false);
       }
     },
-    [article, activeSection, loadMoreRelated],
+    [setSubHeader],
   );
+
+  // Active-section detection via the virtualized list's viewability: the topmost
+  // visible section is the one being read. Frozen briefly after a chip tap.
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 10 }).current;
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: { index: number | null; item: ArticleBlock }[] }) => {
+      if (Date.now() < jumpLockRef.current) {
+        return;
+      }
+      let top: { index: number | null; item: ArticleBlock } | null = null;
+      for (const v of viewableItems) {
+        if (v.item?.type === "section" && (top === null || (v.index ?? 0) < (top.index ?? 0))) {
+          top = v;
+        }
+      }
+      if (top && top.item.type === "section") {
+        setActiveSection(top.item.section.id);
+      }
+    },
+  ).current;
 
   // Keep the active chip in view as the active section changes.
   useEffect(() => {
@@ -302,6 +391,86 @@ export default function ArticleScreen() {
     return sections[0]?.id ?? null;
   }, [sections, activeSection]);
 
+  // In-page search: count matches per section (in document order) so each
+  // SectionBlock can label its own matches with a global index for highlighting,
+  // and so next/prev can scroll to the section holding the active match.
+  const findTerm = findQuery.trim();
+  const findActive = findOpen && findTerm.length >= 2;
+  const sectionMatchCounts = useMemo(() => {
+    if (!findActive) {
+      return [] as number[];
+    }
+    const q = findTerm.toLowerCase();
+    return sections.map((s) => {
+      let n = 0;
+      for (const p of s.paragraphs) {
+        if (isLinkList(p)) {
+          continue;
+        }
+        for (const r of p.runs) {
+          const text = r.text.toLowerCase();
+          let i = text.indexOf(q);
+          while (i !== -1) {
+            n += 1;
+            i = text.indexOf(q, i + q.length);
+          }
+        }
+      }
+      return n;
+    });
+  }, [findActive, findTerm, sections]);
+  const matchOffsets = useMemo(() => {
+    const offs: number[] = [];
+    let acc = 0;
+    for (const c of sectionMatchCounts) {
+      offs.push(acc);
+      acc += c;
+    }
+    return offs;
+  }, [sectionMatchCounts]);
+  const totalMatches = useMemo(
+    () => sectionMatchCounts.reduce((a, b) => a + b, 0),
+    [sectionMatchCounts],
+  );
+
+  // Reset to the first match whenever the query changes.
+  useEffect(() => {
+    setActiveMatch(0);
+  }, [findTerm]);
+
+  // Scroll to the section holding the active match as the user steps through them.
+  useEffect(() => {
+    if (!findActive || totalMatches === 0) {
+      return;
+    }
+    let targetId = sections[0]?.id;
+    for (let i = 0; i < sections.length; i += 1) {
+      if (activeMatch >= matchOffsets[i] && activeMatch < matchOffsets[i] + sectionMatchCounts[i]) {
+        targetId = sections[i].id;
+        break;
+      }
+    }
+    const idx = targetId ? sectionBlockIndexRef.current.get(targetId) : undefined;
+    if (idx !== undefined) {
+      listRef.current?.scrollToIndex({ index: idx, viewOffset: 80, animated: true });
+    }
+  }, [activeMatch, findActive, totalMatches, sections, matchOffsets, sectionMatchCounts]);
+
+  const nextMatch = useCallback(() => {
+    if (totalMatches) {
+      setActiveMatch((m) => (m + 1) % totalMatches);
+    }
+  }, [totalMatches]);
+  const prevMatch = useCallback(() => {
+    if (totalMatches) {
+      setActiveMatch((m) => (m - 1 + totalMatches) % totalMatches);
+    }
+  }, [totalMatches]);
+  const closeFind = useCallback(() => {
+    setFindOpen(false);
+    setFindQuery("");
+  }, []);
+
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const toggleGroup = useCallback((id: string) => {
     setExpandedGroups((prev) => {
@@ -312,42 +481,331 @@ export default function ArticleScreen() {
   }, []);
 
   const openWikiButton = (
-    <Pressable onPress={openOriginal} style={styles.originalBtn}>
+    <Pressable
+      onPress={openOriginal}
+      style={styles.originalBtn}
+      accessibilityRole="link"
+      accessibilityLabel={t("article.openOriginal")}
+    >
       <FontAwesome name="wikipedia-w" size={16} color={colors.accentLinkText} />
       <Text style={styles.originalBtnText}>{t("article.openOriginal")}</Text>
     </Pressable>
   );
 
+  // Build the virtualized block list and the sectionId → index map.
+  const blocks = useMemo<ArticleBlock[]>(() => {
+    if (!article) {
+      return [];
+    }
+    const list: ArticleBlock[] = [{ type: "head" }];
+    article.sections.forEach((section, index) => list.push({ type: "section", section, index }));
+    if (article.ancestry?.length) {
+      list.push({ type: "ancestry" });
+    }
+    if (related.length) {
+      list.push({ type: "exploreHeader" });
+      related.forEach((a) => list.push({ type: "related", article: a }));
+    } else if (article.links.length) {
+      list.push({ type: "exploreChips" });
+    } else {
+      list.push({ type: "wikiAlone" });
+    }
+    list.push({ type: "source" });
+    return list;
+  }, [article, related]);
+
+  sectionBlockIndexRef.current = useMemo(() => {
+    const map = new Map<string, number>();
+    blocks.forEach((block, i) => {
+      if (block.type === "section") {
+        map.set(block.section.id, i);
+      }
+    });
+    return map;
+  }, [blocks]);
+
+  const renderBlock = ({ item }: { item: ArticleBlock }) => {
+    const a = article;
+    if (!a) {
+      return null;
+    }
+    switch (item.type) {
+      case "head":
+        return (
+          <View style={[centeredColumn, styles.blockPad]}>
+            <Text style={styles.category}>{a.category.toUpperCase()}</Text>
+            <Text style={styles.title}>{a.title}</Text>
+            <InfoCard
+              article={a}
+              colors={colors}
+              onImagePress={(url, caption) => setLightbox({ url: largeImageUrl(url), caption })}
+            />
+            {a.charts?.map((chart, i) => (
+              <PieChartCard key={`chart-${i}`} chart={chart} colors={colors} />
+            ))}
+          </View>
+        );
+      case "section":
+        return (
+          <View style={[centeredColumn, styles.blockPad]}>
+            <SectionBlock
+              section={item.section}
+              showHeading={item.index > 0}
+              styles={styles}
+              colors={colors}
+              mainArticleLabel={t("article.mainArticle")}
+              viewImageLabel={t("a11y.viewImage")}
+              contentWidth={contentWidth}
+              query={findActive ? findTerm : undefined}
+              matchOffset={findActive ? matchOffsets[item.index] ?? 0 : 0}
+              activeMatch={activeMatch}
+              onLinkPress={openLink}
+              onImagePress={(url, caption) => setLightbox({ url: largeImageUrl(url), caption })}
+              onReadSection={readFromSection}
+              canRead={speechAvailable}
+              isReading={currentSectionId === item.section.id}
+              readFromHereLabel={t("article.readFromHere")}
+            />
+          </View>
+        );
+      case "ancestry":
+        return a.ancestry?.length ? (
+          <View style={[centeredColumn, styles.blockPad]}>
+            <Ancestry entries={a.ancestry} colors={colors} onLinkPress={openLink} />
+          </View>
+        ) : null;
+      case "exploreHeader":
+        return (
+          <View style={[centeredColumn, styles.blockPad, styles.explore]}>
+            <View style={styles.exploreHeaderRow}>
+              <Text style={styles.exploreTitle}>{t("article.keepExploring")}</Text>
+              {openWikiButton}
+            </View>
+          </View>
+        );
+      case "related":
+        return (
+          <View style={[centeredColumn, styles.relatedItem]}>
+            <ArticleCard
+              article={item.article}
+              onOpen={() => openLink(item.article.id)}
+              onShare={openShare}
+            />
+          </View>
+        );
+      case "exploreChips":
+        return (
+          <View style={[centeredColumn, styles.blockPad, styles.explore]}>
+            <View style={styles.exploreHeaderRow}>
+              <Text style={styles.exploreTitle}>{t("article.keepExploring")}</Text>
+              {openWikiButton}
+            </View>
+            <View style={styles.exploreChips}>
+              {a.links.map((link) => (
+                <Pressable
+                  key={link.targetId}
+                  onPress={() => openLink(link.targetId)}
+                  style={styles.exploreChip}
+                  accessibilityRole="link"
+                  accessibilityLabel={link.label}
+                >
+                  <Text style={styles.exploreChipText}>{link.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        );
+      case "wikiAlone":
+        return (
+          <View style={[centeredColumn, styles.blockPad, styles.wikiAlone]}>{openWikiButton}</View>
+        );
+      case "source":
+        return (
+          <View style={[centeredColumn, styles.blockPad]}>
+            <Text style={styles.source}>{t("common.source")}</Text>
+          </View>
+        );
+    }
+  };
+
   return (
     <ScreenContainer style={{ paddingTop: insets.top }}>
       <View style={styles.flex} {...panResponder.panHandlers}>
       <View style={[styles.header, centeredColumn]}>
-        <Pressable onPress={goBack} hitSlop={8}>
-          <MaterialIcons name="arrow-back" size={26} color={colors.textPrimary} />
-        </Pressable>
+        <View style={styles.headerLeft}>
+          <Pressable
+            onPress={goBack}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y.goBack")}
+          >
+            <MaterialIcons name="arrow-back" size={26} color={colors.textPrimary} />
+          </Pressable>
+          <Pressable
+            onPress={goHome}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y.goHome")}
+          >
+            <MaterialIcons name="home" size={23} color={colors.textPrimary} />
+          </Pressable>
+        </View>
         <View style={styles.headerActions}>
-          <Pressable onPress={openOriginal} hitSlop={8} disabled={!article}>
+          {speechAvailable ? (
+            <>
+              <Pressable
+                onPress={toggleSpeech}
+                hitSlop={12}
+                disabled={!article}
+                accessibilityRole="button"
+                accessibilityState={{ selected: speaking || paused }}
+                accessibilityLabel={
+                  speaking
+                    ? t("article.pauseReading")
+                    : paused
+                      ? t("article.resumeReading")
+                      : t("article.listen")
+                }
+              >
+                <MaterialIcons
+                  name={speaking ? "pause" : paused ? "play-arrow" : "volume-up"}
+                  size={23}
+                  color={speaking || paused ? colors.accent : colors.textPrimary}
+                />
+              </Pressable>
+              {speaking || paused ? (
+                <Pressable
+                  onPress={stopSpeech}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("article.stopReading")}
+                >
+                  <MaterialIcons name="stop" size={23} color={colors.textPrimary} />
+                </Pressable>
+              ) : null}
+            </>
+          ) : null}
+          <Pressable
+            onPress={() => setFindOpen((v) => !v)}
+            hitSlop={12}
+            disabled={!article}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: findOpen }}
+            accessibilityLabel={t("a11y.findInPage")}
+          >
+            <MaterialIcons
+              name="search"
+              size={23}
+              color={findOpen ? colors.accent : colors.textPrimary}
+            />
+          </Pressable>
+          <Pressable
+            onPress={openOriginal}
+            hitSlop={12}
+            disabled={!article}
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y.openOnWikipedia")}
+          >
             <FontAwesome name="wikipedia-w" size={19} color={colors.textPrimary} />
           </Pressable>
-          <Pressable onPress={() => article && toggleLike(article)} hitSlop={8}>
+          <Pressable
+            onPress={() => article && toggleLike(article)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityState={{ selected: Boolean(article && isLiked(article.id)) }}
+            accessibilityLabel={article && isLiked(article.id) ? t("a11y.liked") : t("a11y.like")}
+          >
             <MaterialIcons
               name={article && isLiked(article.id) ? "favorite" : "favorite-border"}
               size={24}
               color={article && isLiked(article.id) ? colors.like : colors.textPrimary}
             />
           </Pressable>
-          <Pressable onPress={() => article && toggleSave(article)} hitSlop={8}>
+          <Pressable
+            onPress={() => article && toggleSave(article)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityState={{ selected: Boolean(article && isSaved(article.id)) }}
+            accessibilityLabel={article && isSaved(article.id) ? t("a11y.saved") : t("a11y.save")}
+          >
             <MaterialIcons
               name={article && isSaved(article.id) ? "bookmark" : "bookmark-border"}
               size={24}
               color={article && isSaved(article.id) ? colors.accent : colors.textPrimary}
             />
           </Pressable>
-          <Pressable onPress={() => article && openShare(article)} hitSlop={8}>
+          <Pressable
+            onPress={() => article && openShare(article)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y.share")}
+          >
             <MaterialIcons name="send" size={22} color={colors.textPrimary} />
           </Pressable>
         </View>
       </View>
+
+      {findOpen ? (
+        <View style={[styles.findBar, centeredColumn]}>
+          <MaterialIcons name="search" size={20} color={colors.muted} />
+          <TextInput
+            value={findQuery}
+            onChangeText={setFindQuery}
+            placeholder={t("article.findPlaceholder")}
+            placeholderTextColor={colors.muted}
+            style={styles.findInput}
+            autoFocus
+            returnKeyType="search"
+            onSubmitEditing={nextMatch}
+            accessibilityLabel={t("a11y.findInPage")}
+          />
+          <Text
+            style={styles.findCount}
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={
+              findActive ? `${totalMatches ? activeMatch + 1 : 0}/${totalMatches}` : undefined
+            }
+          >
+            {findActive ? (totalMatches ? `${activeMatch + 1}/${totalMatches}` : "0/0") : ""}
+          </Text>
+          <Pressable
+            onPress={prevMatch}
+            hitSlop={12}
+            disabled={totalMatches === 0}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: totalMatches === 0 }}
+            accessibilityLabel={t("a11y.previousMatch")}
+          >
+            <MaterialIcons
+              name="keyboard-arrow-up"
+              size={24}
+              color={totalMatches === 0 ? colors.mutedLight : colors.textPrimary}
+            />
+          </Pressable>
+          <Pressable
+            onPress={nextMatch}
+            hitSlop={12}
+            disabled={totalMatches === 0}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: totalMatches === 0 }}
+            accessibilityLabel={t("a11y.nextMatch")}
+          >
+            <MaterialIcons
+              name="keyboard-arrow-down"
+              size={24}
+              color={totalMatches === 0 ? colors.mutedLight : colors.textPrimary}
+            />
+          </Pressable>
+          <Pressable
+            onPress={closeFind}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y.close")}
+          >
+            <MaterialIcons name="close" size={22} color={colors.textPrimary} />
+          </Pressable>
+        </View>
+      ) : null}
 
       {loading ? (
         <View style={styles.center}>
@@ -383,6 +841,9 @@ export default function ArticleScreen() {
                       }}
                       onPress={() => jumpToSection(section.id)}
                       style={[styles.chip, active && styles.chipActive]}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={section.title}
                     >
                       <Text style={[styles.chipText, active && styles.chipTextActive]}>
                         {section.title}
@@ -394,82 +855,60 @@ export default function ArticleScreen() {
             </View>
           ) : null}
 
-          <ScrollView
-            ref={scrollRef}
+          <View style={styles.scrollWrap}>
+          {/* Slim title bar that slides in over the content on scroll-up (an
+              overlay, so it never shifts the page layout). */}
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.subHeader,
+              {
+                opacity: subHeaderAnim,
+                transform: [
+                  {
+                    translateY: subHeaderAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-SUBHEADER_HEIGHT, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <View style={[styles.subHeaderInner, centeredColumn]}>
+              <Text style={styles.subHeaderTitle} numberOfLines={1}>
+                {article.title}
+              </Text>
+            </View>
+          </Animated.View>
+
+          <FlashList
+            ref={listRef}
+            data={blocks}
+            renderItem={renderBlock}
+            keyExtractor={(item, index) =>
+              item.type === "section"
+                ? `s-${item.section.id}`
+                : item.type === "related"
+                  ? `r-${item.article.id}`
+                  : `${item.type}-${index}`
+            }
+            getItemType={(item) => item.type}
             scrollEventThrottle={16}
             onScroll={onScroll}
-            contentContainerStyle={[styles.content, centeredColumn]}
-          >
-            <Text style={styles.category}>{article.category.toUpperCase()}</Text>
-            <Text style={styles.title}>{article.title}</Text>
-
-            <InfoCard article={article} colors={colors} />
-
-            {article.charts?.map((chart, i) => (
-              <PieChartCard key={`chart-${i}`} chart={chart} colors={colors} />
-            ))}
-
-            {article.sections.map((section, index) => (
-              <SectionBlock
-                key={section.id}
-                section={section}
-                showHeading={index > 0}
-                styles={styles}
-                colors={colors}
-                mainArticleLabel={t("article.mainArticle")}
-                onLayoutTop={(y) => {
-                  sectionY.current[section.id] = y;
-                }}
-                onLinkPress={openLink}
-                onImagePress={(url, caption) => setLightbox({ url: largeImageUrl(url), caption })}
-              />
-            ))}
-
-            {related.length ? (
-              // Continuous related feed — keeps the reader bouncing topic to topic.
-              <View style={styles.explore}>
-                <View style={styles.exploreHeaderRow}>
-                  <Text style={styles.exploreTitle}>{t("article.keepExploring")}</Text>
-                  {openWikiButton}
-                </View>
-                <View style={styles.relatedFeed}>
-                  {related.map((item) => (
-                    <ArticleCard
-                      key={item.id}
-                      article={item}
-                      onOpen={() => openLink(item.id)}
-                      onShare={openShare}
-                    />
-                  ))}
-                </View>
-                {relatedCursor ? (
-                  <ActivityIndicator color={colors.muted} style={styles.relatedLoader} />
-                ) : null}
-              </View>
-            ) : article.links.length ? (
-              <View style={styles.explore}>
-                <View style={styles.exploreHeaderRow}>
-                  <Text style={styles.exploreTitle}>{t("article.keepExploring")}</Text>
-                  {openWikiButton}
-                </View>
-                <View style={styles.exploreChips}>
-                  {article.links.map((link) => (
-                    <Pressable
-                      key={link.targetId}
-                      onPress={() => openLink(link.targetId)}
-                      style={styles.exploreChip}
-                    >
-                      <Text style={styles.exploreChipText}>{link.label}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            ) : (
-              <View style={styles.wikiAlone}>{openWikiButton}</View>
-            )}
-
-            <Text style={styles.source}>{t("common.source")}</Text>
-          </ScrollView>
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            onEndReached={() => void loadMoreRelated()}
+            onEndReachedThreshold={1.2}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            ListFooterComponent={
+              relatedCursor ? (
+                <ActivityIndicator color={colors.muted} style={styles.relatedLoader} />
+              ) : null
+            }
+          />
+          </View>
 
           {/* Web: fixed table-of-contents sidebar on the right, with collapsible
               sub-sections (collapsed by default). */}
@@ -484,7 +923,13 @@ export default function ArticleScreen() {
                     <View key={section.id}>
                       <View style={styles.tocItem}>
                         <View style={[styles.tocBar, !active && styles.tocBarHidden]} />
-                        <Pressable style={styles.tocItemLabel} onPress={() => jumpToSection(section.id)}>
+                        <Pressable
+                          style={styles.tocItemLabel}
+                          onPress={() => jumpToSection(section.id)}
+                          accessibilityRole="link"
+                          accessibilityState={{ selected: active }}
+                          accessibilityLabel={section.title}
+                        >
                           <Text
                             style={[styles.tocText, active && styles.tocTextActive]}
                             numberOfLines={2}
@@ -493,7 +938,13 @@ export default function ArticleScreen() {
                           </Text>
                         </Pressable>
                         {children.length ? (
-                          <Pressable onPress={() => toggleGroup(section.id)} hitSlop={8}>
+                          <Pressable
+                            onPress={() => toggleGroup(section.id)}
+                            hitSlop={12}
+                            accessibilityRole="button"
+                            accessibilityState={{ expanded: open }}
+                            accessibilityLabel={t("a11y.toggleSubsections")}
+                          >
                             <MaterialIcons
                               name={open ? "expand-less" : "expand-more"}
                               size={20}
@@ -510,6 +961,9 @@ export default function ArticleScreen() {
                                 key={child.id}
                                 onPress={() => jumpToSection(child.id)}
                                 style={styles.tocSubItem}
+                                accessibilityRole="link"
+                                accessibilityState={{ selected: childActive }}
+                                accessibilityLabel={child.title}
                               >
                                 <Text
                                   style={[styles.tocSubText, childActive && styles.tocTextActive]}
@@ -532,7 +986,9 @@ export default function ArticleScreen() {
             <Pressable
               onPress={scrollToTop}
               style={[styles.toTop, { bottom: insets.bottom + 24 }]}
-              hitSlop={6}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t("a11y.scrollToTop")}
             >
               <MaterialIcons name="keyboard-arrow-up" size={28} color={colors.bg} />
             </Pressable>
@@ -547,20 +1003,33 @@ export default function ArticleScreen() {
         animationType="fade"
         onRequestClose={() => setLightbox(null)}
       >
-        <Pressable style={styles.lightbox} onPress={() => setLightbox(null)}>
+        <Pressable
+          style={styles.lightbox}
+          onPress={() => setLightbox(null)}
+          accessibilityRole="button"
+          accessibilityLabel={t("a11y.close")}
+        >
           {lightbox ? (
             <>
               <RemoteImage
                 source={{ uri: lightbox.url }}
                 style={styles.lightboxImage}
                 resizeMode="contain"
+                noBackdrop
+                accessibilityLabel={lightbox.caption ?? article?.title}
               />
               {lightbox.caption ? (
                 <Text style={styles.lightboxCaption}>{lightbox.caption}</Text>
               ) : null}
             </>
           ) : null}
-          <Pressable style={styles.lightboxClose} onPress={() => setLightbox(null)} hitSlop={10}>
+          <Pressable
+            style={styles.lightboxClose}
+            onPress={() => setLightbox(null)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t("a11y.close")}
+          >
             <MaterialIcons name="close" size={28} color="#fff" />
           </Pressable>
         </Pressable>
@@ -575,9 +1044,68 @@ interface SectionBlockProps {
   styles: ReturnType<typeof makeStyles>;
   colors: ThemeColors;
   mainArticleLabel: string;
-  onLayoutTop: (y: number) => void;
+  /** Accessibility label for tappable figures ("view image full screen"). */
+  viewImageLabel: string;
+  /** Usable column width, so narrow tables stretch to fill it. */
+  contentWidth: number;
+  /** Active in-page search term (highlights matches); undefined when inactive. */
+  query?: string;
+  /** Global index of this section's first match (for active-match highlighting). */
+  matchOffset: number;
+  /** Index of the currently focused match across the whole article. */
+  activeMatch: number;
   onLinkPress: (targetId: string) => void;
   onImagePress: (url: string, caption?: string) => void;
+  /** Start reading aloud from this section. */
+  onReadSection: (sectionId: string) => void;
+  /** Whether TTS is available (hides the per-section "read from here" button). */
+  canRead: boolean;
+  /** True when the TTS is currently reading this section (highlights heading). */
+  isReading: boolean;
+  /** Accessibility label for the per-section "read from here" button. */
+  readFromHereLabel: string;
+}
+
+/**
+ * Render a run's text, wrapping in-page-search matches in highlight <Text>. The
+ * shared `counter` keeps a running global match index (in document order) so the
+ * active match can be styled differently and stay in sync with the parent count.
+ */
+function highlightedText(
+  text: string,
+  query: string | undefined,
+  counter: { n: number },
+  matchOffset: number,
+  activeMatch: number,
+  styles: ReturnType<typeof makeStyles>,
+): ReactNode {
+  if (!query) {
+    return text;
+  }
+  const q = query.toLowerCase();
+  const lower = text.toLowerCase();
+  const parts: ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+  let idx = lower.indexOf(q);
+  while (idx !== -1) {
+    if (idx > i) {
+      parts.push(<Text key={`t${key++}`}>{text.slice(i, idx)}</Text>);
+    }
+    const global = matchOffset + counter.n;
+    counter.n += 1;
+    parts.push(
+      <Text key={`m${key++}`} style={global === activeMatch ? styles.matchActive : styles.match}>
+        {text.slice(idx, idx + q.length)}
+      </Text>,
+    );
+    i = idx + q.length;
+    idx = lower.indexOf(q, i);
+  }
+  if (i < text.length) {
+    parts.push(<Text key={`t${key++}`}>{text.slice(i)}</Text>);
+  }
+  return parts;
 }
 
 /** A paragraph that is essentially a list of links (e.g. the "sigles" pages). */
@@ -592,14 +1120,44 @@ function SectionBlock({
   styles,
   colors,
   mainArticleLabel,
-  onLayoutTop,
+  viewImageLabel,
+  contentWidth,
+  query,
+  matchOffset,
+  activeMatch,
   onLinkPress,
   onImagePress,
+  onReadSection,
+  canRead,
+  isReading,
+  readFromHereLabel,
 }: SectionBlockProps) {
-  const onLayout = (e: LayoutChangeEvent) => onLayoutTop(e.nativeEvent.layout.y);
+  // Running global match index for this section's highlighted prose (in render
+  // order), starting at the section's offset so it aligns with the parent count.
+  const matchCounter = { n: 0 };
   return (
-    <View style={styles.section} onLayout={onLayout}>
-      {showHeading ? <Text style={styles.sectionTitle}>{section.title}</Text> : null}
+    <View style={styles.section}>
+      {showHeading ? (
+        <View style={styles.sectionTitleRow}>
+          <Text style={[styles.sectionTitle, isReading && styles.sectionTitleReading]}>
+            {section.title}
+          </Text>
+          {canRead ? (
+            <Pressable
+              onPress={() => onReadSection(section.id)}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={readFromHereLabel}
+            >
+              <MaterialIcons
+                name="volume-up"
+                size={18}
+                color={isReading ? colors.accent : colors.muted}
+              />
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* {{Article détaillé}} pointer(s) to a dedicated page. */}
       {section.mainLinks?.length ? (
@@ -624,6 +1182,8 @@ function SectionBlock({
           key={`img-${i}`}
           style={styles.figure}
           onPress={() => onImagePress(img.url, img.caption)}
+          accessibilityRole="imagebutton"
+          accessibilityLabel={img.caption ? `${img.caption}, ${viewImageLabel}` : viewImageLabel}
         >
           <RemoteImage
             source={{ uri: img.url }}
@@ -632,12 +1192,21 @@ function SectionBlock({
               img.width && img.height ? { aspectRatio: img.width / img.height } : null,
             ]}
             resizeMode="cover"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
           />
           {img.caption ? <Text style={styles.figureCaption}>{img.caption}</Text> : null}
         </Pressable>
       ))}
 
-      {section.tables?.map((table, tIndex) => (
+      {section.tables?.map((table, tIndex) => {
+        // Stretch the columns to fill the content width when there are few of
+        // them (no wasted empty space); fall back to a min width + horizontal
+        // scroll when the table is genuinely wide.
+        const cols = table.headers.length || 1;
+        const cellWidth = Math.max(100, Math.floor(contentWidth / cols));
+        const cellSize = { width: cellWidth };
+        return (
         <ScrollView
           key={`table-${tIndex}`}
           horizontal
@@ -647,9 +1216,9 @@ function SectionBlock({
           <View>
             <View style={[styles.tableRow, styles.tableHeaderRow]}>
               {table.headers.map((header, cIndex) => (
-                <Text key={cIndex} style={[styles.tableCell, styles.tableHeaderCell]}>
-                  {header}
-                </Text>
+                <View key={cIndex} style={[styles.tableCellBox, cellSize]}>
+                  <Text style={styles.tableHeaderCell}>{header}</Text>
+                </View>
               ))}
             </View>
             {table.rows.map((row, rIndex) => (
@@ -658,27 +1227,51 @@ function SectionBlock({
                 style={[styles.tableRow, rIndex % 2 === 1 && styles.tableRowAlt]}
               >
                 {row.map((cell, cIndex) => (
-                  <Text key={cIndex} style={styles.tableCell}>
-                    {cell.map((run, runIndex) =>
-                      run.linkTargetId ? (
-                        <Text
-                          key={runIndex}
-                          style={styles.link}
-                          onPress={() => onLinkPress(run.linkTargetId as string)}
-                        >
-                          {run.text}
-                        </Text>
-                      ) : (
-                        <Text key={runIndex}>{run.text}</Text>
-                      ),
-                    )}
-                  </Text>
+                  <View
+                    key={cIndex}
+                    style={[
+                      styles.tableCellBox,
+                      cellSize,
+                      cell.background ? { backgroundColor: cell.background } : null,
+                    ]}
+                  >
+                    {cell.image ? (
+                      <RemoteImage
+                        source={{ uri: cell.image }}
+                        style={styles.tableCellImage}
+                        resizeMode="cover"
+                      />
+                    ) : null}
+                    {cell.runs.length ? (
+                      <Text
+                        style={[
+                          styles.tableCell,
+                          cell.background ? styles.tableCellOnColor : null,
+                        ]}
+                      >
+                        {cell.runs.map((run, runIndex) =>
+                          run.linkTargetId ? (
+                            <Text
+                              key={runIndex}
+                              style={styles.link}
+                              onPress={() => onLinkPress(run.linkTargetId as string)}
+                            >
+                              {run.text}
+                            </Text>
+                          ) : (
+                            <Text key={runIndex}>{run.text}</Text>
+                          ),
+                        )}
+                      </Text>
+                    ) : null}
+                  </View>
                 ))}
               </View>
             ))}
           </View>
         </ScrollView>
-      ))}
+        );
+      })}
 
       {section.paragraphs.map((paragraph, pIndex) =>
         isLinkList(paragraph) ? (
@@ -690,6 +1283,8 @@ function SectionBlock({
                   key={rIndex}
                   style={styles.linkChip}
                   onPress={() => onLinkPress(run.linkTargetId as string)}
+                  accessibilityRole="link"
+                  accessibilityLabel={run.text.trim()}
                 >
                   <Text style={styles.linkChipText}>{run.text.trim()}</Text>
                 </Pressable>
@@ -704,10 +1299,12 @@ function SectionBlock({
                   style={styles.link}
                   onPress={() => onLinkPress(run.linkTargetId as string)}
                 >
-                  {run.text}
+                  {highlightedText(run.text, query, matchCounter, matchOffset, activeMatch, styles)}
                 </Text>
               ) : (
-                <Text key={rIndex}>{run.text}</Text>
+                <Text key={rIndex}>
+                  {highlightedText(run.text, query, matchCounter, matchOffset, activeMatch, styles)}
+                </Text>
               ),
             )}
           </Text>
@@ -727,7 +1324,39 @@ const makeStyles = (colors: ThemeColors) =>
     paddingHorizontal: spacing.screenPadding,
     paddingVertical: 10,
   },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 18 },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 14 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 16 },
+  // Wraps the scroll view so the title sub-header can overlay it.
+  scrollWrap: { flex: 1 },
+  // Slide-in title sub-header — absolute overlay (never shifts the page).
+  subHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 5,
+    overflow: "hidden",
+    backgroundColor: colors.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.separator,
+  },
+  subHeaderInner: { height: SUBHEADER_HEIGHT, justifyContent: "center", paddingHorizontal: spacing.screenPadding },
+  subHeaderTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "600" },
+  // In-page search bar.
+  findBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: spacing.screenPadding,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.separator,
+  },
+  findInput: { flex: 1, color: colors.textPrimary, fontSize: 15, paddingVertical: 4 },
+  findCount: { color: colors.muted, fontSize: 13, minWidth: 34, textAlign: "right" },
+  // Highlighted in-page-search matches.
+  match: { backgroundColor: "rgba(255, 213, 0, 0.45)", color: colors.textPrimary },
+  matchActive: { backgroundColor: colors.accent, color: colors.bg },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   errorText: { color: colors.textSecondary, fontSize: 15 },
   retryBtn: {
@@ -748,7 +1377,10 @@ const makeStyles = (colors: ThemeColors) =>
   chipActive: { backgroundColor: colors.accent },
   chipText: { fontSize: 14, color: colors.textSecondary },
   chipTextActive: { color: colors.bg, fontWeight: "600" },
-  content: { paddingHorizontal: spacing.screenPadding, paddingBottom: 48 },
+  // Virtualized list: per-block horizontal padding (related cards bring their own).
+  listContent: { paddingBottom: 48 },
+  blockPad: { paddingHorizontal: spacing.screenPadding },
+  relatedItem: { marginBottom: spacing.cardGap },
   // Section illustrations — kept small (so the thumbnail isn't upscaled) and
   // tappable to view full-size.
   figure: { marginTop: 4, marginBottom: 14, alignItems: "center" },
@@ -822,12 +1454,22 @@ const makeStyles = (colors: ThemeColors) =>
     marginTop: 6,
   },
   section: { marginTop: 20 },
+  // Heading row: the title plus a "read from here" speaker button.
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 8,
+  },
   sectionTitle: {
+    flex: 1,
     color: colors.textPrimary,
     fontSize: 19,
     fontWeight: "600",
-    marginBottom: 8,
   },
+  // The section currently being read aloud.
+  sectionTitleReading: { color: colors.accent },
   paragraph: { color: colors.textSecondary, fontSize: 16, lineHeight: 26, marginBottom: 12 },
   // Content tables (wikitables) — horizontally scrollable, aligned columns.
   tableScroll: {
@@ -839,16 +1481,28 @@ const makeStyles = (colors: ThemeColors) =>
   tableRow: { flexDirection: "row" },
   tableHeaderRow: { backgroundColor: colors.field },
   tableRowAlt: { backgroundColor: colors.surface },
-  tableCell: {
+  // Cell box carries the width, padding, borders and (when meaningful) the
+  // colour-code background; the inner Text only styles the text.
+  tableCellBox: {
     width: 140,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textSecondary,
+    justifyContent: "center",
     borderRightWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.separator,
+  },
+  tableCell: { fontSize: 13, lineHeight: 18, color: colors.textSecondary },
+  // Wikipedia colour-codes are light pastels meant for black text → force a dark
+  // text colour on coloured cells so it stays legible (incl. dark mode).
+  tableCellOnColor: { color: "#1a1a1a" },
+  tableCellImage: {
+    width: 54,
+    height: 54,
+    borderRadius: radii.media,
+    backgroundColor: colors.field,
+    alignSelf: "center",
+    marginBottom: 4,
   },
   tableHeaderCell: { color: colors.textPrimary, fontWeight: "700", fontSize: 12 },
   link: {
@@ -865,7 +1519,6 @@ const makeStyles = (colors: ThemeColors) =>
   },
   // Cards carry their own horizontal padding — cancel the content padding so
   // they sit edge-to-edge in the centered column, like the home feed.
-  relatedFeed: { gap: spacing.cardGap, marginHorizontal: -spacing.screenPadding },
   relatedLoader: { marginTop: 20 },
   exploreChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   exploreChip: {

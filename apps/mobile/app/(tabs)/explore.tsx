@@ -28,12 +28,15 @@ import { RemoteImage } from "../../src/components/RemoteImage";
 import { SkeletonCell } from "../../src/components/SkeletonCard";
 import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
+import { useSearchHistory } from "../../src/search/SearchHistoryProvider";
 
 // Instagram-style grid: 3 square tiles per row with hairline gaps.
 const GRID_COLS = 3;
 const GRID_GAP = 2;
 // Keep loading pages until the grid is tall enough to scroll (then onScroll pages on).
 const GRID_FILL_TARGET = 24;
+// How many recent searches to show (up to 50 are kept in storage).
+const RECENT_SEARCHES_SHOWN = 12;
 // Backdrop colors for image-less tiles (so the title reads like a cover).
 const TILE_COLORS = [
   "#8E6FB0",
@@ -70,7 +73,16 @@ export default function ExploreScreen() {
 
   // A search theme can be pushed from elsewhere (e.g. profile interest chips).
   const params = useLocalSearchParams<{ q?: string }>();
+  // `input` is what the field shows (updates on every keystroke); `query` is the
+  // debounced term that actually drives the search — decoupling the two keeps
+  // typing responsive (the heavy grid no longer re-renders per keystroke, so
+  // fast typing never drops characters) and only fires after a typing pause.
+  const [input, setInput] = useState(params.q ?? "");
   const [query, setQuery] = useState(params.q ?? "");
+  const { queries: searchHistory, record: recordSearch, remove: removeSearch, clear: clearSearch } =
+    useSearchHistory();
+  const recordSearchRef = useRef(recordSearch);
+  recordSearchRef.current = recordSearch;
   const [trending, setTrending] = useState<Article[]>([]);
   const [trendingCursor, setTrendingCursor] = useState<string | undefined>();
   const [results, setResults] = useState<Article[] | null>(null);
@@ -96,13 +108,30 @@ export default function ExploreScreen() {
 
   // Typing a new query always re-enables auto-correction.
   const changeQuery = useCallback((text: string) => {
-    setQuery(text);
+    setInput(text);
     setExact(false);
+    if (!text.trim()) {
+      setQuery("");
+    } else {
+      setLoading(true);
+    }
   }, []);
+
+  // Debounce: wait for a pause in typing before searching, and restart the timer
+  // on each edit.
+  useEffect(() => {
+    const q = input.trim();
+    if (!q) {
+      return;
+    }
+    const handle = setTimeout(() => setQuery(input.trim()), 450);
+    return () => clearTimeout(handle);
+  }, [input]);
 
   // Apply an incoming search theme (Explore tab may already be mounted).
   useEffect(() => {
     if (params.q) {
+      setInput(params.q);
       setQuery(params.q);
     }
   }, [params.q]);
@@ -116,7 +145,7 @@ export default function ExploreScreen() {
       .catch(() => undefined);
   }, [locale]);
 
-  // Debounced broad-theme search.
+  // Run the (already debounced) broad-theme search.
   useEffect(() => {
     const q = query.trim();
     if (!q) {
@@ -127,26 +156,40 @@ export default function ExploreScreen() {
       return;
     }
     setLoading(true);
-    const handle = setTimeout(() => {
-      void fetchSearch(q, locale, undefined, exact)
-        .then((res) => {
-          activeQueryRef.current = q;
-          setResults(res.items);
-          setSearchCursor(res.nextCursor);
-          setSearchInfo({
-            correctedQuery: res.correctedQuery,
-            originalQuery: res.originalQuery,
-            suggestion: res.suggestion,
-          });
-        })
-        .catch(() => {
+    let cancelled = false;
+    void fetchSearch(q, locale, undefined, exact)
+      .then((res) => {
+        if (cancelled) {
+          return;
+        }
+        activeQueryRef.current = q;
+        setResults(res.items);
+        setSearchCursor(res.nextCursor);
+        setSearchInfo({
+          correctedQuery: res.correctedQuery,
+          originalQuery: res.originalQuery,
+          suggestion: res.suggestion,
+        });
+        // Remember a query that actually returned something (recent searches).
+        if (res.items.length) {
+          recordSearchRef.current(res.correctedQuery ?? q);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
           setResults([]);
           setSearchCursor(undefined);
           setSearchInfo({});
-        })
-        .finally(() => setLoading(false));
-    }, 350);
-    return () => clearTimeout(handle);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [query, locale, exact]);
 
   const open = useCallback(
@@ -155,6 +198,13 @@ export default function ExploreScreen() {
     },
     [router],
   );
+
+  // Replay a past search from the history list.
+  const runSearch = useCallback((q: string) => {
+    setInput(q);
+    setQuery(q);
+    setExact(false);
+  }, []);
 
   const loadMoreTrending = useCallback(async () => {
     if (!trendingCursor || loadingMoreRef.current) {
@@ -317,12 +367,13 @@ export default function ExploreScreen() {
     };
   }, [refreshTrending]);
 
-  // While a search is active, never fall back to trending — show skeletons until
-  // the results arrive, then the grid.
-  const searching = query.trim().length > 0;
+  // UI is in "search mode" as soon as the user types (input), so we never flash
+  // trending during the debounce window. Show skeletons until results arrive.
+  const searching = input.trim().length > 0;
   const showSkeletons = searching && (loading || results === null);
   const grid = searching ? (results ?? []) : trending;
   const hasMore = searching ? searchCursor : trendingCursor;
+  const showHistory = !searching && searchHistory.length > 0;
 
   const cellMargin = (i: number) => ({
     marginRight: i % GRID_COLS === GRID_COLS - 1 ? 0 : GRID_GAP,
@@ -337,16 +388,22 @@ export default function ExploreScreen() {
         <View style={styles.searchBar}>
           <MaterialIcons name="search" size={20} color={colors.muted} />
           <TextInput
-            value={query}
+            value={input}
             onChangeText={changeQuery}
             placeholder={t("explore.searchPlaceholder")}
             placeholderTextColor={colors.muted}
             style={styles.searchInput}
             returnKeyType="search"
             autoCorrect={false}
+            accessibilityLabel={t("a11y.search")}
           />
           {query ? (
-            <Pressable onPress={() => changeQuery("")} hitSlop={8}>
+            <Pressable
+              onPress={() => changeQuery("")}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t("a11y.clearSearch")}
+            >
               <MaterialIcons name="close" size={20} color={colors.muted} />
             </Pressable>
           ) : null}
@@ -371,6 +428,48 @@ export default function ExploreScreen() {
           <ActivityIndicator color={colors.accent} style={styles.webRefresh} />
         ) : null}
 
+        {showHistory ? (
+          <View style={styles.history}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.historyTitle}>{t("explore.recentSearches")}</Text>
+              <Pressable
+                onPress={clearSearch}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel={t("common.clearAll")}
+              >
+                <Text style={styles.historyClear}>{t("common.clearAll")}</Text>
+              </Pressable>
+            </View>
+            <View style={styles.historyChips}>
+              {searchHistory.slice(0, RECENT_SEARCHES_SHOWN).map((q) => (
+                <View key={q} style={styles.historyChip}>
+                  <Pressable
+                    onPress={() => runSearch(q)}
+                    hitSlop={10}
+                    style={styles.historyChipLabel}
+                    accessibilityRole="button"
+                    accessibilityLabel={q}
+                  >
+                    <MaterialIcons name="history" size={15} color={colors.muted} />
+                    <Text style={styles.historyChipText} numberOfLines={1}>
+                      {q}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => removeSearch(q)}
+                    hitSlop={12}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("a11y.removeSearch", { query: q })}
+                  >
+                    <MaterialIcons name="close" size={15} color={colors.muted} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         {!searching ? (
           <View style={styles.trendingHeader}>
             <MaterialIcons name="trending-up" size={20} color={colors.accent} />
@@ -392,7 +491,7 @@ export default function ExploreScreen() {
         ) : searching && searchInfo.suggestion ? (
           <Pressable
             style={styles.correction}
-            onPress={() => changeQuery(searchInfo.suggestion as string)}
+            onPress={() => runSearch(searchInfo.suggestion as string)}
             hitSlop={6}
           >
             <Text style={styles.correctionLink}>
@@ -417,6 +516,8 @@ export default function ExploreScreen() {
                   key={article.id}
                   style={[styles.cell, cellMargin(i)]}
                   onPress={() => open(article)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("a11y.openArticle", { title: article.title })}
                 >
                   {article.image ? (
                     <>
@@ -479,6 +580,35 @@ const makeStyles = (colors: ThemeColors) =>
     searchInput: { flex: 1, color: colors.textPrimary, fontSize: 15, height: "100%" },
     scroll: { paddingHorizontal: spacing.screenPadding, paddingTop: 18, paddingBottom: 24 },
     webRefresh: { marginBottom: 12 },
+    // Recent searches.
+    history: { marginBottom: 22 },
+    historyHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 12,
+    },
+    historyTitle: {
+      color: colors.muted,
+      fontSize: 13,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.6,
+    },
+    historyClear: { color: colors.accentLinkText, fontSize: 13, fontWeight: "600" },
+    historyChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    historyChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: radii.pill,
+      backgroundColor: colors.field,
+      maxWidth: "100%",
+    },
+    historyChipLabel: { flexDirection: "row", alignItems: "center", gap: 5, flexShrink: 1 },
+    historyChipText: { color: colors.textSecondary, fontSize: 14 },
     trendingHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 16 },
     // "Did you mean / results for" search-correction banner.
     correction: { marginBottom: 14, gap: 2 },

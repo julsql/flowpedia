@@ -268,7 +268,14 @@ export default function FeedScreen() {
         {TABS.map(({ key, label }) => {
           const active = key === tab;
           return (
-            <Pressable key={key} onPress={() => setTab(key)} style={styles.tabItem}>
+            <Pressable
+              key={key}
+              onPress={() => setTab(key)}
+              style={styles.tabItem}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={t(label)}
+            >
               <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t(label)}</Text>
               {active ? <View style={styles.tabUnderline} /> : null}
             </Pressable>
@@ -280,7 +287,12 @@ export default function FeedScreen() {
       {error ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{t("common.loadError")}</Text>
-          <Pressable onPress={() => load(tab)} style={styles.retryBtn}>
+          <Pressable
+            onPress={() => load(tab)}
+            style={styles.retryBtn}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.retry")}
+          >
             <Text style={styles.retryText}>{t("common.retry")}</Text>
           </Pressable>
         </View>

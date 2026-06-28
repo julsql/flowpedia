@@ -12,10 +12,10 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
-import { FlashList } from "@shopify/flash-list";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import type { Article } from "@flowpedia/shared";
 import { fetchFeed, largeImageUrl, sendEvents } from "../../src/api/client";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
@@ -59,6 +59,22 @@ export default function FlowScreen() {
   const seedRef = useRef<number>(Math.floor(Math.random() * 1_000_000_000));
   // Ids already shown this session — so an article never appears twice.
   const shownIdsRef = useRef<Set<string>>(new Set());
+  // The paged list + the currently-visible card, so we can restore the exact
+  // position when returning to the tab (FlashList can otherwise jump back to an
+  // earlier page after navigating to an article and back).
+  const listRef = useRef<FlashListRef<Article>>(null);
+  const currentIndexRef = useRef(0);
+  const lengthRef = useRef(0);
+  lengthRef.current = articles.length;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: { index: number | null }[] }) => {
+      const first = viewableItems[0];
+      if (first?.index != null) {
+        currentIndexRef.current = first.index;
+      }
+    },
+  ).current;
   const atTopRef = useRef(true);
   const refreshingRef = useRef(false);
   const seedsRef = useRef<string[]>([]);
@@ -210,6 +226,21 @@ export default function FlowScreen() {
     };
   }, [refresh]);
 
+  // Re-assert the last-viewed card when the tab regains focus, so coming back
+  // from an article lands on the same card instead of an earlier one.
+  useFocusEffect(
+    useCallback(() => {
+      const idx = currentIndexRef.current;
+      if (idx <= 0 || idx >= lengthRef.current) {
+        return undefined;
+      }
+      const handle = setTimeout(() => {
+        listRef.current?.scrollToIndex({ index: idx, animated: false });
+      }, 0);
+      return () => clearTimeout(handle);
+    }, []),
+  );
+
   const onLayout = (e: LayoutChangeEvent) => setHeight(e.nativeEvent.layout.height);
 
   return (
@@ -230,6 +261,7 @@ export default function FlowScreen() {
           </View>
         ) : (
           <FlashList
+            ref={listRef}
             data={articles}
             keyExtractor={(item) => item.id}
             pagingEnabled
@@ -238,6 +270,8 @@ export default function FlowScreen() {
             renderItem={({ item }) => <FlowItem article={item} height={height} />}
             onScroll={onScroll}
             scrollEventThrottle={64}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
             onEndReached={loadMore}
             onEndReachedThreshold={1}
             refreshControl={
@@ -308,7 +342,12 @@ function FlowItem({ article, height }: { article: Article; height: number }) {
         pointerEvents="none"
       />
       {/* Background tap layer (sits under the action buttons & text). */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={open} />
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={open}
+        accessibilityRole="button"
+        accessibilityLabel={t("a11y.openArticle", { title: article.title })}
+      />
 
       {/* Swipe-to-read affordance: chevron on the right, vertically centered. */}
       <View style={styles.readHint} pointerEvents="none">
@@ -317,17 +356,37 @@ function FlowItem({ article, height }: { article: Article; height: number }) {
       </View>
 
       <View style={styles.actions}>
-        <Pressable style={styles.action} onPress={() => toggleLike(article)} hitSlop={8}>
+        <Pressable
+          style={styles.action}
+          onPress={() => toggleLike(article)}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityState={{ selected: liked }}
+          accessibilityLabel={liked ? t("a11y.liked") : t("a11y.like")}
+        >
           <MaterialIcons
             name={liked ? "favorite" : "favorite-border"}
             size={32}
             color={liked ? colors.like : "#fff"}
           />
         </Pressable>
-        <Pressable style={styles.action} onPress={() => openShare(article)} hitSlop={8}>
+        <Pressable
+          style={styles.action}
+          onPress={() => openShare(article)}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={t("a11y.share")}
+        >
           <MaterialIcons name="send" size={30} color="#fff" />
         </Pressable>
-        <Pressable style={styles.action} onPress={() => toggleSave(article)} hitSlop={8}>
+        <Pressable
+          style={styles.action}
+          onPress={() => toggleSave(article)}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityState={{ selected: saved }}
+          accessibilityLabel={saved ? t("a11y.saved") : t("a11y.save")}
+        >
           <MaterialIcons
             name={saved ? "bookmark" : "bookmark-border"}
             size={32}

@@ -18,6 +18,8 @@ const COLLAPSED_ROWS = 7;
 interface InfoCardProps {
   article: Article;
   colors: ThemeColors;
+  /** Open the lead/infobox image full-size (lightbox). */
+  onImagePress?: (url: string, caption?: string) => void;
 }
 
 /**
@@ -25,7 +27,7 @@ interface InfoCardProps {
  * image on the side (aspect ratio kept) + key facts. Falls back to the lead
  * image alone when the page has no infobox.
  */
-export function InfoCard({ article, colors }: InfoCardProps) {
+export function InfoCard({ article, colors, onImagePress }: InfoCardProps) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useLocale();
   const { width: windowWidth } = useWindowDimensions();
@@ -39,19 +41,58 @@ export function InfoCard({ article, colors }: InfoCardProps) {
   const height = infobox?.image ? infobox.imageHeight : article.imageHeight;
   const allRows = infobox?.rows ?? [];
 
+  // Locator/position map (e.g. a region within its country), shown under the card.
+  const mapUrl = infobox?.mapImage;
+  const mapRatio =
+    infobox?.mapImageWidth && infobox?.mapImageHeight
+      ? infobox.mapImageWidth / infobox.mapImageHeight
+      : 1;
+  const mapThumb = mapUrl ? (
+    <Pressable
+      disabled={!onImagePress}
+      onPress={() => onImagePress?.(mapUrl, t("article.locatorMap"))}
+      style={styles.mapBox}
+      accessibilityRole={onImagePress ? "imagebutton" : "image"}
+      accessibilityLabel={
+        onImagePress ? `${t("article.locatorMap")}, ${t("a11y.viewMap")}` : t("article.locatorMap")
+      }
+    >
+      <RemoteImage
+        source={{ uri: mapUrl }}
+        style={[styles.mapImage, { aspectRatio: mapRatio }]}
+        resizeMode="contain"
+      />
+      <Text style={styles.mapCaption}>{t("article.locatorMap")}</Text>
+    </Pressable>
+  ) : null;
+
   if (!image && allRows.length === 0) {
-    return null;
+    return mapThumb;
   }
 
   const ratioSolo = width && height ? width / height : 1.6;
   // No infobox facts → show just the lead image (no empty bordered card).
   if (allRows.length === 0) {
     return (
-      <RemoteImage
-        source={{ uri: image }}
-        style={[styles.soloImage, { aspectRatio: ratioSolo }]}
-        resizeMode="cover"
-      />
+      <>
+        <Pressable
+          disabled={!image || !onImagePress}
+          onPress={() => image && onImagePress?.(image, article.title)}
+          accessibilityRole={onImagePress ? "imagebutton" : "image"}
+          accessibilityLabel={
+            onImagePress ? `${article.title}, ${t("a11y.viewImage")}` : article.title
+          }
+        >
+          <RemoteImage
+            source={{ uri: image }}
+            style={[styles.soloImage, { aspectRatio: ratioSolo }]}
+            resizeMode="cover"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+        </Pressable>
+        {mapThumb}
+      </>
     );
   }
 
@@ -65,9 +106,26 @@ export function InfoCard({ article, colors }: InfoCardProps) {
     : [styles.image, { width: IMAGE_WIDTH, height: imageHeight }];
 
   return (
-    <View style={[styles.card, stacked && styles.cardStacked]}>
+    <>
+      <View style={[styles.card, stacked && styles.cardStacked]}>
       {image ? (
-        <RemoteImage source={{ uri: image }} style={imageStyle} resizeMode="cover" />
+        <Pressable
+          disabled={!onImagePress}
+          onPress={() => onImagePress?.(image, article.title)}
+          style={stacked ? styles.imagePressStacked : undefined}
+          accessibilityRole={onImagePress ? "imagebutton" : "image"}
+          accessibilityLabel={
+            onImagePress ? `${article.title}, ${t("a11y.viewImage")}` : article.title
+          }
+        >
+          <RemoteImage
+            source={{ uri: image }}
+            style={imageStyle}
+            resizeMode="cover"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+        </Pressable>
       ) : null}
       {allRows.length ? (
         <View style={[styles.facts, stacked ? styles.factsStacked : styles.factsRow]}>
@@ -87,7 +145,10 @@ export function InfoCard({ article, colors }: InfoCardProps) {
             <Pressable
               style={styles.toggle}
               onPress={() => setExpanded((v) => !v)}
-              hitSlop={6}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityState={{ expanded }}
+              accessibilityLabel={expanded ? t("a11y.showLess") : t("a11y.showMore")}
             >
               <Text style={styles.toggleText}>
                 {expanded ? t("article.showLess") : t("article.readMore")}
@@ -101,7 +162,9 @@ export function InfoCard({ article, colors }: InfoCardProps) {
           ) : null}
         </View>
       ) : null}
-    </View>
+      </View>
+      {mapThumb}
+    </>
   );
 }
 
@@ -129,6 +192,7 @@ const makeStyles = (colors: ThemeColors) =>
       backgroundColor: colors.field,
     },
     image: { borderRadius: radii.media, backgroundColor: colors.field, alignSelf: "flex-start" },
+    imagePressStacked: { width: "100%", alignItems: "center" },
     imageStacked: {
       width: "100%",
       maxWidth: STACKED_IMAGE_MAX_WIDTH,
@@ -136,6 +200,24 @@ const makeStyles = (colors: ThemeColors) =>
       borderRadius: radii.media,
       backgroundColor: colors.field,
     },
+    // Locator/position map shown under the info card.
+    mapBox: {
+      marginTop: 10,
+      padding: 10,
+      borderRadius: radii.media,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.separator,
+      alignItems: "center",
+    },
+    mapImage: {
+      width: "100%",
+      maxWidth: 280,
+      maxHeight: 240,
+      borderRadius: radii.media,
+      backgroundColor: colors.field,
+    },
+    mapCaption: { color: colors.muted, fontSize: 12, marginTop: 6, fontStyle: "italic" },
     facts: { justifyContent: "center", gap: 9 },
     factsRow: { flex: 1 },
     factsStacked: { width: "100%" },
