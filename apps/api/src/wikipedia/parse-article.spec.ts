@@ -602,6 +602,30 @@ describe("parseInfobox — locator map", () => {
     expect(box?.mapImage).toBe("https://upload.wikimedia.org/position.png");
   });
 
+  it("does not treat 'objectpositions' diagram as a locator map", () => {
+    // "Outersolarsystem_objectpositions_…" tripped the bare `position` pattern.
+    const html = `<html><body><table class="infobox">
+      <tr><td><img resource="./Fichier:Outersolarsystem_objectpositions_labels_comp-fr.png" src="//upload.wikimedia.org/objectpositions.png" width="280" height="275"/></td></tr>
+      <tr><th>Région</th><td>Système solaire externe</td></tr>
+      <tr><th>Distance</th><td>30–50 ua</td></tr>
+    </table></body></html>`;
+    const box = parseInfobox(html);
+    expect(box?.image).toBe("https://upload.wikimedia.org/objectpositions.png");
+    expect(box?.mapImage).toBeUndefined();
+  });
+
+  it("drops a locator map that is the very same file as the lead image", () => {
+    const html = `<html><body><table class="infobox">
+      <tr><td><img resource="./Fichier:Yvelines-Position.svg" src="//upload.wikimedia.org/position.png" width="250" height="200"/></td></tr>
+      <tr><td><img resource="./Fichier:Yvelines-Position.svg" src="//upload.wikimedia.org/position.png" width="250" height="200"/></td></tr>
+      <tr><th>Région</th><td>Île-de-France</td></tr>
+      <tr><th>Préfecture</th><td>Versailles</td></tr>
+    </table></body></html>`;
+    const box = parseInfobox(html);
+    expect(box?.image).toBe("https://upload.wikimedia.org/position.png");
+    expect(box?.mapImage).toBeUndefined();
+  });
+
   it("does not treat a flag as a locator map", () => {
     const html = `<html><body><table class="infobox">
       <tr><td><img resource="./Fichier:Flag_of_France.svg" src="//upload.wikimedia.org/flag.png" width="120" height="80"/></td></tr>

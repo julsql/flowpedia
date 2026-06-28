@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "main": "expo-router/entry",
+  "expo": {
+    "autolinking": {
+      "buildFromSource": ["expo-speech"]
+    }
+  },
   "scripts": {
     "start": "expo start",
     "start:clear": "expo start --clear",

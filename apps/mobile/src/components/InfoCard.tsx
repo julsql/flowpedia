@@ -42,7 +42,8 @@ export function InfoCard({ article, colors, onImagePress }: InfoCardProps) {
   const allRows = infobox?.rows ?? [];
 
   // Locator/position map (e.g. a region within its country), shown under the card.
-  const mapUrl = infobox?.mapImage;
+  // Skip it when it's the very same file as the lead image (avoids a duplicate).
+  const mapUrl = infobox?.mapImage !== image ? infobox?.mapImage : undefined;
   const mapRatio =
     infobox?.mapImageWidth && infobox?.mapImageHeight
       ? infobox.mapImageWidth / infobox.mapImageHeight

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Platform } from "react-native";
 import * as Speech from "expo-speech";
 import type { Article, ArticleSection } from "@flowpedia/shared";
 
@@ -237,8 +238,18 @@ export function useArticleSpeech(article: Article | null, locale: string): Artic
   // least one voice installed). A device with no engine (e.g. a de-Googled ROM)
   // simply hides the read-aloud controls; opening the article is never blocked.
   useEffect(() => {
-    let cancelled = false;
     voiceRef.current = undefined;
+    // Native: never probe the TTS engine at mount. getAvailableVoicesAsync can
+    // crash the app on init with some engines (a native NullPointerException in
+    // LanguageUtils — see patches/expo-speech), which a JS try/catch cannot
+    // intercept. Opening an article must never touch native TTS, so we keep the
+    // controls available and let the engine pick a default voice; the optional
+    // "enhanced voice" selection is web-only (where the probe is harmless).
+    if (Platform.OS !== "web") {
+      setAvailable(true);
+      return;
+    }
+    let cancelled = false;
     void probeVoices(SPEECH_LANG[locale] ?? locale).then(({ voiceId, usable }) => {
       if (cancelled) {
         return;

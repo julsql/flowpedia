@@ -1046,13 +1046,20 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
   if (!image && !rows.length) {
     return undefined;
   }
+  // Never surface the same file twice (lead + "locator map").
+  if (mapImage && mapImage === image) {
+    mapImage = mapImageWidth = mapImageHeight = undefined;
+  }
   return { image, imageWidth, imageHeight, mapImage, mapImageWidth, mapImageHeight, rows };
 }
 
 // Filenames of locator/position maps (a region shown within its country/world).
 // Matched on the image's file name across the supported languages.
+// `position`/`projection` must follow a non-letter so a diagram file like
+// "Outersolarsystem_objectpositions_…" (or "composition") isn't mistaken for a
+// locator map — only "_position", ":Position", "-projection"… count.
 const LOCATOR_MAP_FILENAME =
-  /position|locali[sz]ation|locator|location[_ -]?map|[_ -]map[_ -.]|carte|karte|mapa|mappa|kaart|harita|orthographic|projection|地図|地図|地图|지도|карт|χάρτ/i;
+  /(?<![a-z])position|locali[sz]ation|locator|location[_ -]?map|[_ -]map[_ -.]|carte|karte|mapa|mappa|kaart|harita|orthographic|(?<![a-z])projection|地図|地図|地图|지도|карт|χάρτ/i;
 
 /** Whether an infobox image (by file name) is a locator/position map. */
 function isLocatorMapImage(nameOrUrl: string): boolean {
