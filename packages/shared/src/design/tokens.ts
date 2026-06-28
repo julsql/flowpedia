@@ -28,10 +28,10 @@ export const darkColors: ThemeColors = {
   bg: "#121110", // app background (warm near-black)
   surface: "#1b1916", // raised surfaces: cards, sheets
   textPrimary: "#f4efe8",
-  textSecondary: "#b3aca1",
-  textTertiary: "#8c857b",
-  muted: "#6f6962",
-  mutedLight: "#6a635b", // inactive icons / meta
+  textSecondary: "#b3aca1", // 8.4:1 on bg — AAA
+  textTertiary: "#8c857b", // 5.2:1 on bg — AA
+  muted: "#847e75", // 4.7:1 on bg — AA (was 3.5:1, failed)
+  mutedLight: "#847d73", // 4.6:1 on bg — AA; inactive icons / meta (was 2.6:1, failed)
   separator: "#2a2723", // hairline borders
   separatorThick: "#1e1c19", // thick separator band between feed cards
   field: "#211f1b", // search bar, chips, share buttons
@@ -49,10 +49,10 @@ export const lightColors: ThemeColors = {
   bg: "#ffffff",
   surface: "#f7f5f1",
   textPrimary: "#16140f",
-  textSecondary: "#5c574e",
-  textTertiary: "#6b665d",
-  muted: "#9a948a",
-  mutedLight: "#bdb8af",
+  textSecondary: "#5c574e", // 7.2:1 on bg — AAA
+  textTertiary: "#5f5a50", // 6.9:1 on bg — AAA
+  muted: "#6f6a61", // 5.4:1 on bg — AA (was 3.0:1, failed)
+  mutedLight: "#797368", // 4.7:1 on bg — AA (was 1.9:1, failed)
   separator: "#f1eee9",
   separatorThick: "#f4f2ee",
   field: "#f4f2ee",
