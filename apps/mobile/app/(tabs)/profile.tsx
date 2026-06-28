@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { Article } from "@flowpedia/shared";
+import { type Article, classifyTopics } from "@flowpedia/shared";
 import { radii, spacing, useTheme, type ThemeColors, type ThemeMode } from "../../src/theme";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
@@ -45,7 +45,11 @@ function deriveInterests(articles: Article[]): string[] {
       continue; // an article both read and liked counts once
     }
     seen.add(a.id);
-    for (const topic of a.topics ?? []) {
+    // Fall back to classifying on-device when `topics` is absent — articles
+    // saved/read before the API added the field (or any older cache) still
+    // feed the interest chips instead of vanishing.
+    const topics = a.topics ?? classifyTopics(`${a.title} ${a.category ?? ""}`);
+    for (const topic of topics) {
       counts.set(topic, (counts.get(topic) ?? 0) + 1);
     }
   }
