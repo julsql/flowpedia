@@ -1,5 +1,6 @@
 import { parse, type HTMLElement, type Node } from "node-html-parser";
 import type {
+  AncestryEntry,
   ArticleChart,
   ArticleInfobox,
   ArticleLink,
@@ -12,14 +13,18 @@ import type {
 } from "@flowpedia/shared";
 
 const TEXT_NODE = 3;
-const MAX_SECTIONS = 40;
-const MAX_PARAGRAPHS_PER_SECTION = 80;
+// The mobile article body is virtualized (FlashList), so sections/paragraphs are
+// mounted lazily — these are just generous backstops against pathological pages,
+// not performance limits.
+const MAX_SECTIONS = 500;
+const MAX_PARAGRAPHS_PER_SECTION = 200;
 const MAX_INFOBOX_ROWS = 16; // total label/value rows kept (headings not counted)
 const PER_BLOCK_ROWS = 3; // facts kept per theme when an infobox spans many blocks
 const MAX_INFOBOX_SCAN = 140; // scan deep enough across a multi-table (v3) infobox
 const MIN_SECTION_IMAGE_WIDTH = 100; // skip tiny inline icons/flags
 const MAX_TABLE_ROWS = 1000; // generous cap for long list-tables (a month of deaths is ~250 rows)
-const MAX_TABLE_COLS = 6;
+const MAX_TABLE_COLS = 24; // keep wide tables (electoral results, results grids) intact
+const MIN_CELL_IMAGE_WIDTH = 30; // skip tiny inline icons (✓, flags) in table cells
 // Table columns that are references, not content (dropped). Covers the supported
 // languages' "source/references/notes" header words.
 const REF_COLUMN_HEADER =
@@ -133,6 +138,32 @@ const EXCLUDED_SECTION_TITLES = new Set<string>(
     "関連項目",
     "같이 보기",
     "ayrıca bakınız",
+    // bibliography / further reading (sources, not article prose)
+    "bibliographie",
+    "bibliography",
+    "bibliografía",
+    "bibliografia",
+    "bibliografie",
+    "literatur",
+    "literatuur",
+    "библиография",
+    "литература",
+    "βιβλιογραφία",
+    "参考书目",
+    "参考書目",
+    "参考図書",
+    "참고 자료",
+    "참고자료",
+    "further reading",
+    "lectures complémentaires",
+    "pour approfondir",
+    "lectura adicional",
+    "letture",
+    "leitura adicional",
+    "verder lezen",
+    "dalsze czytanie",
+    "ek okuma",
+    "ek okumalar",
     // "related articles" (often a standalone section, not under "see also")
     "articles connexes",
     "related articles",
@@ -446,11 +477,16 @@ function pushText(runs: TextRun[], text: string): void {
   }
 }
 
+// Editorial maintenance markers Wikipedia inlines in brackets ("[réf. souhaitée]",
+// "[citation needed]", "[Quand ?]"…). Noise for a reader — stripped from prose.
+const EDITORIAL_MARKER =
+  /\s*\[\s*(?:réf\.?[^\]]*|citation needed|citation nécessaire|pas clair|quand\s*\??|qui\s*\??|combien\s*\??|où\s*\??|évasif|passage évasif|précision nécessaire|incompréhensible|interprétation personnelle|style à revoir|non neutre|source insuffisante|source détournée|selon qui\s*\??|when\?|who\?|clarification needed|dubious|page needed)\s*\]/gi;
+
 /** Collapse whitespace, merge adjacent plain runs, trim edges, drop empties. */
 function normalizeRuns(runs: TextRun[]): TextRun[] {
   const merged: TextRun[] = [];
   for (const run of runs) {
-    const text = collapseWhitespace(run.text);
+    const text = collapseWhitespace(run.text).replace(EDITORIAL_MARKER, "");
     if (!text) {
       continue;
     }
@@ -459,6 +495,17 @@ function normalizeRuns(runs: TextRun[]): TextRun[] {
       last.text += text;
     } else {
       merged.push({ text, ...(run.linkTargetId ? { linkTargetId: run.linkTargetId } : {}) });
+    }
+  }
+  // Tidy whitespace left by stripped markers/dropped chrome: a removed
+  // "[réf. souhaitée]" (often preceded by a non-breaking space) can leave a
+  // double space or a space before punctuation.
+  for (const r of merged) {
+    r.text = r.text.replace(/\s{2,}/g, " ").replace(/\s+([,.…)\]»])/g, "$1");
+  }
+  for (let i = 1; i < merged.length; i += 1) {
+    if (/\s$/.test(merged[i - 1].text) && /^\s/.test(merged[i].text)) {
+      merged[i].text = merged[i].text.replace(/^\s+/, "");
     }
   }
   if (merged.length) {
@@ -586,76 +633,175 @@ function figureImage(figure: HTMLElement) {
   return { url, caption: caption || undefined, width, height: toInt(img.getAttribute("height")) };
 }
 
-/** A single table cell's runs (so links inside the table stay tappable). */
-function cellRuns(cell: HTMLElement): TableCell {
-  return normalizeRuns(buildRuns(cell, false));
+/** Extract a cell's background colour from `bgcolor` or an inline style. */
+function cellBackground(cell: HTMLElement): string | undefined {
+  const bgcolor = cell.getAttribute("bgcolor");
+  if (bgcolor) {
+    return bgcolor.trim();
+  }
+  const style = cell.getAttribute("style") ?? "";
+  const match = style.match(/background(?:-color)?\s*:\s*([^;]+)/i);
+  const color = match?.[1]?.trim();
+  // Ignore "transparent"/"inherit" and gradients/urls — keep plain colours only.
+  if (color && !/transparent|inherit|none|url\(|gradient/i.test(color)) {
+    return color;
+  }
+  return undefined;
+}
+
+/** First non-tiny image inside a cell (e.g. a participant photo). */
+function cellImage(cell: HTMLElement): string | undefined {
+  for (const img of cell.querySelectorAll("img")) {
+    const width = toInt(img.getAttribute("width"));
+    if (width !== undefined && width < MIN_CELL_IMAGE_WIDTH) {
+      continue;
+    }
+    const url = resolveImageUrl(img.getAttribute("src"));
+    if (url) {
+      return url;
+    }
+  }
+  return undefined;
+}
+
+/** A single table cell: tappable-link runs + optional image and background. */
+function buildCell(cell: HTMLElement): TableCell {
+  const runs = normalizeRuns(buildRuns(cell, false));
+  const image = cellImage(cell);
+  const background = cellBackground(cell);
+  return { runs, ...(image ? { image } : {}), ...(background ? { background } : {}) };
+}
+
+interface RawCell {
+  cell: TableCell;
+  text: string;
+  isHeader: boolean;
+}
+
+const MAX_COLSPAN = 30; // guard against malformed colspan blowing up the grid
+
+/**
+ * Expand a table into a full rectangular matrix, resolving BOTH colspan and
+ * rowspan so every logical column lines up — even with multi-row headers (e.g.
+ * an electoral table whose "1er tour" header spans the "Voix"/"%" sub-columns).
+ */
+function tableMatrix(table: HTMLElement): RawCell[][] {
+  const trs = table.querySelectorAll("tr");
+  const matrix: RawCell[][] = [];
+  // Cells still spanning down into later rows, keyed by absolute column index.
+  const carry: ({ cell: RawCell; rowsLeft: number } | undefined)[] = [];
+  const rowCap = MAX_TABLE_ROWS + 4; // a few extra rows for multi-line headers
+
+  for (let r = 0; r < trs.length && matrix.length < rowCap; r += 1) {
+    const cells = trs[r].querySelectorAll("th, td").filter((c) => c.parentNode === trs[r]);
+    if (!cells.length && !carry.some(Boolean)) {
+      continue;
+    }
+    const row: RawCell[] = [];
+    let col = 0;
+    const placeCarries = () => {
+      while (carry[col]) {
+        const c = carry[col]!;
+        row[col] = c.cell;
+        c.rowsLeft -= 1;
+        if (c.rowsLeft <= 0) {
+          carry[col] = undefined;
+        }
+        col += 1;
+      }
+    };
+
+    for (const cell of cells) {
+      placeCarries();
+      const built = buildCell(cell);
+      const raw: RawCell = {
+        cell: built,
+        text: built.runs.map((x) => x.text).join(""),
+        isHeader: cell.rawTagName?.toLowerCase() === "th",
+      };
+      const colspan = Math.min(Math.max(toInt(cell.getAttribute("colspan")) ?? 1, 1), MAX_COLSPAN);
+      const rowspan = Math.max(toInt(cell.getAttribute("rowspan")) ?? 1, 1);
+      for (let k = 0; k < colspan; k += 1) {
+        row[col] = raw;
+        if (rowspan > 1) {
+          carry[col] = { cell: raw, rowsLeft: rowspan - 1 };
+        }
+        col += 1;
+      }
+    }
+    placeCarries(); // trailing rowspans past the last cell
+    matrix.push(row);
+  }
+  return matrix;
 }
 
 /**
- * Build a content table, resolving rowspans (e.g. a date cell that spans several
- * rows) into a full grid and dropping reference/source columns. Capped in size
- * so a long list page (a month of deaths) stays manageable in the feed.
+ * Build a content table from its matrix: flatten a possibly multi-row header
+ * (joining each column's header levels, e.g. "1er tour · Voix"), then the data
+ * rows, dropping reference/source and fully-empty columns. Capped so a long list
+ * page (a month of deaths) stays manageable in the feed.
  */
 function buildTable(table: HTMLElement): ArticleTable | undefined {
-  const trs = table.querySelectorAll("tr");
-  if (trs.length < 2) {
+  const matrix = tableMatrix(table);
+  if (matrix.length < 2) {
     return undefined;
   }
-  const headerCells = trs[0].querySelectorAll("th, td").filter((c) => c.parentNode === trs[0]);
-  const headers = headerCells.map((c) => collapseWhitespace(c.text).trim());
-  const colCount = Math.min(headers.length, MAX_TABLE_COLS);
-  if (colCount < 2) {
+  const cols = Math.min(MAX_TABLE_COLS, Math.max(...matrix.map((row) => row.length)));
+  if (cols < 2) {
     return undefined;
   }
 
-  // Walk the data rows, carrying rowspanned cells forward so columns stay aligned.
-  const active: ({ cell: TableCell; left: number } | null)[] = new Array(colCount).fill(null);
+  // Header rows = the leading run of rows whose cells are all <th>.
+  let headerRows = 0;
+  for (const row of matrix) {
+    const present = row.filter(Boolean);
+    if (present.length && present.every((c) => c.isHeader)) {
+      headerRows += 1;
+    } else {
+      break;
+    }
+  }
+  if (headerRows === 0 || headerRows >= matrix.length) {
+    headerRows = 1; // no clear header band → treat the first row as the header
+  }
+
+  // Flatten each column's header levels into one label (deduped, top to bottom).
+  const headers: string[] = [];
+  for (let c = 0; c < cols; c += 1) {
+    const parts: string[] = [];
+    for (let r = 0; r < headerRows; r += 1) {
+      const text = matrix[r]?.[c]?.text.trim() ?? "";
+      if (text && !parts.includes(text)) {
+        parts.push(text);
+      }
+    }
+    headers.push(parts.join(" · "));
+  }
+
+  const empty: TableCell = { runs: [] };
   const grid: TableCell[][] = [];
-  for (let r = 1; r < trs.length && grid.length < MAX_TABLE_ROWS; r += 1) {
-    const cells = trs[r].querySelectorAll("th, td").filter((c) => c.parentNode === trs[r]);
-    if (!cells.length) {
+  for (let r = headerRows; r < matrix.length && grid.length < MAX_TABLE_ROWS; r += 1) {
+    const row = matrix[r];
+    if (!row || !row.some(Boolean)) {
       continue;
     }
-    const row: TableCell[] = [];
-    let ci = 0;
-    for (let col = 0; col < colCount; col += 1) {
-      const span = active[col];
-      if (span) {
-        row.push(span.cell);
-        span.left -= 1;
-        if (span.left <= 0) {
-          active[col] = null;
-        }
-        continue;
-      }
-      const cell = cells[ci];
-      ci += 1;
-      if (!cell) {
-        row.push([]);
-        continue;
-      }
-      const runs = cellRuns(cell);
-      row.push(runs);
-      const rowspan = toInt(cell.getAttribute("rowspan"));
-      if (rowspan && rowspan > 1) {
-        active[col] = { cell: runs, left: rowspan - 1 };
-      }
-    }
-    grid.push(row);
+    grid.push(Array.from({ length: cols }, (_, c) => row[c]?.cell ?? empty));
   }
   if (!grid.length) {
     return undefined;
   }
 
   // Keep content columns: drop reference/source columns and fully-empty ones.
+  // A column counts as content if any cell has text, an image, or a background
+  // colour (so the colour-coded grid columns are never dropped as "empty").
+  const cellHasContent = (cell: TableCell) =>
+    cell.runs.length > 0 || cell.image !== undefined || cell.background !== undefined;
   const keep: number[] = [];
-  for (let col = 0; col < colCount; col += 1) {
+  for (let col = 0; col < cols; col += 1) {
     if (REF_COLUMN_HEADER.test(headers[col] ?? "")) {
       continue;
     }
-    const hasContent =
-      (headers[col] ?? "").length > 0 || grid.some((row) => (row[col]?.length ?? 0) > 0);
-    if (hasContent) {
+    if ((headers[col] ?? "").length > 0 || grid.some((row) => cellHasContent(row[col] ?? empty))) {
       keep.push(col);
     }
   }
@@ -665,7 +811,7 @@ function buildTable(table: HTMLElement): ArticleTable | undefined {
 
   return {
     headers: keep.map((col) => headers[col] ?? ""),
-    rows: grid.map((row) => keep.map((col) => row[col] ?? [])),
+    rows: grid.map((row) => keep.map((col) => row[col] ?? empty)),
   };
 }
 
@@ -829,15 +975,33 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
   let image: string | undefined;
   let imageWidth: number | undefined;
   let imageHeight: number | undefined;
+  let mapImage: string | undefined;
+  let mapImageWidth: number | undefined;
+  let mapImageHeight: number | undefined;
   for (const img of el.querySelectorAll("img")) {
     const width = toInt(img.getAttribute("width"));
-    if (width === undefined || width >= 60) {
-      image = resolveImageUrl(img.getAttribute("src"));
-      if (image) {
-        imageWidth = width;
-        imageHeight = toInt(img.getAttribute("height"));
-        break;
-      }
+    if (width !== undefined && width < 60) {
+      continue; // skip tiny icons (arrows, rating stars…)
+    }
+    const url = resolveImageUrl(img.getAttribute("src"));
+    if (!url) {
+      continue;
+    }
+    // A locator/position map (region highlighted within its country) — kept
+    // separately from the lead image so the app can show "where is this".
+    if (!mapImage && isLocatorMapImage(img.getAttribute("resource") ?? url)) {
+      mapImage = url;
+      mapImageWidth = width;
+      mapImageHeight = toInt(img.getAttribute("height"));
+      continue;
+    }
+    if (!image) {
+      image = url;
+      imageWidth = width;
+      imageHeight = toInt(img.getAttribute("height"));
+    }
+    if (image && mapImage) {
+      break;
     }
   }
 
@@ -882,5 +1046,89 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
   if (!image && !rows.length) {
     return undefined;
   }
-  return { image, imageWidth, imageHeight, rows };
+  return { image, imageWidth, imageHeight, mapImage, mapImageWidth, mapImageHeight, rows };
+}
+
+// Filenames of locator/position maps (a region shown within its country/world).
+// Matched on the image's file name across the supported languages.
+const LOCATOR_MAP_FILENAME =
+  /position|locali[sz]ation|locator|location[_ -]?map|[_ -]map[_ -.]|carte|karte|mapa|mappa|kaart|harita|orthographic|projection|地図|地図|地图|지도|карт|χάρτ/i;
+
+/** Whether an infobox image (by file name) is a locator/position map. */
+function isLocatorMapImage(nameOrUrl: string): boolean {
+  // Flags occasionally include "map"-ish words; never treat a flag as a map.
+  if (/\bflag\b|drapeau|bandera|flagge|bandiera|vlag|flaga|флаг|σημαία|国旗|깃발|bayrak/i.test(nameOrUrl)) {
+    return false;
+  }
+  return LOCATOR_MAP_FILENAME.test(nameOrUrl);
+}
+
+// An ahnentafel ("compact ancestors") cell: a leading number then a name, e.g.
+// "8. Antoine de Bourbon". The number is the ahnentafel position (1 = the
+// subject, 2 = father, 3 = mother, 4-7 = grandparents, 8-15 great-grandparents…).
+const ANCESTRY_CELL = /^\s*(\d{1,3})\s*[.°:]\s*(\S.*)$/s;
+const ANCESTRY_MAX_POSITION = 31; // up to great-great-grandparents (4 generations)
+const ANCESTRY_MIN_ENTRIES = 6;
+
+/** Extract numbered ancestor entries from a single ahnentafel-style table. */
+function extractAncestry(table: HTMLElement): AncestryEntry[] {
+  const byPosition = new Map<number, AncestryEntry>();
+  for (const cell of table.querySelectorAll("td, th")) {
+    // Only leaf cells (the compact-ancestors layout nests sub-tables).
+    if (cell.querySelector("table")) {
+      continue;
+    }
+    const text = collapseWhitespace(cell.text).trim();
+    const match = text.match(ANCESTRY_CELL);
+    if (!match) {
+      continue;
+    }
+    const position = Number.parseInt(match[1], 10);
+    if (!Number.isFinite(position) || position < 1 || position > 63 || byPosition.has(position)) {
+      continue;
+    }
+    let targetId: string | undefined;
+    let linkLabel: string | undefined;
+    for (const a of cell.querySelectorAll("a")) {
+      const rel = a.getAttribute("rel") ?? "";
+      const href = a.getAttribute("href") ?? "";
+      if (rel.includes("mw:WikiLink") && href.startsWith("./")) {
+        const target = decodeURIComponent(href.slice(2).split("#")[0]);
+        if (!target.includes(":")) {
+          targetId = target;
+          linkLabel = collapseWhitespace(a.text).trim() || undefined;
+          break;
+        }
+      }
+    }
+    const label = (linkLabel ?? match[2]).replace(/^\s*\d{1,3}\s*[.°:]\s*/, "").trim();
+    if (label) {
+      byPosition.set(position, { position, label, ...(targetId ? { targetId } : {}) });
+    }
+  }
+  const entries = [...byPosition.values()];
+  // Qualify as an ahnentafel: enough entries AND a real depth (positions ≥ 8),
+  // so a coincidental numbered list isn't mistaken for an ancestry chart.
+  if (entries.length < ANCESTRY_MIN_ENTRIES || !entries.some((e) => e.position >= 8)) {
+    return [];
+  }
+  return entries
+    .filter((e) => e.position >= 2 && e.position <= ANCESTRY_MAX_POSITION)
+    .sort((a, b) => a.position - b.position);
+}
+
+/**
+ * Parse the "Ancestry" (ascendance) chart — Wikipedia's ahnentafel/"compact
+ * ancestors" table — into a flat, numbered ancestor list the app groups by
+ * generation. Returns [] when the page has no such chart.
+ */
+export function parseAncestry(html: string): AncestryEntry[] {
+  const root = parse(html, { comment: false });
+  for (const table of root.querySelectorAll("table")) {
+    const entries = extractAncestry(table);
+    if (entries.length) {
+      return entries;
+    }
+  }
+  return [];
 }

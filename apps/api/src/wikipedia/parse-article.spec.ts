@@ -1,4 +1,5 @@
 import {
+  parseAncestry,
   collectLinks,
   isScaffoldImage,
   parseArticleSections,
@@ -201,7 +202,7 @@ describe("parseArticleSections — long content tables", () => {
     expect(table).toBeDefined();
     expect(table!.headers).toEqual(["Date", "Nom"]);
     expect(table!.rows.length).toBe(200);
-    const lastCell = table!.rows[199][1].map((run) => run.text).join("");
+    const lastCell = table!.rows[199][1].runs.map((run) => run.text).join("");
     expect(lastCell).toBe("Person 200");
   });
 });
@@ -517,13 +518,13 @@ describe("parseArticleSections — content tables", () => {
   });
 
   it("resolves rowspans so the date carries to the next row", () => {
-    const dates = table?.rows.map((row) => row[0].map((r) => r.text).join(""));
+    const dates = table?.rows.map((row) => row[0].runs.map((r) => r.text).join(""));
     expect(dates).toEqual(["31 janvier", "31 janvier"]);
   });
 
   it("keeps internal links inside cells tappable", () => {
     const nameCell = table?.rows[0][1];
-    expect(nameCell?.[0]).toEqual({ text: "Nataša Bokal", linkTargetId: "Nataša_Bokal" });
+    expect(nameCell?.runs[0]).toEqual({ text: "Nataša Bokal", linkTargetId: "Nataša_Bokal" });
   });
 });
 
@@ -538,5 +539,194 @@ describe("parseArticleSections — figures", () => {
       height: 200,
     });
     expect(sections[0].images).toBeUndefined();
+  });
+});
+
+describe("parseArticleSections — bibliography section", () => {
+  it("drops a Bibliographie section (sources, not prose)", () => {
+    const html = `<html><body>
+      <section data-mw-section-id="0"><p>Contenu de l'article.</p></section>
+      <section data-mw-section-id="1"><h2>Bibliographie</h2><ul><li>Un livre, 1999.</li></ul></section>
+    </body></html>`;
+    const titles = parseArticleSections(html, "Résumé").map((s) => s.title);
+    expect(titles).not.toContain("Bibliographie");
+  });
+
+  it("drops 'Further reading' / 'Literatur' too", () => {
+    const html = `<html><body>
+      <section data-mw-section-id="0"><p>Body.</p></section>
+      <section data-mw-section-id="1"><h2>Further reading</h2><p>A book.</p></section>
+      <section data-mw-section-id="2"><h2>Literatur</h2><p>Ein Buch.</p></section>
+    </body></html>`;
+    const titles = parseArticleSections(html, "Summary").map((s) => s.title);
+    expect(titles).not.toContain("Further reading");
+    expect(titles).not.toContain("Literatur");
+  });
+});
+
+describe("parseArticleSections — editorial markers", () => {
+  it("strips [réf. souhaitée] / [citation needed] / [Quand ?] from prose", () => {
+    const html = `<html><body><section data-mw-section-id="0"><p>Le site est ancien[réf. souhaitée] et daté[citation needed] de l'époque[Quand ?].</p></section></body></html>`;
+    const text = parseArticleSections(html, "Résumé")[0]
+      .paragraphs.flatMap((p) => p.runs.map((r) => r.text))
+      .join("");
+    expect(text).not.toContain("réf. souhaitée");
+    expect(text).not.toContain("citation needed");
+    expect(text).not.toContain("Quand");
+    expect(text).toContain("Le site est ancien");
+    expect(text).toContain("de l'époque");
+  });
+});
+
+describe("parseArticleSections — wide tables", () => {
+  it("keeps more than 6 columns (electoral results / year grids)", () => {
+    const cols = Array.from({ length: 10 }, (_, i) => `<th>C${i + 1}</th>`).join("");
+    const cells = Array.from({ length: 10 }, (_, i) => `<td>v${i + 1}</td>`).join("");
+    const html = `<html><body><section data-mw-section-id="0"><table class="wikitable"><tr>${cols}</tr><tr>${cells}</tr></table></section></body></html>`;
+    const table = parseArticleSections(html, "Résumé").flatMap((s) => s.tables ?? [])[0];
+    expect(table).toBeDefined();
+    expect(table!.headers.length).toBe(10);
+  });
+});
+
+describe("parseInfobox — locator map", () => {
+  it("extracts a position map as a separate image from the lead image", () => {
+    const html = `<html><body><table class="infobox">
+      <tr><td><img resource="./Fichier:Logo.svg" src="//upload.wikimedia.org/logo.png" width="120" height="120"/></td></tr>
+      <tr><td><img resource="./Fichier:Yvelines-Position.svg" src="//upload.wikimedia.org/position.png" width="250" height="200"/></td></tr>
+      <tr><th>Région</th><td>Île-de-France</td></tr>
+      <tr><th>Préfecture</th><td>Versailles</td></tr>
+    </table></body></html>`;
+    const box = parseInfobox(html);
+    expect(box?.image).toBe("https://upload.wikimedia.org/logo.png");
+    expect(box?.mapImage).toBe("https://upload.wikimedia.org/position.png");
+  });
+
+  it("does not treat a flag as a locator map", () => {
+    const html = `<html><body><table class="infobox">
+      <tr><td><img resource="./Fichier:Flag_of_France.svg" src="//upload.wikimedia.org/flag.png" width="120" height="80"/></td></tr>
+      <tr><th>Capitale</th><td>Paris</td></tr>
+      <tr><th>Langue</th><td>Français</td></tr>
+    </table></body></html>`;
+    const box = parseInfobox(html);
+    expect(box?.image).toBe("https://upload.wikimedia.org/flag.png");
+    expect(box?.mapImage).toBeUndefined();
+  });
+});
+
+describe("parseArticleSections — multi-row table headers (electoral results)", () => {
+  // "Année" + "Rang" span both header rows (rowspan); "1er tour" spans two
+  // sub-columns "Voix"/"%" (colspan). The sub-headers must attach to the right
+  // columns, not bleed into Année/Rang or shift the data.
+  const html = `<html><body><section data-mw-section-id="0"><table class="wikitable">
+    <tr>
+      <th rowspan="2">Année</th>
+      <th colspan="2">1er tour</th>
+      <th rowspan="2">Rang</th>
+    </tr>
+    <tr>
+      <th>Voix</th>
+      <th>%</th>
+    </tr>
+    <tr>
+      <td>2022</td>
+      <td>12 345</td>
+      <td>41,2</td>
+      <td>1er</td>
+    </tr>
+  </table></section></body></html>`;
+  const table = parseArticleSections(html, "Résumé").flatMap((s) => s.tables ?? [])[0];
+
+  it("flattens the two header rows column by column", () => {
+    expect(table?.headers).toEqual(["Année", "1er tour · Voix", "1er tour · %", "Rang"]);
+  });
+
+  it("aligns the data row under the right columns", () => {
+    const row = table?.rows[0].map((cell) => cell.runs.map((r) => r.text).join(""));
+    expect(row).toEqual(["2022", "12 345", "41,2", "1er"]);
+  });
+});
+
+describe("parseArticleSections — table cell images & colours", () => {
+  it("keeps a participant photo as the cell image", () => {
+    const html = `<html><body><section data-mw-section-id="0"><table class="wikitable">
+      <tr><th>Photo</th><th>Personnalité</th></tr>
+      <tr>
+        <td><span typeof="mw:File"><a class="mw-file-description" href="./Fichier:Billy.jpg"><img src="//upload.wikimedia.org/billy/120px-Billy.jpg" width="85" height="118"/></a></span></td>
+        <td><a rel="mw:WikiLink" href="./Billy_Crawford">Billy Crawford</a></td>
+      </tr>
+    </table></section></body></html>`;
+    const table = parseArticleSections(html, "Résumé").flatMap((s) => s.tables ?? [])[0];
+    expect(table?.rows[0][0].image).toBe("https://upload.wikimedia.org/billy/120px-Billy.jpg");
+    expect(table?.rows[0][1].runs[0]).toEqual({
+      text: "Billy Crawford",
+      linkTargetId: "Billy_Crawford",
+    });
+  });
+
+  it("keeps a coloured (code-couleur) cell even when it has no text", () => {
+    const html = `<html><body><section data-mw-section-id="0"><table class="wikitable">
+      <tr><th>Candidat</th><th>Ép. 1</th><th>Ép. 2</th></tr>
+      <tr>
+        <td>Âne</td>
+        <td bgcolor="#80FF00"></td>
+        <td style="background:#FF8080"></td>
+      </tr>
+    </table></section></body></html>`;
+    const table = parseArticleSections(html, "Résumé").flatMap((s) => s.tables ?? [])[0];
+    expect(table?.headers).toEqual(["Candidat", "Ép. 1", "Ép. 2"]);
+    expect(table?.rows[0][1].background).toBe("#80FF00");
+    expect(table?.rows[0][2].background).toBe("#FF8080");
+  });
+
+  it("ignores tiny icons but keeps real images", () => {
+    const html = `<html><body><section data-mw-section-id="0"><table class="wikitable">
+      <tr><th>A</th><th>B</th></tr>
+      <tr>
+        <td><img src="//upload.wikimedia.org/check/16px-Yes.svg.png" width="16" height="16"/>Oui</td>
+        <td><img src="//upload.wikimedia.org/photo/120px-Photo.jpg" width="80" height="100"/></td>
+      </tr>
+    </table></section></body></html>`;
+    const table = parseArticleSections(html, "Résumé").flatMap((s) => s.tables ?? [])[0];
+    expect(table?.rows[0][0].image).toBeUndefined();
+    expect(table?.rows[0][0].runs.map((r) => r.text).join("")).toContain("Oui");
+    expect(table?.rows[0][1].image).toBe("https://upload.wikimedia.org/photo/120px-Photo.jpg");
+  });
+});
+
+describe("parseAncestry — ahnentafel chart", () => {
+  // A compact-ancestors table: cells are "N. Name" with the ancestor's link.
+  const cell = (n: number, name: string, link = true) =>
+    `<td style="background:#fcc">${n}. ${
+      link ? `<a rel="mw:WikiLink" href="./${name.replace(/ /g, "_")}">${name}</a>` : name
+    }</td>`;
+  const html = `<html><body><section data-mw-section-id="0">
+    <h3>Ascendance</h3>
+    <table style="border-spacing:0">
+      <tr>${cell(1, "Louis XIV")}${cell(2, "Louis XIII")}${cell(4, "Henri IV")}${cell(8, "Antoine de Bourbon")}</tr>
+      <tr>${cell(3, "Anne d'Autriche")}${cell(5, "Marie de Médicis")}${cell(9, "Jeanne d'Albret")}</tr>
+      <tr>${cell(6, "Philippe III")}${cell(7, "Marguerite d'Autriche")}</tr>
+    </table>
+  </section></body></html>`;
+  const ancestry = parseAncestry(html);
+
+  it("extracts numbered ancestors (skipping the subject at position 1)", () => {
+    const positions = ancestry.map((a) => a.position);
+    expect(positions).toEqual([2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(ancestry.find((a) => a.position === 2)).toEqual({
+      position: 2,
+      label: "Louis XIII",
+      targetId: "Louis_XIII",
+    });
+  });
+
+  it("keeps the link target so each ancestor is tappable", () => {
+    const anne = ancestry.find((a) => a.position === 3);
+    expect(anne?.targetId).toBe("Anne_d'Autriche");
+  });
+
+  it("returns [] when there is no ahnentafel table", () => {
+    const plain = `<html><body><section data-mw-section-id="0"><p>No chart here.</p></section></body></html>`;
+    expect(parseAncestry(plain)).toEqual([]);
   });
 });

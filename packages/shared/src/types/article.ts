@@ -21,8 +21,17 @@ export interface SectionImage {
   height?: number;
 }
 
-/** A table cell — runs so links inside the table stay tappable. */
-export type TableCell = TextRun[];
+/**
+ * A table cell. `runs` carry the text (links inside the table stay tappable);
+ * `image` is a picture in the cell (e.g. a participant photo); `background` is
+ * the cell's colour when it's meaningful (the "code couleur" of results grids,
+ * e.g. green = qualified, red = eliminated).
+ */
+export interface TableCell {
+  runs: TextRun[];
+  image?: string;
+  background?: string;
+}
 
 /**
  * A content table (Wikipedia "wikitable"), e.g. the per-month list on a
@@ -83,7 +92,25 @@ export interface ArticleInfobox {
   image?: string;
   imageWidth?: number;
   imageHeight?: number;
+  /**
+   * Locator/position map from the infobox (e.g. a region highlighted within its
+   * country), when present — a separate image from the lead image.
+   */
+  mapImage?: string;
+  mapImageWidth?: number;
+  mapImageHeight?: number;
   rows: InfoboxRow[];
+}
+
+/**
+ * One ancestor from the page's ahnentafel ("ascendance") chart. `position` is
+ * the ahnentafel number (1 = the subject, 2 = father, 3 = mother, 4-7 =
+ * grandparents…), from which the app derives the generation (⌊log2(position)⌋).
+ */
+export interface AncestryEntry {
+  position: number;
+  label: string;
+  targetId?: string;
 }
 
 /** A distinct internal link found in the article (for "keep exploring" lists). */
@@ -113,6 +140,8 @@ export interface Article {
   infobox?: ArticleInfobox;
   /** Pie charts reconstructed from the page (e.g. a religion breakdown). */
   charts?: ArticleChart[];
+  /** Ancestors from the page's ahnentafel chart (when present). */
+  ancestry?: AncestryEntry[];
   likes: number;
   liked: boolean;
   saved: boolean;

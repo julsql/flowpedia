@@ -5,6 +5,7 @@ import { CacheService } from "../cache/cache.service";
 import {
   collectLinks,
   isScaffoldImage,
+  parseAncestry,
   parseArticleSections,
   parseCharts,
   parseInfobox,
@@ -168,6 +169,7 @@ export class WikipediaService {
     let sections = summary.sections;
     let infobox = summary.infobox;
     let charts: Article["charts"];
+    let ancestry: Article["ancestry"];
     // Links from the page's "Articles connexes"/"See also" (hidden) sections —
     // the basis for "keep exploring".
     let relatedLinks: ArticleLink[] = [];
@@ -178,6 +180,8 @@ export class WikipediaService {
       relatedLinks = parseRelatedLinks(html);
       const parsedCharts = parseCharts(html);
       charts = parsedCharts.length ? parsedCharts : undefined;
+      const parsedAncestry = parseAncestry(html);
+      ancestry = parsedAncestry.length ? parsedAncestry : undefined;
     } catch (err) {
       this.logger.warn(`article HTML parse failed for ${title}: ${String(err)}`);
     }
@@ -199,7 +203,7 @@ export class WikipediaService {
       links = collectLinks(sections).slice(0, ARTICLE_LINKS_LIMIT);
     }
 
-    const article: Article = { ...summary, sections, links, infobox, charts };
+    const article: Article = { ...summary, sections, links, infobox, charts, ancestry };
     await this.cache.set(key, article, this.ttlMs);
     return article;
   }
