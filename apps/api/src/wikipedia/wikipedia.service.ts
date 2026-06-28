@@ -311,20 +311,30 @@ export class WikipediaService {
     }
     const first = await this.getSearchPool(q, language);
     let pool = first.pool;
-    // Wikipedia only suggests a spelling when it thinks the query is misspelled.
-    // When it does, auto-search the correction (its direct hits for the typo are
-    // usually irrelevant fuzzy matches) — like "Showing results for X".
+    // Wikipedia suggests a spelling when it thinks the query is misspelled. A
+    // suggestion that differs only by case/accents is not a real correction
+    // (the engine matches those already) — ignore it so we never propose
+    // "Atérien" for "atérien".
     const sug =
-      first.suggestion && first.suggestion.toLowerCase() !== q.toLowerCase()
+      first.suggestion && !equalsIgnoringCaseAndDiacritics(first.suggestion, q)
         ? first.suggestion
         : undefined;
 
     let correctedQuery: string | undefined;
+    let suggestion: string | undefined;
     if (!exact && sug) {
-      const alt = await this.getSearchPool(sug, language);
-      if (alt.pool.length) {
-        pool = alt.pool;
-        correctedQuery = sug;
+      if (pool.length === 0) {
+        // No direct hits → auto-search the correction ("Showing results for X").
+        const alt = await this.getSearchPool(sug, language);
+        if (alt.pool.length) {
+          pool = alt.pool;
+          correctedQuery = sug;
+        }
+      } else {
+        // Direct hits exist, but a genuinely different spelling was offered →
+        // "did you mean" (a suggestion equal to the query was already filtered
+        // out above, so we never propose the term the user already typed).
+        suggestion = sug;
       }
     }
 
@@ -341,6 +351,7 @@ export class WikipediaService {
       items,
       nextCursor: nextOffset < pool.length ? String(nextOffset) : undefined,
       ...(correctedQuery ? { correctedQuery, originalQuery: q } : {}),
+      ...(suggestion ? { suggestion } : {}),
     };
   }
 
@@ -668,6 +679,21 @@ function stripCategoryPrefix(category: string): string {
 /** Drop main pages, placeholders and namespaced pages (Special:, Portal:…). */
 function isExcludedTitle(title: string): boolean {
   return title === "-" || MAIN_PAGES.has(title) || title.includes(":");
+}
+
+/**
+ * Compare two strings ignoring case, accents (é≈e) and any non-alphanumeric
+ * separators (so "franche compté" ≈ "Franche-Comté"). Used to decide whether a
+ * spelling suggestion is genuinely different from the query.
+ */
+function equalsIgnoringCaseAndDiacritics(a: string, b: string): boolean {
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+  return norm(a) === norm(b);
 }
 
 function estimateReadingMinutes(text: string): number {
