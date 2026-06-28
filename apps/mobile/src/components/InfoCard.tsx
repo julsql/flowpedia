@@ -48,6 +48,11 @@ export function InfoCard({ article, colors, onImagePress }: InfoCardProps) {
     infobox?.mapImageWidth && infobox?.mapImageHeight
       ? infobox.mapImageWidth / infobox.mapImageHeight
       : 1;
+  // Place marker (pin) drawn over the map at the % coordinates Wikipedia uses.
+  const mapMarker =
+    infobox?.mapMarkerTop !== undefined && infobox?.mapMarkerLeft !== undefined
+      ? { top: `${infobox.mapMarkerTop}%` as const, left: `${infobox.mapMarkerLeft}%` as const }
+      : undefined;
   const mapThumb = mapUrl ? (
     <Pressable
       disabled={!onImagePress}
@@ -58,11 +63,16 @@ export function InfoCard({ article, colors, onImagePress }: InfoCardProps) {
         onImagePress ? `${t("article.locatorMap")}, ${t("a11y.viewMap")}` : t("article.locatorMap")
       }
     >
-      <RemoteImage
-        source={{ uri: mapUrl }}
-        style={[styles.mapImage, { aspectRatio: mapRatio }]}
-        resizeMode="contain"
-      />
+      <View style={[styles.mapImageWrap, { aspectRatio: mapRatio }]}>
+        <RemoteImage source={{ uri: mapUrl }} style={styles.mapImageFill} resizeMode="contain" />
+        {mapMarker ? (
+          <View
+            style={[styles.mapPin, mapMarker]}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          />
+        ) : null}
+      </View>
       <Text style={styles.mapCaption}>{t("article.locatorMap")}</Text>
     </Pressable>
   ) : null;
@@ -211,12 +221,28 @@ const makeStyles = (colors: ThemeColors) =>
       borderColor: colors.separator,
       alignItems: "center",
     },
-    mapImage: {
+    mapImageWrap: {
+      position: "relative",
       width: "100%",
       maxWidth: 280,
       maxHeight: 240,
       borderRadius: radii.media,
       backgroundColor: colors.field,
+      overflow: "hidden",
+      alignSelf: "center",
+    },
+    mapImageFill: { width: "100%", height: "100%" },
+    // A pin centered on its % coordinates (the negative margins offset its size).
+    mapPin: {
+      position: "absolute",
+      width: 16,
+      height: 16,
+      marginTop: -8,
+      marginLeft: -8,
+      borderRadius: 8,
+      backgroundColor: colors.accent,
+      borderWidth: 3,
+      borderColor: colors.surface,
     },
     mapCaption: { color: colors.muted, fontSize: 12, marginTop: 6, fontStyle: "italic" },
     facts: { justifyContent: "center", gap: 9 },

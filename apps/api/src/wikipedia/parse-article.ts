@@ -978,6 +978,19 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
   let mapImage: string | undefined;
   let mapImageWidth: number | undefined;
   let mapImageHeight: number | undefined;
+  let mapMarkerTop: number | undefined;
+  let mapMarkerLeft: number | undefined;
+  // Prefer the structured "Géolocalisation" pushpin box: it gives us both the
+  // base map AND the marker's position, which a bare <img> scan can't (the pin
+  // is a separate CSS-positioned overlay, so without it the map shows no point).
+  const locator = extractLocatorMap(el);
+  if (locator) {
+    mapImage = locator.url;
+    mapImageWidth = locator.width;
+    mapImageHeight = locator.height;
+    mapMarkerTop = locator.markerTop;
+    mapMarkerLeft = locator.markerLeft;
+  }
   for (const img of el.querySelectorAll("img")) {
     const width = toInt(img.getAttribute("width"));
     if (width !== undefined && width < 60) {
@@ -1049,8 +1062,88 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
   // Never surface the same file twice (lead + "locator map").
   if (mapImage && mapImage === image) {
     mapImage = mapImageWidth = mapImageHeight = undefined;
+    mapMarkerTop = mapMarkerLeft = undefined;
   }
-  return { image, imageWidth, imageHeight, mapImage, mapImageWidth, mapImageHeight, rows };
+  return {
+    image,
+    imageWidth,
+    imageHeight,
+    mapImage,
+    mapImageWidth,
+    mapImageHeight,
+    mapMarkerTop,
+    mapMarkerLeft,
+    rows,
+  };
+}
+
+/** A locator map extracted from a "Géolocalisation" pushpin box. */
+interface LocatorMap {
+  url: string;
+  width?: number;
+  height?: number;
+  /** Marker position as percentages (0–100) of the map, when present. */
+  markerTop?: number;
+  markerLeft?: number;
+}
+
+/** Read a `top`/`left` percentage from an inline style (`calc(NN% - 8px)` too). */
+function stylePercent(style: string, prop: "top" | "left"): number | undefined {
+  const m = style.match(new RegExp(`${prop}\\s*:\\s*(?:calc\\(\\s*)?(-?[0-9.]+)%`, "i"));
+  if (!m) {
+    return undefined;
+  }
+  const v = Number.parseFloat(m[1]);
+  return Number.isFinite(v) && v >= 0 && v <= 100 ? v : undefined;
+}
+
+/**
+ * Extract the infobox "Géolocalisation sur la carte" pushpin box: a base map
+ * image with a place marker positioned over it via absolute CSS (top/left in
+ * %). We keep the base map and the marker's coordinates so the app can redraw
+ * the dot — otherwise the map shows a country with no point on it.
+ */
+function extractLocatorMap(el: HTMLElement): LocatorMap | undefined {
+  const box = el.querySelector(".geobox") ?? el.querySelector(".DebutCarte");
+  if (!box) {
+    return undefined;
+  }
+  // Base map = the first non-tiny image in the box (the pin image is ~20px).
+  let base: HTMLElement | undefined;
+  for (const img of box.querySelectorAll("img")) {
+    const width = toInt(img.getAttribute("width"));
+    if (width === undefined || width >= 60) {
+      base = img;
+      break;
+    }
+  }
+  const url = base && resolveImageUrl(base.getAttribute("src"));
+  if (!base || !url) {
+    return undefined;
+  }
+  // Marker = an absolutely-positioned overlay carrying top/left percentages.
+  let markerTop: number | undefined;
+  let markerLeft: number | undefined;
+  for (const div of box.querySelectorAll("div")) {
+    const style = div.getAttribute("style") ?? "";
+    if (!/position\s*:\s*absolute/i.test(style)) {
+      continue;
+    }
+    const top = stylePercent(style, "top");
+    const left = stylePercent(style, "left");
+    if (top !== undefined && left !== undefined) {
+      markerTop = top;
+      markerLeft = left;
+      break;
+    }
+  }
+  return {
+    url,
+    width: toInt(base.getAttribute("width")),
+    height: toInt(base.getAttribute("height")),
+    markerTop,
+    markerLeft,
+  };
 }
 
 // Filenames of locator/position maps (a region shown within its country/world).

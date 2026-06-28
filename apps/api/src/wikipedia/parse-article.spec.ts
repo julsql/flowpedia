@@ -636,6 +636,27 @@ describe("parseInfobox — locator map", () => {
     expect(box?.image).toBe("https://upload.wikimedia.org/flag.png");
     expect(box?.mapImage).toBeUndefined();
   });
+
+  it("keeps the pushpin marker position from a Géolocalisation box", () => {
+    // Mirrors fr.wikipedia commune infoboxes: a base map + a CSS-positioned pin.
+    const html = `<html><body><table class="infobox">
+      <tr><td><img resource="./Fichier:Photo.jpg" src="//upload.wikimedia.org/photo.png" width="200" height="140"/></td></tr>
+      <tr><td><div class="geobox">
+        <div><small>Géolocalisation sur la carte : France</small></div>
+        <table class="DebutCarte"><tbody><tr><td><div style="position:relative;">
+          <span typeof="mw:File"><a><img resource="./Fichier:France_relief_location_map.jpg" src="//upload.wikimedia.org/france.png" width="280" height="269"/></a></span>
+          <div style="position:absolute;top:calc(45.949735449526% - 8px);left:calc(71.863572433157% - 8px);line-height:0;"><span typeof="mw:File"><a><img resource="./Fichier:City_locator_14.svg" src="//upload.wikimedia.org/pin.png" width="20" height="20"/></a></span></div>
+        </div></td></tr></tbody></table>
+      </div></td></tr>
+      <tr><th>Région</th><td>Bourgogne-Franche-Comté</td></tr>
+      <tr><th>Département</th><td>Jura</td></tr>
+    </table></body></html>`;
+    const box = parseInfobox(html);
+    expect(box?.image).toBe("https://upload.wikimedia.org/photo.png");
+    expect(box?.mapImage).toBe("https://upload.wikimedia.org/france.png");
+    expect(box?.mapMarkerTop).toBeCloseTo(45.9497, 2);
+    expect(box?.mapMarkerLeft).toBeCloseTo(71.8636, 2);
+  });
 });
 
 describe("parseArticleSections — multi-row table headers (electoral results)", () => {

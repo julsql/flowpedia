@@ -99,6 +99,14 @@ export interface ArticleInfobox {
   mapImage?: string;
   mapImageWidth?: number;
   mapImageHeight?: number;
+  /**
+   * Position of the place marker (pin) over the locator map, as percentages
+   * (0–100) of the map's width/height — Wikipedia draws it as a CSS-positioned
+   * overlay, so we keep the coordinates and redraw the dot in the app. Absent
+   * when the map has no marker (e.g. a plain region outline).
+   */
+  mapMarkerTop?: number;
+  mapMarkerLeft?: number;
   rows: InfoboxRow[];
 }
 
