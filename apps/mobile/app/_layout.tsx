@@ -4,11 +4,13 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider as NavThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { I18nextProvider } from "react-i18next";
 import "../src/web/hideScrollbars";
+import { OpenInAppBanner } from "../src/web/OpenInAppBanner";
 import i18n from "../src/i18n";
 import { ThemeProvider, useTheme } from "../src/theme";
 import { UserProvider } from "../src/user/UserProvider";
 import { LibraryProvider } from "../src/library/LibraryProvider";
 import { SeenProvider } from "../src/seen/SeenProvider";
+import { SearchHistoryProvider } from "../src/search/SearchHistoryProvider";
 import { ShareSheetProvider } from "../src/share/ShareSheetProvider";
 
 function ThemedNavigation() {
@@ -32,6 +34,7 @@ function ThemedNavigation() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
       </Stack>
+      <OpenInAppBanner />
     </NavThemeProvider>
   );
 }
@@ -44,9 +47,11 @@ export default function RootLayout() {
           <UserProvider>
             <LibraryProvider>
               <SeenProvider>
-                <ShareSheetProvider>
-                  <ThemedNavigation />
-                </ShareSheetProvider>
+                <SearchHistoryProvider>
+                  <ShareSheetProvider>
+                    <ThemedNavigation />
+                  </ShareSheetProvider>
+                </SearchHistoryProvider>
               </SeenProvider>
             </LibraryProvider>
           </UserProvider>
