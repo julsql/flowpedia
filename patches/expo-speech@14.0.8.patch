@@ -1,0 +1,44 @@
+diff --git a/android/src/main/java/expo/modules/speech/LanguageUtils.kt b/android/src/main/java/expo/modules/speech/LanguageUtils.kt
+index c57515a5f6066e95d4646090c231aa77a08cfaad..f6dc8c69663a34bf5f33aaa24a37b31078e8d07d 100644
+--- a/android/src/main/java/expo/modules/speech/LanguageUtils.kt
++++ b/android/src/main/java/expo/modules/speech/LanguageUtils.kt
+@@ -17,17 +17,32 @@ object LanguageUtils {
+     }
+   }
+ 
+-  // NOTE: These helpers are null-unsafe and should be called ONLY with codes
+-  // returned by Locale.getISO3Country() and Locale.getISO3Language() respectively
+-  private fun transformCountryISO(code: String) = countryISOCodes[code]!!.country
+-  private fun transformLanguageISO(code: String) = languageISOCodes[code]!!.language
++  // Null-safe: some TTS engines (e.g. eSpeak) expose voices whose ISO3 codes are
++  // empty or non-standard, which are absent from the maps above. Returning null
++  // instead of force-unwrapping (!!) avoids a native crash that would take down
++  // the whole app; the caller then falls back to the raw locale code.
++  private fun transformCountryISO(code: String) = countryISOCodes[code]?.country
++  private fun transformLanguageISO(code: String) = languageISOCodes[code]?.language
+ 
+   fun getISOCode(locale: Locale): String {
+-    var language = transformLanguageISO(locale.isO3Language)
+-    val country = locale.isO3Country
++    // isO3Language / isO3Country themselves throw MissingResourceException for
++    // unknown locales, so guard those too.
++    val iso3Language = try {
++      locale.isO3Language
++    } catch (e: MissingResourceException) {
++      ""
++    }
++    var language = transformLanguageISO(iso3Language) ?: locale.language
++    val country = try {
++      locale.isO3Country
++    } catch (e: MissingResourceException) {
++      ""
++    }
+     if (country != "") {
+       val countryCode = transformCountryISO(country)
+-      language += "-$countryCode"
++      if (countryCode != null) {
++        language += "-$countryCode"
++      }
+     }
+     return language
+   }

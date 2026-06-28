@@ -17,5 +17,10 @@
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
     "test": "pnpm -r test"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "expo-speech@14.0.8": "patches/expo-speech@14.0.8.patch"
+    }
   }
 }
