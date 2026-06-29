@@ -21,6 +21,11 @@ Otwórz aplikację i zanurz się w nieskończonym strumieniu fascynujących arty
 🧭 Przełączać się między widokami Dla Ciebie, Popularne, Wiadomości i wciągającym widokiem Flow
 🔎 Wyszukiwać i odkrywać miliony artykułów
 🎯 Dostosować swoje zainteresowania, by kanał pasował do Ciebie
+👤 Załóż konto i obserwuj czytelników, których uznasz za interesujących
+📩 Wyślij artykuł bezpośrednio do znajomego
+🟠 Udostępniaj ponownie swoje ulubione lektury jako 24-godzinne relacje
+🔔 Otrzymuj powiadomienia o prośbach o obserwowanie, nowych obserwujących i przesłanych do Ciebie stronach
+🔒 Zachowaj konto publiczne lub prywatne — Ty decydujesz
 🌙 Motywy jasny, ciemny i o wysokim kontraście
 🌐 Dostępne w 14 językach
 ♿ Zaprojektowane z myślą o dostępności
@@ -42,6 +47,11 @@ Co możesz robić:
 - Przełączać się między widokami Dla Ciebie, Popularne, Wiadomości i wciągającym widokiem Flow
 - Wyszukiwać i odkrywać miliony artykułów
 - Dostosować swoje zainteresowania, by kanał pasował do Ciebie
+- Załóż konto i obserwuj czytelników, których uznasz za interesujących
+- Wyślij artykuł bezpośrednio do znajomego
+- Udostępniaj ponownie swoje ulubione lektury jako 24-godzinne relacje
+- Otrzymuj powiadomienia o prośbach o obserwowanie, nowych obserwujących i przesłanych do Ciebie stronach
+- Zachowaj konto publiczne lub prywatne
 - Motywy jasny, ciemny i o wysokim kontraście
 - Dostępne w 14 językach
 - Zaprojektowane z myślą o dostępności

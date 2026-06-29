@@ -102,7 +102,23 @@ confirm), and make sure the network isn't "client isolation"/guest mode.
     popular, serendipitous and endless.
   - **Explore** — trending grid with continuous (infinite) scroll + search.
 - **Temporary unique user** generated on first launch (persisted); attached to
-  every signal (Postgres `userId`).
+  every signal (Postgres `userId`). Guest mode stays fully usable without an account.
+- **Accounts & auth:** email sign-up + login (JWT), password reset by email
+  (Gmail SMTP, console fallback in dev), change username/password, **public or
+  private** account, delete account **or** wipe all data (RGPD). A signed-in
+  account's library (liked/saved/shared) and signals move **server-side, per
+  account** (synced on login); guests stay local.
+- **Social:** follow / unfollow (with **approval for private accounts**),
+  followers & following lists, find people, remove a follower, accept/reject
+  follow requests.
+- **Stories:** reshare an article to your followers for **24h** — bubbles at the
+  top of Home (Instagram-style), grouped by author.
+- **Send pages:** send an article straight to another account's **inbox**, with an
+  optional note (from the share sheet → "Send to an account").
+- **Notifications:** in-app center + **unread badge** (bell on Home), with native
+  **push** (Expo) for follow requests, accepted requests, new followers and
+  received pages. In-app text is localized; push is best-effort (needs an EAS
+  `projectId` for real device tokens).
 - **Profile** (handoff-style): avatar + name + bio, stats (Read / Liked / Saved),
   derived interest chips, a saved grid, and compact theme + language controls.
 - **Theming:** light / dark / system, switchable in the profile and persisted

@@ -21,6 +21,11 @@ Uygulamayı açın ve sonsuz bir büyüleyici makale akışına dalın. Sevdikle
 🧭 Senin İçin, Popüler, Haberler ve sürükleyici Flow görünümü arasında geçiş yapın
 🔎 Milyonlarca makaleyi arayın ve keşfedin
 🎯 İlgi alanlarınızı ayarlayın, böylece akış size uysun
+👤 Bir hesap oluşturun ve ilginç bulduğunuz okurları takip edin
+📩 Bir makaleyi doğrudan bir arkadaşınıza gönderin
+🟠 En sevdiğiniz okumaları 24 saatlik hikâyeler olarak yeniden paylaşın
+🔔 Takip istekleri, yeni takipçiler ve size gönderilen sayfalar hakkında bildirim alın
+🔒 Hesabınızı herkese açık ya da gizli tutun — karar sizin
 🌙 Açık, koyu ve yüksek kontrastlı temalar
 🌐 14 dilde kullanılabilir
 ♿ Erişilebilirlik düşünülerek tasarlandı
@@ -42,6 +47,11 @@ Neler yapabilirsiniz:
 - Senin İçin, Popüler, Haberler ve sürükleyici Flow görünümü arasında geçiş yapın
 - Milyonlarca makaleyi arayın ve keşfedin
 - İlgi alanlarınızı ayarlayın, böylece akış size uysun
+- Bir hesap oluşturun ve ilginç bulduğunuz okurları takip edin
+- Bir makaleyi doğrudan bir arkadaşınıza gönderin
+- En sevdiğiniz okumaları 24 saatlik hikâyeler olarak yeniden paylaşın
+- Takip istekleri, yeni takipçiler ve size gönderilen sayfalar hakkında bildirim alın
+- Hesabınızı herkese açık ya da gizli tutun
 - Açık, koyu ve yüksek kontrastlı temalar
 - 14 dilde kullanılabilir
 - Erişilebilirlik düşünülerek tasarlandı

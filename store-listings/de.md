@@ -21,6 +21,11 @@ Flowpedia verwandelt Wikipedia in einen Feed, durch den du wirklich scrollen mö
 🧭 Wechsle zwischen Für dich, Beliebt, Nachrichten und der immersiven Flow-Ansicht
 🔎 Suche und entdecke Millionen von Artikeln
 🎯 Passe deine Interessen an, damit der Feed zu dir passt
+👤 Erstelle ein Konto und folge Lesern, die du interessant findest
+📩 Sende einen Artikel direkt an einen Freund
+🟠 Teile deine Lieblingsartikel als 24-Stunden-Storys erneut
+🔔 Werde über Folgeanfragen, neue Follower und an dich gesendete Seiten benachrichtigt
+🔒 Halte dein Konto öffentlich oder privat — du entscheidest
 🌙 Helle, dunkle und kontrastreiche Designs
 🌐 Verfügbar in 14 Sprachen
 ♿ Mit Blick auf Barrierefreiheit gestaltet
@@ -42,6 +47,11 @@ Was du tun kannst:
 - Wechsle zwischen Für dich, Beliebt, Nachrichten und der immersiven Flow-Ansicht
 - Suche und entdecke Millionen von Artikeln
 - Passe deine Interessen an, damit der Feed zu dir passt
+- Erstelle ein Konto und folge Lesern, die du interessant findest
+- Sende einen Artikel direkt an einen Freund
+- Teile deine Lieblingsartikel als 24-Stunden-Storys erneut
+- Werde über Folgeanfragen, neue Follower und an dich gesendete Seiten benachrichtigt
+- Halte dein Konto öffentlich oder privat
 - Helle, dunkle und kontrastreiche Designs
 - Verfügbar in 14 Sprachen
 - Mit Blick auf Barrierefreiheit gestaltet

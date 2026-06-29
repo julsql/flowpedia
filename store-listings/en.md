@@ -18,6 +18,11 @@ Open the app and dive into an endless stream of fascinating articles. Like the o
 🧭 Switch between For You, Popular, News and the immersive Flow view
 🔎 Search and explore millions of articles
 🎯 Tune your interests so the feed fits you
+👤 Create an account and follow readers you find interesting
+📩 Send an article straight to a friend's inbox
+🟠 Reshare your favorite reads as 24-hour stories
+🔔 Get notified of follow requests, new followers and pages sent to you
+🔒 Keep your account public or private — you decide
 🌙 Light, dark and high-contrast themes
 🌐 Available in 14 languages
 ♿ Designed with accessibility in mind
@@ -38,6 +43,11 @@ What you can do:
 - Switch between For You, Popular, News and the immersive Flow view
 - Search and explore millions of articles
 - Tune your interests so the feed fits you
+- Create an account and follow readers you find interesting
+- Send an article straight to a friend's inbox
+- Reshare your favorite reads as 24-hour stories
+- Get notified of follow requests, new followers and pages sent to you
+- Keep your account public or private
 - Light, dark and high-contrast themes
 - Available in 14 languages
 - Designed with accessibility in mind

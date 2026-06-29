@@ -21,6 +21,11 @@ Abre la app y sumérgete en un flujo infinito de artículos fascinantes. Da me g
 🧭 Cambiar entre Para ti, Popular, Noticias y la vista inmersiva Flow
 🔎 Buscar y explorar millones de artículos
 🎯 Ajustar tus intereses para que el feed se adapte a ti
+👤 Crea una cuenta y sigue a lectores que te parezcan interesantes
+📩 Envía un artículo directamente a un amigo
+🟠 Vuelve a compartir tus lecturas favoritas como historias de 24 horas
+🔔 Recibe notificaciones de solicitudes de seguimiento, nuevos seguidores y páginas que te envían
+🔒 Mantén tu cuenta pública o privada: tú decides
 🌙 Temas claro, oscuro y de alto contraste
 🌐 Disponible en 14 idiomas
 ♿ Diseñada pensando en la accesibilidad
@@ -42,6 +47,11 @@ Lo que puedes hacer:
 - Cambiar entre Para ti, Popular, Noticias y la vista inmersiva Flow
 - Buscar y explorar millones de artículos
 - Ajustar tus intereses para que el feed se adapte a ti
+- Crea una cuenta y sigue a lectores que te parezcan interesantes
+- Envía un artículo directamente a un amigo
+- Vuelve a compartir tus lecturas favoritas como historias de 24 horas
+- Recibe notificaciones de solicitudes de seguimiento, nuevos seguidores y páginas que te envían
+- Mantén tu cuenta pública o privada
 - Temas claro, oscuro y de alto contraste
 - Disponible en 14 idiomas
 - Diseñada pensando en la accesibilidad

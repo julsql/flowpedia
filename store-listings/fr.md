@@ -18,6 +18,11 @@ Ouvrez l'app et plongez dans un flux infini d'articles passionnants. Aimez ceux 
 🧭 Naviguer entre Pour vous, Populaire, Actualités et la vue immersive Flow
 🔎 Rechercher et explorer des millions d'articles
 🎯 Ajuster vos centres d'intérêt pour un fil à votre image
+👤 Créer un compte et suivre les lecteurs qui vous intéressent
+📩 Envoyer un article directement à un ami
+🟠 Repartager vos lectures préférées en stories de 24 h
+🔔 Être notifié des demandes d'abonnement, nouveaux abonnés et pages reçues
+🔒 Garder votre compte public ou privé — c'est vous qui choisissez
 🌙 Thèmes clair, sombre et contraste élevé
 🌐 Disponible en 14 langues
 ♿ Conçue avec l'accessibilité en tête
@@ -38,6 +43,11 @@ Ce que vous pouvez faire :
 - Naviguer entre Pour vous, Populaire, Actualités et la vue immersive Flow
 - Rechercher et explorer des millions d'articles
 - Ajuster vos centres d'intérêt pour un fil à votre image
+- Créer un compte et suivre les lecteurs qui vous intéressent
+- Envoyer un article directement à un ami
+- Repartager vos lectures préférées en stories de 24 h
+- Être notifié des demandes d'abonnement, nouveaux abonnés et pages reçues
+- Garder votre compte public ou privé
 - Thèmes clair, sombre et contraste élevé
 - Disponible en 14 langues
 - Conçue avec l'accessibilité en tête

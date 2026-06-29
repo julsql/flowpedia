@@ -21,6 +21,11 @@ Apri l'app e tuffati in un flusso infinito di articoli affascinanti. Metti mi pi
 🧭 Passa tra Per te, Popolari, Notizie e la vista immersiva Flow
 🔎 Cerca ed esplora milioni di articoli
 🎯 Regola i tuoi interessi così il feed si adatta a te
+👤 Crea un account e segui i lettori che trovi interessanti
+📩 Invia un articolo direttamente a un amico
+🟠 Ricondividi le tue letture preferite come storie di 24 ore
+🔔 Ricevi notifiche per richieste di follow, nuovi follower e pagine inviate a te
+🔒 Mantieni il tuo account pubblico o privato — decidi tu
 🌙 Temi chiaro, scuro e ad alto contrasto
 🌐 Disponibile in 14 lingue
 ♿ Progettata pensando all'accessibilità
@@ -42,6 +47,11 @@ Cosa puoi fare:
 - Passa tra Per te, Popolari, Notizie e la vista immersiva Flow
 - Cerca ed esplora milioni di articoli
 - Regola i tuoi interessi così il feed si adatta a te
+- Crea un account e segui i lettori che trovi interessanti
+- Invia un articolo direttamente a un amico
+- Ricondividi le tue letture preferite come storie di 24 ore
+- Ricevi notifiche per richieste di follow, nuovi follower e pagine inviate a te
+- Mantieni il tuo account pubblico o privato
 - Temi chiaro, scuro e ad alto contrasto
 - Disponibile in 14 lingue
 - Progettata pensando all'accessibilità

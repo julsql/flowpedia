@@ -21,6 +21,11 @@ Abra a app e mergulhe num fluxo infinito de artigos fascinantes. Curta os de que
 🧭 Alternar entre Para Ti, Populares, Notícias e a vista imersiva Flow
 🔎 Pesquisar e explorar milhões de artigos
 🎯 Ajustar os seus interesses para que o feed se adapte a si
+👤 Crie uma conta e siga leitores que considere interessantes
+📩 Envie um artigo diretamente para um amigo
+🟠 Volte a partilhar as suas leituras favoritas como histórias de 24 horas
+🔔 Receba notificações de pedidos para seguir, novos seguidores e páginas que lhe são enviadas
+🔒 Mantenha a sua conta pública ou privada — você decide
 🌙 Temas claro, escuro e de alto contraste
 🌐 Disponível em 14 idiomas
 ♿ Concebida a pensar na acessibilidade
@@ -42,6 +47,11 @@ O que pode fazer:
 - Alternar entre Para Ti, Populares, Notícias e a vista imersiva Flow
 - Pesquisar e explorar milhões de artigos
 - Ajustar os seus interesses para que o feed se adapte a si
+- Crie uma conta e siga leitores que considere interessantes
+- Envie um artigo diretamente para um amigo
+- Volte a partilhar as suas leituras favoritas como histórias de 24 horas
+- Receba notificações de pedidos para seguir, novos seguidores e páginas que lhe são enviadas
+- Mantenha a sua conta pública ou privada
 - Temas claro, escuro e de alto contraste
 - Disponível em 14 idiomas
 - Concebida a pensar na acessibilidade
