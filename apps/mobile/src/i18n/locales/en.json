@@ -101,5 +101,6 @@
   "topic.videogames": "Video games",
   "topic.food": "Food",
   "topic.health": "Health",
-  "topic.space": "Space"
+  "topic.space": "Space",
+  "a11y.toggleSection": "Collapse or expand section"
 }

@@ -115,6 +115,19 @@ export default function ArticleScreen() {
   // After tapping a summary chip, briefly freeze active-section detection so the
   // programmatic scroll doesn't immediately re-select a neighbour.
   const jumpLockRef = useRef(0);
+  // Sections the reader has collapsed (by section id) — heading stays, body hides.
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const toggleSection = useCallback((sectionId: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }, []);
   // In-page search ("find on page").
   const [findOpen, setFindOpen] = useState(false);
   const [findQuery, setFindQuery] = useState("");
@@ -573,6 +586,9 @@ export default function ArticleScreen() {
               canRead={speechAvailable}
               isReading={currentSectionId === item.section.id}
               readFromHereLabel={t("article.readFromHere")}
+              collapsed={collapsedSections.has(item.section.id)}
+              onToggleCollapse={toggleSection}
+              toggleSectionLabel={t("a11y.toggleSection")}
             />
           </View>
         );
@@ -894,6 +910,7 @@ export default function ArticleScreen() {
             ref={listRef}
             data={blocks}
             renderItem={renderBlock}
+            extraData={collapsedSections}
             keyExtractor={(item, index) =>
               item.type === "section"
                 ? `s-${item.section.id}`
@@ -1112,6 +1129,12 @@ interface SectionBlockProps {
   isReading: boolean;
   /** Accessibility label for the per-section "read from here" button. */
   readFromHereLabel: string;
+  /** True when this section's body is collapsed (heading shown, content hidden). */
+  collapsed: boolean;
+  /** Toggle this section collapsed/expanded (only when it has a heading). */
+  onToggleCollapse: (sectionId: string) => void;
+  /** Accessibility label for the collapse/expand toggle. */
+  toggleSectionLabel: string;
 }
 
 /**
@@ -1179,6 +1202,9 @@ function SectionBlock({
   canRead,
   isReading,
   readFromHereLabel,
+  collapsed,
+  onToggleCollapse,
+  toggleSectionLabel,
 }: SectionBlockProps) {
   // Running global match index for this section's highlighted prose (in render
   // order), starting at the section's offset so it aligns with the parent count.
@@ -1187,9 +1213,22 @@ function SectionBlock({
     <View style={styles.section}>
       {showHeading ? (
         <View style={styles.sectionTitleRow}>
-          <Text style={[styles.sectionTitle, isReading && styles.sectionTitleReading]}>
-            {section.title}
-          </Text>
+          <Pressable
+            style={styles.sectionTitlePress}
+            onPress={() => onToggleCollapse(section.id)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: !collapsed }}
+            accessibilityLabel={`${section.title}, ${toggleSectionLabel}`}
+          >
+            <MaterialIcons
+              name={collapsed ? "chevron-right" : "expand-more"}
+              size={22}
+              color={colors.muted}
+            />
+            <Text style={[styles.sectionTitle, isReading && styles.sectionTitleReading]}>
+              {section.title}
+            </Text>
+          </Pressable>
           {canRead ? (
             <Pressable
               onPress={() => onReadSection(section.id)}
@@ -1207,6 +1246,8 @@ function SectionBlock({
         </View>
       ) : null}
 
+      {collapsed ? null : (
+      <>
       {/* {{Article détaillé}} pointer(s) to a dedicated page. */}
       {section.mainLinks?.length ? (
         <View style={styles.mainLinkBox}>
@@ -1371,6 +1412,8 @@ function SectionBlock({
             )}
           </Text>
         ),
+      )}
+      </>
       )}
     </View>
   );
@@ -1543,6 +1586,8 @@ const makeStyles = (colors: ThemeColors) =>
     fontSize: 19,
     fontWeight: "600",
   },
+  // Tappable heading (collapse/expand): chevron + title, 44px tall touch target.
+  sectionTitlePress: { flex: 1, flexDirection: "row", alignItems: "center", gap: 2, minHeight: 44 },
   // The section currently being read aloud.
   sectionTitleReading: { color: colors.accent },
   paragraph: { color: colors.textSecondary, fontSize: 16, lineHeight: 26, marginBottom: 12 },
