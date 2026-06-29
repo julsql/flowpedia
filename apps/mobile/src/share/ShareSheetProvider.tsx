@@ -138,10 +138,6 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
               </Text>
             </Pressable>
             <Pressable style={styles.action} onPress={shareWith}>
-              <MaterialIcons name="chat-bubble-outline" size={22} color={colors.textPrimary} />
-              <Text style={styles.actionLabel}>{t("share.messages")}</Text>
-            </Pressable>
-            <Pressable style={styles.action} onPress={shareWith}>
               <MaterialIcons name="more-horiz" size={22} color={colors.textPrimary} />
               <Text style={styles.actionLabel}>{t("share.more")}</Text>
             </Pressable>
