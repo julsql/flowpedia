@@ -595,6 +595,27 @@ describe("parseArticleSections — legend colour swatches", () => {
   });
 });
 
+describe("parseArticleSections — line breaks in cells", () => {
+  it("keeps a <br> in a table cell as a newline (name + dates)", () => {
+    const html = `<html><body><section data-mw-section-id="0"><table class="wikitable"><tr><th>Nom</th><th>Règne</th></tr><tr><td>Louis XIV<br/>1643-1715</td><td>72 ans</td></tr></table></section></body></html>`;
+    const table = parseArticleSections(html, "Résumé").flatMap((s) => s.tables ?? [])[0];
+    const cellText = table!.rows[0][0].runs.map((r) => r.text).join("");
+    expect(cellText).toBe("Louis XIV\n1643-1715");
+  });
+});
+
+describe("parseInfobox — multi-value entries", () => {
+  it("separates <br>-stacked values with newlines", () => {
+    const html = `<html><body><table class="infobox">
+      <tr><th>Films notables</th><td><i>Les Parapluies de Cherbourg</i><br/><i>Belle de jour</i><br/><i>Indochine</i></td></tr>
+      <tr><th>Profession</th><td>Actrice</td></tr>
+    </table></body></html>`;
+    const box = parseInfobox(html);
+    const films = box?.rows.find((r) => r.label === "Films notables")?.value;
+    expect(films).toBe("Les Parapluies de Cherbourg\nBelle de jour\nIndochine");
+  });
+});
+
 describe("parseArticleSections — wide tables", () => {
   it("keeps more than 6 columns (electoral results / year grids)", () => {
     const cols = Array.from({ length: 10 }, (_, i) => `<th>C${i + 1}</th>`).join("");

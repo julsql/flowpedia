@@ -430,6 +430,13 @@ function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
       if (isListItem && (tag === "ul" || tag === "ol")) {
         continue;
       }
+      // A line break separates stacked values (e.g. a table cell's "name" and
+      // its "dates", or several notable films) — keep it as a newline instead of
+      // gluing the parts together.
+      if (tag === "br") {
+        pushText(runs, "\n");
+        continue;
+      }
       // Drop small page chrome (pronunciation "Écouter ⓘ" widget, edit links…).
       if (isInlineAnnotation(el)) {
         continue;
@@ -517,7 +524,8 @@ function normalizeRuns(runs: TextRun[]): TextRun[] {
       merged.push({ text: "", swatch: run.swatch }); // keep legend colour keys
       continue;
     }
-    const text = collapseWhitespace(run.text).replace(EDITORIAL_MARKER, "");
+    // Collapse spaces/tabs but PRESERVE newlines (intentional <br> separators).
+    const text = run.text.replace(/[^\S\n]+/g, " ").replace(EDITORIAL_MARKER, "");
     if (!text) {
       continue;
     }
@@ -530,9 +538,14 @@ function normalizeRuns(runs: TextRun[]): TextRun[] {
   }
   // Tidy whitespace left by stripped markers/dropped chrome: a removed
   // "[réf. souhaitée]" (often preceded by a non-breaking space) can leave a
-  // double space or a space before punctuation.
+  // double space or a space before punctuation. Newlines are kept (and any
+  // surrounding spaces / runs of blank lines are squeezed out).
   for (const r of merged) {
-    r.text = r.text.replace(/\s{2,}/g, " ").replace(/\s+([,.…)\]»])/g, "$1");
+    r.text = r.text
+      .replace(/[^\S\n]{2,}/g, " ")
+      .replace(/[^\S\n]+([,.…)\]»])/g, "$1")
+      .replace(/ *\n */g, "\n")
+      .replace(/\n{2,}/g, "\n");
   }
   for (let i = 1; i < merged.length; i += 1) {
     if (/\s$/.test(merged[i - 1].text) && /^\s/.test(merged[i].text)) {
@@ -846,14 +859,47 @@ function buildTable(table: HTMLElement): ArticleTable | undefined {
   };
 }
 
-/** Clean visible text of an element (drop citation markers, collapse spaces). */
+/**
+ * Clean visible text of an element (drop citation markers, collapse spaces).
+ * Line breaks (<br>) and list items become newlines, so an infobox entry with
+ * several values (e.g. "Films notables" → one per line) stays readable instead
+ * of gluing them together.
+ */
 function cleanCellText(el: HTMLElement): string {
   for (const sup of el.querySelectorAll("sup")) {
     if (/reference|mw-ref/i.test(sup.getAttribute("class") ?? "")) {
       sup.remove();
     }
   }
-  return collapseWhitespace(el.text).trim();
+  const parts: string[] = [];
+  const walk = (node: Node): void => {
+    for (const child of node.childNodes) {
+      if (child.nodeType === TEXT_NODE) {
+        parts.push(child.text);
+        continue;
+      }
+      const e = child as HTMLElement;
+      const tag = e.rawTagName?.toLowerCase();
+      if (tag === "br") {
+        parts.push("\n");
+        continue;
+      }
+      if (tag === "li") {
+        parts.push("\n");
+        walk(e);
+        parts.push("\n");
+        continue;
+      }
+      walk(e);
+    }
+  };
+  walk(el);
+  return parts
+    .join("")
+    .split("\n")
+    .map((line) => collapseWhitespace(line).trim())
+    .filter((line) => line.length > 0)
+    .join("\n");
 }
 
 /**
