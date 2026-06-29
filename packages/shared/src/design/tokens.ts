@@ -66,6 +66,45 @@ export const lightColors: ThemeColors = {
   immersiveBg: "#0c0b0a", // full-screen media stays dark even in light theme
 };
 
+/**
+ * High-contrast palettes (optional, toggled in settings): pure black/white
+ * background and text (21:1) for low-light or low-vision use, keeping a brighter
+ * accent. WCAG AAA by construction.
+ */
+export const highContrastDark: ThemeColors = {
+  ...darkColors,
+  bg: "#000000",
+  surface: "#000000",
+  textPrimary: "#ffffff",
+  textSecondary: "#f2f2f2",
+  textTertiary: "#e0e0e0",
+  muted: "#cccccc",
+  mutedLight: "#cccccc",
+  separator: "#4d4d4d",
+  separatorThick: "#333333",
+  field: "#1a1a1a",
+  accent: "#ffae4d",
+  accentDark: "#ffc680",
+  accentLinkText: "#ffc680",
+};
+
+export const highContrastLight: ThemeColors = {
+  ...lightColors,
+  bg: "#ffffff",
+  surface: "#ffffff",
+  textPrimary: "#000000",
+  textSecondary: "#0d0d0d",
+  textTertiary: "#1a1a1a",
+  muted: "#262626",
+  mutedLight: "#262626",
+  separator: "#999999",
+  separatorThick: "#cccccc",
+  field: "#ededed",
+  accent: "#8a3d00",
+  accentDark: "#6e3100",
+  accentLinkText: "#7a3700",
+};
+
 /** Default palette for non-reactive contexts. */
 export const colors: ThemeColors = darkColors;
 

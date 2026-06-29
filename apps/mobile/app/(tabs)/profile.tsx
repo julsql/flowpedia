@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -68,7 +68,7 @@ function topicLabel(id: string, t: (key: TranslationKey) => string): string {
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors, mode, setMode } = useTheme();
+  const { colors, mode, setMode, contrast, setContrast } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale, setLocale } = useLocale();
   const user = useUser();
@@ -255,6 +255,17 @@ export default function ProfileScreen() {
               );
             })}
           </View>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>{t("settings.contrast")}</Text>
+            <Switch
+              value={contrast}
+              onValueChange={setContrast}
+              accessibilityRole="switch"
+              accessibilityLabel={t("settings.contrast")}
+              accessibilityState={{ checked: contrast }}
+              trackColor={{ true: colors.accent, false: colors.separator }}
+            />
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -376,6 +387,14 @@ const makeStyles = (colors: ThemeColors) =>
       letterSpacing: 0.6,
       marginBottom: 12,
     },
+    toggleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: 14,
+      minHeight: 44,
+    },
+    toggleLabel: { fontSize: 15, color: colors.textPrimary },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     interestChip: {
       flexDirection: "row",
