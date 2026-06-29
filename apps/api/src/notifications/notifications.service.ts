@@ -10,7 +10,8 @@ import { DatabaseService } from "../database/database.service";
 import { User } from "../auth/user.entity";
 import { RealtimeGateway } from "../realtime/realtime.gateway";
 import { Notification } from "./notification.entity";
-import { PushService, type PushMessage } from "./push.service";
+import { PushService } from "./push.service";
+import { pushCopy } from "./notif-copy";
 
 interface NotifyInput {
   recipientId: string;
@@ -22,25 +23,6 @@ interface NotifyInput {
 
 function toPublic(u: User): PublicUser {
   return { id: u.id, username: u.username, displayName: u.displayName, isPrivate: u.isPrivate };
-}
-
-/** Builds the native-push copy for a notification. English (the canonical
- *  locale): the in-app center is the localized source of truth; push text can't
- *  be localized server-side without the recipient's locale. */
-function pushCopy(type: NotificationType, name: string, title?: string | null): PushMessage {
-  switch (type) {
-    case "follow_request":
-      return { title: "New follow request", body: `${name} requested to follow you` };
-    case "follow_accepted":
-      return { title: "Request accepted", body: `${name} accepted your follow request` };
-    case "follower":
-      return { title: "New follower", body: `${name} started following you` };
-    case "page_received":
-      return {
-        title: "A page for you",
-        body: title ? `${name} sent you "${title}"` : `${name} sent you a page`,
-      };
-  }
 }
 
 /** In-app notifications: creation (called by social/messages services), listing,
@@ -78,11 +60,17 @@ export class NotificationsService {
     const userRepo = this.db.repo(User);
     const actor = userRepo ? await userRepo.findOne({ where: { id: input.actorId } }) : null;
     const name = actor?.displayName || actor?.username || "Someone";
-    const copy = pushCopy(input.type, name, input.title);
-    await this.push.sendToUser(input.recipientId, {
-      ...copy,
-      data: { type: input.type, articleId: input.articleId ?? undefined },
-    });
+    // One localized push per device (each token carries its own locale).
+    const tokens = await this.push.tokensForUser(input.recipientId);
+    if (tokens.length) {
+      const data = { type: input.type, articleId: input.articleId ?? undefined };
+      await this.push.send(
+        tokens.map((tok) => {
+          const copy = pushCopy(tok.locale, input.type, name, input.title);
+          return { to: tok.token, title: copy.title, body: copy.body, data, sound: "default" as const };
+        }),
+      );
+    }
     // Live in-app event (badge bump, toast, open-thread refresh).
     this.realtime.emitToUser(input.recipientId, "notification", {
       type: input.type,
@@ -129,6 +117,6 @@ export class NotificationsService {
   }
 
   async registerToken(userId: string, body: RegisterPushTokenRequest): Promise<void> {
-    await this.push.register(userId, body?.token, body?.platform);
+    await this.push.register(userId, body?.token, body?.platform, body?.locale);
   }
 }

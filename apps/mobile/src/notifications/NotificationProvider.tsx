@@ -16,6 +16,7 @@ import {
   registerPushToken,
 } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
+import { useLocale } from "../i18n";
 import { addPushReceivedListener, registerForPushNotificationsAsync } from "./registerPush";
 import { connectRealtime, type LiveEvent } from "./realtime";
 import { LiveToast } from "./LiveToast";
@@ -38,6 +39,7 @@ const NotificationsContext = createContext<NotificationsValue | null>(null);
  *  = always 0 and no socket. */
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
+  const { locale } = useLocale();
   const authed = auth.status === "authenticated";
   const [unread, setUnread] = useState(0);
   const [lastEventAt, setLastEventAt] = useState(0);
@@ -77,11 +79,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const token = await registerForPushNotificationsAsync();
       if (token) {
-        await registerPushToken({ token, platform: Platform.OS }).catch(() => undefined);
+        // locale → server localizes push copy per device.
+        await registerPushToken({ token, platform: Platform.OS, locale }).catch(() => undefined);
       }
     })();
     void refresh();
-  }, [authed, refresh]);
+  }, [authed, refresh, locale]);
 
   // Realtime socket: live badge bump, screen refresh, and a toast.
   useEffect(() => {

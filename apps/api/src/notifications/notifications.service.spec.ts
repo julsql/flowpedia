@@ -39,7 +39,10 @@ function makeService() {
   const db = {
     repo: (e: unknown) => (e === Notification ? notifRepo : e === User ? userRepo : undefined),
   };
-  const push = { sendToUser: jest.fn(async () => undefined) };
+  const push = {
+    tokensForUser: jest.fn(async () => [{ token: "ExponentPushToken[x]", locale: "fr" }]),
+    send: jest.fn(async () => undefined),
+  };
   const realtime = { emitToUser: jest.fn() };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = new NotificationsService(db as any, push as any, realtime as any);
@@ -47,18 +50,21 @@ function makeService() {
 }
 
 describe("NotificationsService", () => {
-  it("creates a notification and fires a push", async () => {
+  it("creates a notification and fires a localized push", async () => {
     const { service, notifRepo, push } = makeService();
     await service.notify({ recipientId: "bob", actorId: "alice", type: "follower" });
     expect(notifRepo.rows).toHaveLength(1);
-    expect(push.sendToUser).toHaveBeenCalledWith("bob", expect.objectContaining({ body: expect.any(String) }));
+    // fr token → French body ("vous suit")
+    expect(push.send).toHaveBeenCalledWith([
+      expect.objectContaining({ to: "ExponentPushToken[x]", body: expect.stringContaining("suit") }),
+    ]);
   });
 
   it("never notifies a user about their own action", async () => {
     const { service, notifRepo, push } = makeService();
     await service.notify({ recipientId: "alice", actorId: "alice", type: "follower" });
     expect(notifRepo.rows).toHaveLength(0);
-    expect(push.sendToUser).not.toHaveBeenCalled();
+    expect(push.send).not.toHaveBeenCalled();
   });
 
   it("hydrates the actor and counts unread", async () => {

@@ -37,4 +37,6 @@ export interface RegisterPushTokenRequest {
   token: string;
   /** "ios" | "android" | "web" — informational. */
   platform?: string;
+  /** UI locale of the device (e.g. "fr"), so push copy is localized. */
+  locale?: string;
 }

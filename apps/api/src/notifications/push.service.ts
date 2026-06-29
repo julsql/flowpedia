@@ -5,16 +5,18 @@ import { PushToken } from "./push-token.entity";
 
 const EXPO_PUSH_ENDPOINT = "https://exp.host/--/api/v2/push/send";
 
-export interface PushMessage {
+/** One Expo push message (already localized for its target device). */
+export interface ExpoPushMessage {
+  to: string;
   title: string;
   body: string;
-  /** Extra payload the app reads when the notification is tapped. */
   data?: Record<string, unknown>;
+  sound: "default";
 }
 
 /** Delivers native push notifications via Expo's push service. Best-effort: any
  *  missing token / network error is logged and swallowed (never blocks the
- *  triggering action). */
+ *  triggering action). Localization is the caller's concern (per-token locale). */
 @Injectable()
 export class PushService {
   private readonly logger = new Logger(PushService.name);
@@ -26,12 +28,20 @@ export class PushService {
   }
 
   /** Register (or reassign) a device token to an account. Idempotent. */
-  async register(userId: string, token: string, platform?: string): Promise<void> {
+  async register(
+    userId: string,
+    token: string,
+    platform?: string,
+    locale?: string,
+  ): Promise<void> {
     const repo = this.tokens();
     if (!repo || !token) {
       return;
     }
-    await repo.upsert({ userId, token, platform: platform ?? null }, ["token"]);
+    await repo.upsert(
+      { userId, token, platform: platform ?? null, locale: locale ?? null },
+      ["token"],
+    );
   }
 
   async unregister(token: string): Promise<void> {
@@ -42,34 +52,30 @@ export class PushService {
     await repo.delete({ token });
   }
 
-  /** Fire a push to every device of `userId`. Never throws. */
-  async sendToUser(userId: string, message: PushMessage): Promise<void> {
+  /** Every device token of a user (each carries its own locale). */
+  async tokensForUser(userId: string): Promise<PushToken[]> {
     const repo = this.tokens();
     if (!repo) {
-      return;
+      return [];
     }
-    let rows: PushToken[];
     try {
-      rows = await repo.find({ where: { userId } });
+      return await repo.find({ where: { userId } });
     } catch (err) {
       this.logger.warn(`push: token lookup failed (${String(err)})`);
+      return [];
+    }
+  }
+
+  /** Send a batch of (already localized) messages. Never throws. */
+  async send(messages: ExpoPushMessage[]): Promise<void> {
+    if (!messages.length) {
       return;
     }
-    if (!rows.length) {
-      return;
-    }
-    const payload = rows.map((t) => ({
-      to: t.token,
-      title: message.title,
-      body: message.body,
-      data: message.data ?? {},
-      sound: "default",
-    }));
     try {
       const res = await fetch(EXPO_PUSH_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(messages),
       });
       if (!res.ok) {
         this.logger.warn(`push: Expo responded ${res.status}`);

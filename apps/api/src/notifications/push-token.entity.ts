@@ -18,6 +18,10 @@ export class PushToken {
   @Column({ type: "varchar", nullable: true })
   platform!: string | null;
 
+  /** Device UI locale (e.g. "fr") so push copy is localized per device. */
+  @Column({ type: "varchar", nullable: true })
+  locale!: string | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 }
