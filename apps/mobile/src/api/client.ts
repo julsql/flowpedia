@@ -2,6 +2,7 @@ import type {
   Article,
   AuthResponse,
   AuthUser,
+  ChangePasswordRequest,
   FeedResponse,
   FeedTab,
   ForgotPasswordRequest,
@@ -10,6 +11,7 @@ import type {
   LoginRequest,
   RegisterRequest,
   ResetPasswordRequest,
+  UpdateProfileRequest,
 } from "@flowpedia/shared";
 import type { Locale } from "../i18n";
 import {
@@ -149,6 +151,22 @@ export function forgotPassword(body: ForgotPasswordRequest): Promise<{ message: 
 
 export function resetPassword(body: ResetPasswordRequest): Promise<{ message: string }> {
   return requestJson<{ message: string }>("/auth/reset-password", "POST", body);
+}
+
+export function updateProfile(body: UpdateProfileRequest): Promise<AuthUser> {
+  return requestJson<AuthUser>("/auth/me", "PATCH", body);
+}
+
+export function changePassword(body: ChangePasswordRequest): Promise<{ message: string }> {
+  return requestJson<{ message: string }>("/auth/change-password", "POST", body);
+}
+
+export function deleteAccount(): Promise<{ message: string }> {
+  return requestJson<{ message: string }>("/auth/me", "DELETE");
+}
+
+export function wipeAccountData(): Promise<{ message: string }> {
+  return requestJson<{ message: string }>("/auth/wipe-data", "POST");
 }
 
 export function fetchFeed(

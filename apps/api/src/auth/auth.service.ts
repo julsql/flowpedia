@@ -14,12 +14,15 @@ import type { Repository } from "typeorm";
 import type {
   AuthResponse,
   AuthUser,
+  ChangePasswordRequest,
   LoginRequest,
   RegisterRequest,
   ResetPasswordRequest,
+  UpdateProfileRequest,
 } from "@flowpedia/shared";
 import { DatabaseService } from "../database/database.service";
 import { MailService } from "../mail/mail.service";
+import { Interaction } from "../events/interaction.entity";
 import { User } from "./user.entity";
 import {
   assertValidEmail,
@@ -152,6 +155,83 @@ export class AuthService {
     user.passwordResetExpires = null;
     await repo.save(user);
     return { message: "Password updated. You can now sign in." };
+  }
+
+  async updateProfile(userId: string, body: UpdateProfileRequest): Promise<AuthUser> {
+    const repo = this.users();
+    const user = await repo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("Account not found.");
+    }
+
+    if (body.username !== undefined) {
+      const username = normalizeUsername(body.username);
+      assertValidUsername(username);
+      if (username !== user.username) {
+        if (await repo.findOne({ where: { username } })) {
+          throw new ConflictException("Username is already taken.");
+        }
+        user.username = username;
+      }
+    }
+    if (body.displayName !== undefined) {
+      const displayName = body.displayName.trim();
+      if (displayName.length < 1 || displayName.length > 50) {
+        throw new BadRequestException("Display name must be 1–50 characters.");
+      }
+      user.displayName = displayName;
+    }
+    if (body.isPrivate !== undefined) {
+      user.isPrivate = Boolean(body.isPrivate);
+    }
+
+    await repo.save(user);
+    return toAuthUser(user);
+  }
+
+  async changePassword(userId: string, body: ChangePasswordRequest): Promise<{ message: string }> {
+    const repo = this.users();
+    const user = await repo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("Account not found.");
+    }
+    if (!(await bcrypt.compare(body.currentPassword ?? "", user.passwordHash))) {
+      throw new UnauthorizedException("Current password is incorrect.");
+    }
+    assertValidPassword(body.newPassword);
+    user.passwordHash = await bcrypt.hash(body.newPassword, BCRYPT_ROUNDS);
+    await repo.save(user);
+    return { message: "Password updated." };
+  }
+
+  /** Deletes the account and every row it owns. */
+  async deleteAccount(userId: string): Promise<{ message: string }> {
+    const repo = this.users();
+    const user = await repo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("Account not found.");
+    }
+    await this.deleteAllUserData(userId);
+    await repo.delete({ id: userId });
+    return { message: "Account and all data deleted." };
+  }
+
+  /** Clears all the account's saved data but keeps the account itself. */
+  async wipeData(userId: string): Promise<{ message: string }> {
+    const repo = this.users();
+    if (!(await repo.findOne({ where: { id: userId } }))) {
+      throw new NotFoundException("Account not found.");
+    }
+    await this.deleteAllUserData(userId);
+    return { message: "All your saved data has been cleared." };
+  }
+
+  /**
+   * Removes every row owned by the user across features. Extended as new
+   * per-account tables land (library, follows, stories).
+   */
+  private async deleteAllUserData(userId: string): Promise<void> {
+    await this.db.repo(Interaction)?.delete({ userId });
   }
 
   private authResponse(user: User): AuthResponse {

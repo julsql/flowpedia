@@ -41,3 +41,15 @@ export interface ResetPasswordRequest {
   token: string;
   newPassword: string;
 }
+
+/** Partial account update (any subset). Username must stay unique. */
+export interface UpdateProfileRequest {
+  displayName?: string;
+  username?: string;
+  isPrivate?: boolean;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}

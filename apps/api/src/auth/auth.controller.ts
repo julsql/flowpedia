@@ -1,11 +1,13 @@
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Patch, Post, UseGuards } from "@nestjs/common";
 import type {
   AuthResponse,
   AuthUser,
+  ChangePasswordRequest,
   ForgotPasswordRequest,
   LoginRequest,
   RegisterRequest,
   ResetPasswordRequest,
+  UpdateProfileRequest,
 } from "@flowpedia/shared";
 import { AuthService } from "./auth.service";
 import { CurrentUser } from "./current-user.decorator";
@@ -30,6 +32,39 @@ export class AuthController {
   @Get("me")
   me(@CurrentUser() principal: AuthPrincipal): Promise<AuthUser> {
     return this.auth.me(principal.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch("me")
+  updateProfile(
+    @CurrentUser() principal: AuthPrincipal,
+    @Body() body: UpdateProfileRequest,
+  ): Promise<AuthUser> {
+    return this.auth.updateProfile(principal.id, body);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("change-password")
+  @HttpCode(200)
+  changePassword(
+    @CurrentUser() principal: AuthPrincipal,
+    @Body() body: ChangePasswordRequest,
+  ): Promise<{ message: string }> {
+    return this.auth.changePassword(principal.id, body);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete("me")
+  @HttpCode(200)
+  deleteAccount(@CurrentUser() principal: AuthPrincipal): Promise<{ message: string }> {
+    return this.auth.deleteAccount(principal.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("wipe-data")
+  @HttpCode(200)
+  wipeData(@CurrentUser() principal: AuthPrincipal): Promise<{ message: string }> {
+    return this.auth.wipeData(principal.id);
   }
 
   @Post("forgot-password")

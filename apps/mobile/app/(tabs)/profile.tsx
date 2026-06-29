@@ -114,6 +114,16 @@ export default function ProfileScreen() {
               {auth.user.email}
             </Text>
             <Pressable
+              onPress={() => router.push("/account")}
+              style={styles.accountRow}
+              accessibilityRole="button"
+              accessibilityLabel={t("account.manage")}
+            >
+              <MaterialIcons name="manage-accounts" size={20} color={colors.textSecondary} />
+              <Text style={styles.accountRowText}>{t("account.manage")}</Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+            </Pressable>
+            <Pressable
               onPress={() => void auth.logout()}
               style={styles.signOutBtn}
               hitSlop={8}
@@ -405,6 +415,13 @@ const makeStyles = (colors: ThemeColors) =>
     accountTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: "700" },
     accountSubtitle: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
     accountEmail: { color: colors.textSecondary, fontSize: 14 },
+    accountRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      minHeight: 44,
+    },
+    accountRowText: { flex: 1, color: colors.textPrimary, fontSize: 15, fontWeight: "600" },
     signOutBtn: {
       flexDirection: "row",
       alignItems: "center",
