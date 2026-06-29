@@ -6,7 +6,13 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { In, type Repository } from "typeorm";
-import type { PublicUser, SendPageRequest, SentPageItem } from "@flowpedia/shared";
+import type {
+  ConversationMessage,
+  ConversationSummary,
+  PublicUser,
+  SendPageRequest,
+  SentPageItem,
+} from "@flowpedia/shared";
 import { DatabaseService } from "../database/database.service";
 import { User } from "../auth/user.entity";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -95,6 +101,76 @@ export class MessagesService {
         read: r.read,
         createdAt: r.createdAt.toISOString(),
       }));
+  }
+
+  /** One summary per person the user has exchanged pages with (most recent first). */
+  async threads(userId: string): Promise<ConversationSummary[]> {
+    const rows = await this.messages().find({
+      where: [{ fromUserId: userId }, { toUserId: userId }],
+      order: { createdAt: "DESC" },
+    });
+    if (!rows.length) {
+      return [];
+    }
+    // First row per "other user" (DESC order) is the last exchanged page.
+    const byOther = new Map<string, ConversationSummary & { otherId: string }>();
+    for (const row of rows) {
+      const mine = row.fromUserId === userId;
+      const otherId = mine ? row.toUserId : row.fromUserId;
+      let summary = byOther.get(otherId);
+      if (!summary) {
+        summary = {
+          otherId,
+          // user filled in below once hydrated
+          user: { id: otherId, username: "", displayName: "", isPrivate: false },
+          lastArticleId: row.articleId,
+          lastTitle: row.title ?? undefined,
+          lastNote: row.note ?? undefined,
+          lastAt: row.createdAt.toISOString(),
+          mine,
+          unread: 0,
+        };
+        byOther.set(otherId, summary);
+      }
+      if (!mine && !row.read) {
+        summary.unread += 1;
+      }
+    }
+    const users = await this.users().find({ where: { id: In([...byOther.keys()]) } });
+    const userById = new Map(users.map((u) => [u.id, u]));
+    return [...byOther.values()]
+      .filter((s) => userById.has(s.otherId))
+      .map(({ otherId, ...s }) => ({ ...s, user: toPublic(userById.get(otherId)!) }));
+  }
+
+  /** Full thread with one user (both directions, oldest first). Marks the pages
+   *  received from them as read. */
+  async thread(userId: string, username: string): Promise<ConversationMessage[]> {
+    const other = await this.users().findOne({
+      where: { username: (username ?? "").trim().toLowerCase() },
+    });
+    if (!other) {
+      throw new NotFoundException("Account not found.");
+    }
+    const repo = this.messages();
+    const rows = await repo.find({
+      where: [
+        { fromUserId: userId, toUserId: other.id },
+        { fromUserId: other.id, toUserId: userId },
+      ],
+      order: { createdAt: "ASC" },
+    });
+    await repo.update({ toUserId: userId, fromUserId: other.id, read: false }, { read: true });
+    return rows.map((r) => ({
+      id: r.id,
+      mine: r.fromUserId === userId,
+      articleId: r.articleId,
+      title: r.title ?? undefined,
+      image: r.image ?? undefined,
+      note: r.note ?? undefined,
+      read: r.read,
+      createdAt: r.createdAt.toISOString(),
+    }));
   }
 
   async unreadCount(userId: string): Promise<number> {

@@ -23,9 +23,26 @@ function fakeRepo() {
       rows.push({ id: `m${(seq += 1)}`, read: false, createdAt: new Date(2026, 0, seq), ...obj });
       return {};
     },
-    find: async ({ where }: { where: Row }) => rows.filter((r) => matches(r, where)),
+    // Supports a single where-object or an array of where-objects (OR), and a
+    // createdAt order (the only ordering the service uses).
+    find: async ({ where, order }: { where: Row | Row[]; order?: { createdAt?: string } }) => {
+      const clauses = Array.isArray(where) ? where : [where];
+      const out = rows.filter((r) => clauses.some((c) => matches(r, c)));
+      if (order?.createdAt) {
+        const dir = order.createdAt === "DESC" ? -1 : 1;
+        out.sort(
+          (a, b) =>
+            dir * ((a.createdAt as Date).getTime() - (b.createdAt as Date).getTime()),
+        );
+      }
+      return out;
+    },
     findOne: async ({ where }: { where: Row }) => rows.find((r) => matches(r, where)) ?? null,
     count: async ({ where }: { where: Row }) => rows.filter((r) => matches(r, where)).length,
+    update: async (where: Row, set: Row) => {
+      rows.filter((r) => matches(r, where)).forEach((r) => Object.assign(r, set));
+      return {};
+    },
   };
 }
 
@@ -70,5 +87,30 @@ describe("MessagesService", () => {
     expect(inbox).toHaveLength(1);
     expect(inbox[0].from.username).toBe("alice");
     expect(inbox[0].articleId).toBe("Paris");
+  });
+
+  it("summarizes a thread with last message + unread, both directions", async () => {
+    const { service } = makeService();
+    await service.send("alice", { toUsername: "bob", articleId: "Paris", title: "Paris" });
+    await service.send("bob", { toUsername: "alice", articleId: "Lyon", title: "Lyon" });
+    // bob's view: one conversation with alice, last is bob's own (mine), 1 unread (Paris)
+    const threads = await service.threads("bob");
+    expect(threads).toHaveLength(1);
+    expect(threads[0].user.username).toBe("alice");
+    expect(threads[0].lastArticleId).toBe("Lyon");
+    expect(threads[0].mine).toBe(true);
+    expect(threads[0].unread).toBe(1);
+  });
+
+  it("returns the full ordered thread and marks received pages read", async () => {
+    const { service } = makeService();
+    await service.send("alice", { toUsername: "bob", articleId: "Paris" });
+    await service.send("bob", { toUsername: "alice", articleId: "Lyon" });
+    const thread = await service.thread("bob", "alice");
+    expect(thread.map((m) => m.articleId)).toEqual(["Paris", "Lyon"]);
+    expect(thread.find((m) => m.articleId === "Paris")?.mine).toBe(false);
+    expect(thread.find((m) => m.articleId === "Lyon")?.mine).toBe(true);
+    // received page now read → bob's unread drops to 0
+    expect(await service.unreadCount("bob")).toBe(0);
   });
 });

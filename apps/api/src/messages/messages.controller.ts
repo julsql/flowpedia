@@ -1,5 +1,10 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, UseGuards } from "@nestjs/common";
-import type { SendPageRequest, SentPageItem } from "@flowpedia/shared";
+import type {
+  ConversationMessage,
+  ConversationSummary,
+  SendPageRequest,
+  SentPageItem,
+} from "@flowpedia/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard, type AuthPrincipal } from "../auth/jwt-auth.guard";
 import { MessagesService } from "./messages.service";
@@ -12,6 +17,19 @@ export class MessagesController {
   @Get()
   inbox(@CurrentUser() me: AuthPrincipal): Promise<SentPageItem[]> {
     return this.messages.inbox(me.id);
+  }
+
+  @Get("threads")
+  threads(@CurrentUser() me: AuthPrincipal): Promise<ConversationSummary[]> {
+    return this.messages.threads(me.id);
+  }
+
+  @Get("with/:username")
+  thread(
+    @CurrentUser() me: AuthPrincipal,
+    @Param("username") username: string,
+  ): Promise<ConversationMessage[]> {
+    return this.messages.thread(me.id, username);
   }
 
   @Post()

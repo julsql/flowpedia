@@ -40,9 +40,10 @@ function makeService() {
     repo: (e: unknown) => (e === Notification ? notifRepo : e === User ? userRepo : undefined),
   };
   const push = { sendToUser: jest.fn(async () => undefined) };
+  const realtime = { emitToUser: jest.fn() };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const service = new NotificationsService(db as any, push as any);
-  return { service, notifRepo, push };
+  const service = new NotificationsService(db as any, push as any, realtime as any);
+  return { service, notifRepo, push, realtime };
 }
 
 describe("NotificationsService", () => {

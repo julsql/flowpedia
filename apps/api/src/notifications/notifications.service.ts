@@ -8,6 +8,7 @@ import type {
 } from "@flowpedia/shared";
 import { DatabaseService } from "../database/database.service";
 import { User } from "../auth/user.entity";
+import { RealtimeGateway } from "../realtime/realtime.gateway";
 import { Notification } from "./notification.entity";
 import { PushService, type PushMessage } from "./push.service";
 
@@ -49,6 +50,7 @@ export class NotificationsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly push: PushService,
+    private readonly realtime: RealtimeGateway,
   ) {}
 
   private repo(): Repository<Notification> {
@@ -80,6 +82,13 @@ export class NotificationsService {
     await this.push.sendToUser(input.recipientId, {
       ...copy,
       data: { type: input.type, articleId: input.articleId ?? undefined },
+    });
+    // Live in-app event (badge bump, toast, open-thread refresh).
+    this.realtime.emitToUser(input.recipientId, "notification", {
+      type: input.type,
+      actor: actor ? { username: actor.username, displayName: actor.displayName } : null,
+      articleId: input.articleId ?? undefined,
+      title: input.title ?? undefined,
     });
   }
 
