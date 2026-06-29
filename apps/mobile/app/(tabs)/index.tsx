@@ -286,7 +286,9 @@ export default function FeedScreen() {
         })}
       </View>
 
-      <StoriesBar />
+      <View style={centeredColumn}>
+        <StoriesBar />
+      </View>
 
       <View style={styles.feedArea} {...panResponder.panHandlers}>
       {error ? (
