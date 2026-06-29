@@ -3,10 +3,11 @@ import { ConfigService } from "@nestjs/config";
 import { DataSource, type EntityTarget, type ObjectLiteral, type Repository } from "typeorm";
 import { Interaction } from "../events/interaction.entity";
 import { User } from "../auth/user.entity";
+import { LibraryItem } from "../library/library-item.entity";
 
 // Every persisted entity is registered here so a single connection (and a single
 // `synchronize`) owns the schema. Add new entities to this list.
-const ENTITIES = [Interaction, User];
+const ENTITIES = [Interaction, User, LibraryItem];
 
 /**
  * One shared Postgres connection for the whole API. Mirrors the project's

@@ -8,6 +8,8 @@ import type {
   ForgotPasswordRequest,
   InteractionEvent,
   Interest,
+  LibraryKind,
+  LibrarySnapshot,
   LoginRequest,
   RegisterRequest,
   ResetPasswordRequest,
@@ -167,6 +169,19 @@ export function deleteAccount(): Promise<{ message: string }> {
 
 export function wipeAccountData(): Promise<{ message: string }> {
   return requestJson<{ message: string }>("/auth/wipe-data", "POST");
+}
+
+/** The signed-in account's server-side library (article-id lists). */
+export function fetchLibrary(): Promise<LibrarySnapshot> {
+  return requestJson<LibrarySnapshot>("/library", "GET");
+}
+
+export function addLibraryItem(articleId: string, kind: LibraryKind): Promise<void> {
+  return requestJson<void>("/library", "POST", { articleId, kind });
+}
+
+export function removeLibraryItem(articleId: string, kind: LibraryKind): Promise<void> {
+  return requestJson<void>("/library", "DELETE", { articleId, kind });
 }
 
 export function fetchFeed(

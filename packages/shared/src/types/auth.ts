@@ -53,3 +53,18 @@ export interface ChangePasswordRequest {
   currentPassword: string;
   newPassword: string;
 }
+
+/** Kinds of saved library entry, persisted per account. */
+export type LibraryKind = "like" | "save" | "share";
+
+export interface LibraryItemRequest {
+  articleId: string;
+  kind: LibraryKind;
+}
+
+/** The account's library as article-id lists, most recent first. */
+export interface LibrarySnapshot {
+  liked: string[];
+  saved: string[];
+  shared: string[];
+}

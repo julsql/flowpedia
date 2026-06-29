@@ -1,7 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { Article } from "@flowpedia/shared";
-import { prefetchArticle, sendEvents } from "../api/client";
+import type { Article, LibraryKind } from "@flowpedia/shared";
+import {
+  addLibraryItem,
+  fetchLibrary,
+  fetchSummaries,
+  prefetchArticle,
+  removeLibraryItem,
+  sendEvents,
+} from "../api/client";
+import { useAuth } from "../auth/AuthProvider";
 import { useLocale } from "../i18n";
 
 const LIKED_KEY = "flowpedia.liked";
@@ -41,6 +49,12 @@ function compact(article: Article): Article {
   return { ...article, sections: [], links: [] };
 }
 
+/** Persist a list and return it (for use inside a state updater). */
+function persistList(key: string, list: Article[]): Article[] {
+  void AsyncStorage.setItem(key, JSON.stringify(list));
+  return list;
+}
+
 /** Parse a persisted Article[] list, tolerating the old string[] format. */
 function parseArticles(raw: string | null): Article[] {
   if (!raw) {
@@ -60,6 +74,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [read, setRead] = useState<Article[]>([]);
   const [mutedInterests, setMutedInterests] = useState<string[]>([]);
   const { locale } = useLocale();
+  const auth = useAuth();
 
   // Pre-warm the offline cache with the full content of saved articles, so they
   // stay readable without network (liked articles are not pre-cached on purpose).
@@ -91,11 +106,82 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
+  // On sign-in, reconcile the local (guest) library with the account's
+  // server-side one: push local-only entries up, pull the account's entries
+  // down, and union them. Best-effort — any failure leaves the local-first
+  // library untouched. Guest mode never touches the server.
+  useEffect(() => {
+    if (!auth.user) {
+      return;
+    }
+    let active = true;
+    void (async () => {
+      try {
+        const snap = await fetchLibrary();
+        if (!active) {
+          return;
+        }
+        const pushLocalOnly = (arts: Article[], serverIds: string[], kind: LibraryKind) => {
+          const known = new Set(serverIds);
+          for (const a of arts) {
+            if (!known.has(a.id)) {
+              void addLibraryItem(a.id, kind).catch(() => undefined);
+            }
+          }
+        };
+        pushLocalOnly(liked, snap.liked, "like");
+        pushLocalOnly(saved, snap.saved, "save");
+        pushLocalOnly(shared, snap.shared, "share");
+
+        const byId = new Map<string, Article>();
+        for (const a of [...liked, ...saved, ...shared, ...read]) {
+          byId.set(a.id, a);
+        }
+        const wanted = [...new Set([...snap.liked, ...snap.saved, ...snap.shared])];
+        const missing = wanted.filter((id) => !byId.has(id));
+        const hydrated = missing.length ? await fetchSummaries(missing, locale) : [];
+        if (!active) {
+          return;
+        }
+        for (const a of hydrated) {
+          byId.set(a.id, compact(a));
+        }
+        const merge = (serverIds: string[], prev: Article[]) => {
+          const fromServer = serverIds
+            .map((id) => byId.get(id))
+            .filter((a): a is Article => Boolean(a));
+          const extra = prev.filter((a) => !serverIds.includes(a.id));
+          return [...fromServer, ...extra];
+        };
+        setLiked((prev) => persistList(LIKED_KEY, merge(snap.liked, prev)));
+        setSaved((prev) => persistList(SAVED_KEY, merge(snap.saved, prev)));
+        setShared((prev) => persistList(SHARED_KEY, merge(snap.shared, prev)));
+      } catch {
+        // Offline or unauthenticated — keep the local library as-is.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.user?.id]);
+
   const value = useMemo<LibraryValue>(() => {
     const isLiked = (id: string) => liked.some((a) => a.id === id);
     const isSaved = (id: string) => saved.some((a) => a.id === id);
+    const syncAdd = (articleId: string, kind: LibraryKind) => {
+      if (auth.user) {
+        void addLibraryItem(articleId, kind).catch(() => undefined);
+      }
+    };
+    const syncRemove = (articleId: string, kind: LibraryKind) => {
+      if (auth.user) {
+        void removeLibraryItem(articleId, kind).catch(() => undefined);
+      }
+    };
 
     const toggleLike = (article: Article) => {
+      const wasLiked = liked.some((a) => a.id === article.id);
       setLiked((prev) => {
         const next = prev.some((a) => a.id === article.id)
           ? prev.filter((a) => a.id !== article.id)
@@ -104,9 +190,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         return next;
       });
       sendEvents([{ articleId: article.id, type: "like", ts: Date.now() }]);
+      if (wasLiked) {
+        syncRemove(article.id, "like");
+      } else {
+        syncAdd(article.id, "like");
+      }
     };
 
     const toggleSave = (article: Article) => {
+      const wasSaved = saved.some((a) => a.id === article.id);
       setSaved((prev) => {
         const next = prev.some((a) => a.id === article.id)
           ? prev.filter((a) => a.id !== article.id)
@@ -115,6 +207,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         return next;
       });
       sendEvents([{ articleId: article.id, type: "save", ts: Date.now() }]);
+      if (wasSaved) {
+        syncRemove(article.id, "save");
+      } else {
+        syncAdd(article.id, "save");
+      }
     };
 
     const recordShare = (article: Article) => {
@@ -123,6 +220,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         void AsyncStorage.setItem(SHARED_KEY, JSON.stringify(next));
         return next;
       });
+      syncAdd(article.id, "share");
     };
 
     const markRead = (article: Article) => {
@@ -176,7 +274,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       mutedInterests,
       muteInterest,
     };
-  }, [liked, saved, shared, read, mutedInterests]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liked, saved, shared, read, mutedInterests, auth.user]);
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
 }
