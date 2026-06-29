@@ -8,6 +8,7 @@ import { OpenInAppBanner } from "../src/web/OpenInAppBanner";
 import i18n from "../src/i18n";
 import { ThemeProvider, useTheme } from "../src/theme";
 import { UserProvider } from "../src/user/UserProvider";
+import { AuthProvider } from "../src/auth/AuthProvider";
 import { LibraryProvider } from "../src/library/LibraryProvider";
 import { SeenProvider } from "../src/seen/SeenProvider";
 import { SearchHistoryProvider } from "../src/search/SearchHistoryProvider";
@@ -33,6 +34,9 @@ function ThemedNavigation() {
       <StatusBar style={scheme === "light" ? "dark" : "light"} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="auth/login" options={{ presentation: "modal" }} />
+        <Stack.Screen name="auth/register" options={{ presentation: "modal" }} />
+        <Stack.Screen name="auth/forgot" options={{ presentation: "modal" }} />
       </Stack>
       <OpenInAppBanner />
     </NavThemeProvider>
@@ -45,6 +49,7 @@ export default function RootLayout() {
       <I18nextProvider i18n={i18n}>
         <ThemeProvider>
           <UserProvider>
+            <AuthProvider>
             <LibraryProvider>
               <SeenProvider>
                 <SearchHistoryProvider>
@@ -54,6 +59,7 @@ export default function RootLayout() {
                 </SearchHistoryProvider>
               </SeenProvider>
             </LibraryProvider>
+            </AuthProvider>
           </UserProvider>
         </ThemeProvider>
       </I18nextProvider>
