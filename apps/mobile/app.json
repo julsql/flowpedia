@@ -31,9 +31,20 @@
       "output": "single",
       "favicon": "./assets/icon.png"
     },
-    "plugins": ["expo-router", "expo-localization"],
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "expo-notifications"
+    ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f6527ad9-d97e-423c-b9df-51dfd6b26aa6"
+      }
+    },
+    "owner": "julsql"
   }
 }
