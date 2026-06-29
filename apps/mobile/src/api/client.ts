@@ -1,4 +1,16 @@
-import type { Article, FeedResponse, FeedTab, InteractionEvent, Interest } from "@flowpedia/shared";
+import type {
+  Article,
+  AuthResponse,
+  AuthUser,
+  FeedResponse,
+  FeedTab,
+  ForgotPasswordRequest,
+  InteractionEvent,
+  Interest,
+  LoginRequest,
+  RegisterRequest,
+  ResetPasswordRequest,
+} from "@flowpedia/shared";
 import type { Locale } from "../i18n";
 import {
   cacheArticle,
@@ -40,6 +52,28 @@ export function setCurrentUserId(id: string): void {
   currentUserId = id;
 }
 
+// Bearer token for authenticated requests. Set by AuthProvider on login/restore,
+// cleared on logout. Undefined ⇒ requests go out unauthenticated (guest mode).
+let authToken: string | undefined;
+export function setAuthToken(token: string | undefined): void {
+  authToken = token;
+}
+
+function authHeaders(): Record<string, string> {
+  return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+}
+
+/** An API error carrying the HTTP status and the server's message (if any). */
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 // Abort a request after this long so an offline/slow network falls back to the
 // cache quickly instead of hanging (was effectively ~60s on a dropped network).
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -48,7 +82,10 @@ async function getJson<T>(path: string): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const res = await fetch(`${BASE_URL}${path}`, { signal: controller.signal });
+    const res = await fetch(`${BASE_URL}${path}`, {
+      signal: controller.signal,
+      headers: authHeaders(),
+    });
     if (!res.ok) {
       throw new Error(`API ${res.status} on ${path}`);
     }
@@ -56,6 +93,62 @@ async function getJson<T>(path: string): Promise<T> {
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * JSON request that surfaces the server's error message (NestJS exception body)
+ * as an ApiError, so screens can show "Username is already taken." rather than a
+ * generic failure. Used by the auth flows.
+ */
+async function requestJson<T>(path: string, method: string, body?: unknown): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!res.ok) {
+      let message = `API ${res.status}`;
+      try {
+        const data = (await res.json()) as { message?: string | string[] };
+        if (data?.message) {
+          message = Array.isArray(data.message) ? data.message.join(", ") : String(data.message);
+        }
+      } catch {
+        // non-JSON error body — keep the status-based message
+      }
+      throw new ApiError(res.status, message);
+    }
+    if (res.status === 204) {
+      return undefined as T;
+    }
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function registerAccount(body: RegisterRequest): Promise<AuthResponse> {
+  return requestJson<AuthResponse>("/auth/register", "POST", body);
+}
+
+export function loginAccount(body: LoginRequest): Promise<AuthResponse> {
+  return requestJson<AuthResponse>("/auth/login", "POST", body);
+}
+
+export function fetchMe(): Promise<AuthUser> {
+  return requestJson<AuthUser>("/auth/me", "GET");
+}
+
+export function forgotPassword(body: ForgotPasswordRequest): Promise<{ message: string }> {
+  return requestJson<{ message: string }>("/auth/forgot-password", "POST", body);
+}
+
+export function resetPassword(body: ResetPasswordRequest): Promise<{ message: string }> {
+  return requestJson<{ message: string }>("/auth/reset-password", "POST", body);
 }
 
 export function fetchFeed(

@@ -8,6 +8,9 @@ import { radii, spacing, useTheme, type ThemeColors, type ThemeMode } from "../.
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { fetchInterests } from "../../src/api/client";
+import { useAuth } from "../../src/auth/AuthProvider";
+import { PrimaryButton } from "../../src/components/PrimaryButton";
+import { TextLink } from "../../src/components/TextLink";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useUser } from "../../src/user/UserProvider";
 import { LOCALE_LABELS, SUPPORTED_LOCALES, useLocale, type TranslationKey } from "../../src/i18n";
@@ -37,6 +40,7 @@ export default function ProfileScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale, setLocale } = useLocale();
   const user = useUser();
+  const auth = useAuth();
   const { read, liked, saved, mutedInterests, muteInterest, removeRead, clearRead } = useLibrary();
 
   // Which list (history / liked / saved) is expanded under the stats, if any.
@@ -91,11 +95,47 @@ export default function ProfileScreen() {
         {/* Identity */}
         <View style={styles.identity}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials(user.name)}</Text>
+            <Text style={styles.avatarText}>
+              {initials(auth.user?.displayName ?? user.name)}
+            </Text>
           </View>
-          <Text style={styles.name}>{user.name}</Text>
-          <Text style={styles.bio}>{t("profile.bio")}</Text>
+          <Text style={styles.name}>{auth.user?.displayName ?? user.name}</Text>
+          {auth.user ? (
+            <Text style={styles.handle}>@{auth.user.username}</Text>
+          ) : (
+            <Text style={styles.bio}>{t("profile.bio")}</Text>
+          )}
         </View>
+
+        {/* Account — sign in (guest) or account summary + sign out (authenticated) */}
+        {auth.status === "authenticated" && auth.user ? (
+          <View style={styles.accountCard}>
+            <Text style={styles.accountEmail} numberOfLines={1}>
+              {auth.user.email}
+            </Text>
+            <Pressable
+              onPress={() => void auth.logout()}
+              style={styles.signOutBtn}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t("auth.signOut")}
+            >
+              <MaterialIcons name="logout" size={18} color={colors.danger} />
+              <Text style={styles.signOutText}>{t("auth.signOut")}</Text>
+            </Pressable>
+          </View>
+        ) : auth.status === "guest" ? (
+          <View style={styles.accountCard}>
+            <Text style={styles.accountTitle}>{t("auth.guestTitle")}</Text>
+            <Text style={styles.accountSubtitle}>{t("auth.guestSubtitle")}</Text>
+            <PrimaryButton label={t("auth.signIn")} onPress={() => router.push("/auth/login")} />
+            <TextLink
+              prefix={t("auth.noAccount")}
+              label={t("auth.createAccount")}
+              onPress={() => router.push("/auth/register")}
+            />
+          </View>
+        ) : null}
 
         {/* Stats — Liked / Saved are tappable to reveal their pages. */}
         <View style={styles.stats}>
@@ -352,6 +392,27 @@ const makeStyles = (colors: ThemeColors) =>
     avatarText: { color: "#fff", fontSize: 26, fontWeight: "700" },
     name: { color: colors.textPrimary, fontSize: 20, fontWeight: "600", marginTop: 12 },
     bio: { color: colors.textTertiary, fontSize: 14, marginTop: 4, textAlign: "center" },
+    handle: { color: colors.accentLinkText, fontSize: 14, marginTop: 4, fontWeight: "600" },
+    accountCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.media,
+      borderWidth: 1,
+      borderColor: colors.separator,
+      padding: 16,
+      marginBottom: 24,
+      gap: 12,
+    },
+    accountTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: "700" },
+    accountSubtitle: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
+    accountEmail: { color: colors.textSecondary, fontSize: 14 },
+    signOutBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      alignSelf: "flex-start",
+      minHeight: 44,
+    },
+    signOutText: { color: colors.danger, fontSize: 15, fontWeight: "600" },
     stats: {
       flexDirection: "row",
       alignItems: "center",

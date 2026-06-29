@@ -22,6 +22,10 @@ export interface ThemeColors {
   interestChipText: string;
   like: string;
   immersiveBg: string;
+  /** Text/icon color on top of an `accent`-filled surface (primary buttons). */
+  onAccent: string;
+  /** Error / destructive text & icons (always paired with text or an icon). */
+  danger: string;
 }
 
 export const darkColors: ThemeColors = {
@@ -43,6 +47,8 @@ export const darkColors: ThemeColors = {
   interestChipText: "#e7ab68",
   like: "#e85c45", // filled heart, intentionally NOT the accent
   immersiveBg: "#000000", // full-screen "flow" screen (always dark)
+  onAccent: "#000000", // 7.2:1 on accent #d9822b — AAA (large text)
+  danger: "#e85c45", // 6.0:1 on bg — AA (paired with icon/text, never color-only)
 };
 
 export const lightColors: ThemeColors = {
@@ -64,6 +70,8 @@ export const lightColors: ThemeColors = {
   interestChipText: "#8a4d18",
   like: "#d24a2e",
   immersiveBg: "#0c0b0a", // full-screen media stays dark even in light theme
+  onAccent: "#000000", // 5.5:1 on accent #c56a1e — AA (large/bold button label)
+  danger: "#c0341c", // 5.6:1 on bg — AA (paired with icon/text, never color-only)
 };
 
 /**
