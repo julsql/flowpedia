@@ -3,11 +3,11 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-nat
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { Interest } from "@flowpedia/shared";
+import type { Interest, ProfileView } from "@flowpedia/shared";
 import { radii, spacing, useTheme, type ThemeColors, type ThemeMode } from "../../src/theme";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
-import { fetchInterests } from "../../src/api/client";
+import { fetchInterests, fetchProfile } from "../../src/api/client";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { TextLink } from "../../src/components/TextLink";
@@ -77,6 +77,22 @@ export default function ProfileScreen() {
     return interests.filter((i) => !muted.has(i.id));
   }, [interests, mutedInterests]);
 
+  // Own follower/following counts (only when signed in).
+  const [ownProfile, setOwnProfile] = useState<ProfileView | null>(null);
+  useEffect(() => {
+    if (!auth.user) {
+      setOwnProfile(null);
+      return;
+    }
+    let active = true;
+    fetchProfile(auth.user.username)
+      .then((p) => active && setOwnProfile(p))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [auth.user?.id]);
+
   const openArticle = (id: string) =>
     router.push({ pathname: "/article/[id]", params: { id: encodeURIComponent(id) } });
 
@@ -113,6 +129,48 @@ export default function ProfileScreen() {
             <Text style={styles.accountEmail} numberOfLines={1}>
               {auth.user.email}
             </Text>
+            {ownProfile ? (
+              <View style={styles.profileCounts}>
+                <Pressable
+                  style={styles.profileCount}
+                  onPress={() => router.push(`/u/${auth.user!.username}/followers`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${ownProfile.followers} ${t("social.followers")}`}
+                >
+                  <Text style={styles.profileCountValue}>{ownProfile.followers}</Text>
+                  <Text style={styles.profileCountLabel}>{t("social.followers")}</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.profileCount}
+                  onPress={() => router.push(`/u/${auth.user!.username}/following`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${ownProfile.following} ${t("social.following")}`}
+                >
+                  <Text style={styles.profileCountValue}>{ownProfile.following}</Text>
+                  <Text style={styles.profileCountLabel}>{t("social.following")}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            <Pressable
+              onPress={() => router.push("/people")}
+              style={styles.accountRow}
+              accessibilityRole="button"
+              accessibilityLabel={t("social.findPeople")}
+            >
+              <MaterialIcons name="person-search" size={20} color={colors.textSecondary} />
+              <Text style={styles.accountRowText}>{t("social.findPeople")}</Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push("/requests")}
+              style={styles.accountRow}
+              accessibilityRole="button"
+              accessibilityLabel={t("social.requests")}
+            >
+              <MaterialIcons name="how-to-reg" size={20} color={colors.textSecondary} />
+              <Text style={styles.accountRowText}>{t("social.requests")}</Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+            </Pressable>
             <Pressable
               onPress={() => router.push("/account")}
               style={styles.accountRow}
@@ -422,6 +480,16 @@ const makeStyles = (colors: ThemeColors) =>
       minHeight: 44,
     },
     accountRowText: { flex: 1, color: colors.textPrimary, fontSize: 15, fontWeight: "600" },
+    profileCounts: { flexDirection: "row", gap: 8 },
+    profileCount: {
+      flex: 1,
+      alignItems: "center",
+      paddingVertical: 6,
+      minHeight: 44,
+      justifyContent: "center",
+    },
+    profileCountValue: { color: colors.textPrimary, fontSize: 18, fontWeight: "800" },
+    profileCountLabel: { color: colors.textTertiary, fontSize: 12, marginTop: 2 },
     signOutBtn: {
       flexDirection: "row",
       alignItems: "center",

@@ -68,3 +68,33 @@ export interface LibrarySnapshot {
   saved: string[];
   shared: string[];
 }
+
+/** Minimal, safe-to-expose user shape for social lists/cards. */
+export interface PublicUser {
+  id: string;
+  username: string;
+  displayName: string;
+  isPrivate: boolean;
+}
+
+/** Relationship of the viewer to a profile. */
+export type FollowState = "none" | "pending" | "active";
+
+export interface FollowResult {
+  /** The viewer's resulting state toward the target. */
+  state: FollowState;
+}
+
+/** A profile as seen by a viewer (privacy-aware). */
+export interface ProfileView {
+  user: PublicUser;
+  followers: number;
+  following: number;
+  /** Viewer → target follow state. */
+  state: FollowState;
+  /** Target → viewer (lets the UI show "Follows you"). */
+  followsYou: boolean;
+  isSelf: boolean;
+  /** Whether the viewer may see this account's content (public, self, or follower). */
+  canViewContent: boolean;
+}

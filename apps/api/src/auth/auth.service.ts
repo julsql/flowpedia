@@ -24,6 +24,7 @@ import { DatabaseService } from "../database/database.service";
 import { MailService } from "../mail/mail.service";
 import { Interaction } from "../events/interaction.entity";
 import { LibraryItem } from "../library/library-item.entity";
+import { Follow } from "../social/follow.entity";
 import { User } from "./user.entity";
 import {
   assertValidEmail,
@@ -234,6 +235,8 @@ export class AuthService {
   private async deleteAllUserData(userId: string): Promise<void> {
     await this.db.repo(Interaction)?.delete({ userId });
     await this.db.repo(LibraryItem)?.delete({ userId });
+    await this.db.repo(Follow)?.delete({ followerId: userId });
+    await this.db.repo(Follow)?.delete({ followingId: userId });
   }
 
   private authResponse(user: User): AuthResponse {

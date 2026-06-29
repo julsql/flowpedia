@@ -5,12 +5,15 @@ import type {
   ChangePasswordRequest,
   FeedResponse,
   FeedTab,
+  FollowResult,
   ForgotPasswordRequest,
   InteractionEvent,
   Interest,
   LibraryKind,
   LibrarySnapshot,
   LoginRequest,
+  ProfileView,
+  PublicUser,
   RegisterRequest,
   ResetPasswordRequest,
   UpdateProfileRequest,
@@ -182,6 +185,48 @@ export function addLibraryItem(articleId: string, kind: LibraryKind): Promise<vo
 
 export function removeLibraryItem(articleId: string, kind: LibraryKind): Promise<void> {
   return requestJson<void>("/library", "DELETE", { articleId, kind });
+}
+
+const userPath = (username: string) => `/users/${encodeURIComponent(username)}`;
+
+export function searchUsers(q: string): Promise<PublicUser[]> {
+  return requestJson<PublicUser[]>(`/users?q=${encodeURIComponent(q)}`, "GET");
+}
+
+export function fetchProfile(username: string): Promise<ProfileView> {
+  return requestJson<ProfileView>(userPath(username), "GET");
+}
+
+export function followUser(username: string): Promise<FollowResult> {
+  return requestJson<FollowResult>(`${userPath(username)}/follow`, "POST");
+}
+
+export function unfollowUser(username: string): Promise<FollowResult> {
+  return requestJson<FollowResult>(`${userPath(username)}/follow`, "DELETE");
+}
+
+export function fetchFollowers(username: string): Promise<PublicUser[]> {
+  return requestJson<PublicUser[]>(`${userPath(username)}/followers`, "GET");
+}
+
+export function fetchFollowing(username: string): Promise<PublicUser[]> {
+  return requestJson<PublicUser[]>(`${userPath(username)}/following`, "GET");
+}
+
+export function removeFollowerByUsername(username: string): Promise<void> {
+  return requestJson<void>(`/followers/${encodeURIComponent(username)}`, "DELETE");
+}
+
+export function fetchFollowRequests(): Promise<PublicUser[]> {
+  return requestJson<PublicUser[]>("/follow-requests", "GET");
+}
+
+export function acceptFollowRequest(username: string): Promise<void> {
+  return requestJson<void>(`/follow-requests/${encodeURIComponent(username)}/accept`, "POST");
+}
+
+export function rejectFollowRequest(username: string): Promise<void> {
+  return requestJson<void>(`/follow-requests/${encodeURIComponent(username)}/reject`, "POST");
 }
 
 export function fetchFeed(
