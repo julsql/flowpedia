@@ -534,6 +534,24 @@ export default function ArticleScreen() {
     return list;
   }, [article, related]);
 
+  // For each section, the ids of its ancestor sections (lower-level headings that
+  // contain it), so collapsing a section also folds away its sub-sections.
+  const sectionAncestors = useMemo<Map<string, string[]>>(() => {
+    const map = new Map<string, string[]>();
+    const stack: { level: number; id: string }[] = [];
+    for (const section of article?.sections ?? []) {
+      while (stack.length && stack[stack.length - 1].level >= section.level) {
+        stack.pop();
+      }
+      map.set(
+        section.id,
+        stack.map((s) => s.id),
+      );
+      stack.push({ level: section.level, id: section.id });
+    }
+    return map;
+  }, [article]);
+
   sectionBlockIndexRef.current = useMemo(() => {
     const map = new Map<string, number>();
     blocks.forEach((block, i) => {
@@ -567,12 +585,18 @@ export default function ArticleScreen() {
             ))}
           </View>
         );
-      case "section":
+      case "section": {
+        // Hidden when a parent section is collapsed (fold its sub-sections away).
+        const ancestors = sectionAncestors.get(item.section.id) ?? [];
+        if (ancestors.some((a) => collapsedSections.has(a))) {
+          return null;
+        }
         return (
           <View style={[centeredColumn, styles.blockPad]}>
             <SectionBlock
               section={item.section}
               showHeading={item.index > 0}
+              level={item.section.level}
               styles={styles}
               colors={colors}
               mainArticleLabel={t("article.mainArticle")}
@@ -595,6 +619,7 @@ export default function ArticleScreen() {
             />
           </View>
         );
+      }
       case "ancestry":
         return a.ancestry?.length ? (
           <View style={[centeredColumn, styles.blockPad]}>
@@ -1105,6 +1130,8 @@ export default function ArticleScreen() {
 interface SectionBlockProps {
   section: ArticleSection;
   showHeading: boolean;
+  /** Heading depth (2 = section, 3+ = sub-section → progressively smaller title). */
+  level: number;
   styles: ReturnType<typeof makeStyles>;
   colors: ThemeColors;
   mainArticleLabel: string;
@@ -1191,6 +1218,7 @@ function isLinkList(paragraph: ArticleSection["paragraphs"][number]): boolean {
 function SectionBlock({
   section,
   showHeading,
+  level,
   styles,
   colors,
   mainArticleLabel,
@@ -1228,7 +1256,14 @@ function SectionBlock({
               size={22}
               color={colors.muted}
             />
-            <Text style={[styles.sectionTitle, isReading && styles.sectionTitleReading]}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                level >= 4 && styles.sectionTitleL4,
+                level === 3 && styles.sectionTitleL3,
+                isReading && styles.sectionTitleReading,
+              ]}
+            >
               {section.title}
             </Text>
           </Pressable>
@@ -1589,6 +1624,9 @@ const makeStyles = (colors: ThemeColors) =>
     fontSize: 19,
     fontWeight: "600",
   },
+  // Sub-section headings: progressively smaller than a top-level section title.
+  sectionTitleL3: { fontSize: 16 },
+  sectionTitleL4: { fontSize: 14, color: colors.textSecondary },
   // Tappable heading (collapse/expand): chevron + title, 44px tall touch target.
   sectionTitlePress: { flex: 1, flexDirection: "row", alignItems: "center", gap: 2, minHeight: 44 },
   // The section currently being read aloud.
