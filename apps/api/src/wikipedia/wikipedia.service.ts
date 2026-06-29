@@ -554,6 +554,26 @@ export class WikipediaService {
     return merged.map((targetId) => ({ label: targetId, targetId }));
   }
 
+  /**
+   * Topical categories a page (article *or* "Category:" page) belongs to, full
+   * localized titles, with maintenance/organisational categories dropped and the
+   * result cached. The interest-derivation walks these — on articles for the
+   * specific level, then on the categories themselves to climb to ancestors.
+   */
+  async getTopicalCategories(title: string, lang?: string): Promise<string[]> {
+    const language = this.normalizeLang(lang);
+    const key = `topicalcats:${language}:${title}`;
+    const cached = await this.cache.get<string[]>(key);
+    if (cached) {
+      return cached;
+    }
+    const topical = (await this.fetchCategories(title, language)).filter(
+      (c) => stripCategoryPrefix(c).length > 0 && !SKIP_CATEGORY.test(stripCategoryPrefix(c)),
+    );
+    await this.cache.set(key, topical, CATEGORY_TTL_MS);
+    return topical;
+  }
+
   /** Non-hidden categories a page belongs to (with localized prefix). */
   private async fetchCategories(title: string, language: SupportedLang): Promise<string[]> {
     const url =

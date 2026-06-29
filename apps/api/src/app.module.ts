@@ -7,6 +7,7 @@ import { ArticlesModule } from "./articles/articles.module";
 import { SearchModule } from "./search/search.module";
 import { EventsModule } from "./events/events.module";
 import { ImagesModule } from "./images/images.module";
+import { InterestsModule } from "./interests/interests.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -19,6 +20,7 @@ import { HealthController } from "./health/health.controller";
     SearchModule,
     EventsModule,
     ImagesModule,
+    InterestsModule,
   ],
   controllers: [HealthController],
 })

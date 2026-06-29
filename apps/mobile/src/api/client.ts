@@ -1,4 +1,4 @@
-import type { Article, FeedResponse, FeedTab, InteractionEvent } from "@flowpedia/shared";
+import type { Article, FeedResponse, FeedTab, InteractionEvent, Interest } from "@flowpedia/shared";
 import type { Locale } from "../i18n";
 import {
   cacheArticle,
@@ -143,6 +143,24 @@ export function fetchSummaries(ids: string[], locale: Locale): Promise<Article[]
   }
   const params = new URLSearchParams({ ids: ids.join(","), lang: locale });
   return getJson<Article[]>(`/articles/summaries?${params.toString()}`);
+}
+
+/**
+ * Derive adaptive interest chips from the titles the user kept. The granularity
+ * follows their reading: tight clusters yield a specific category, dispersed ones
+ * climb to a shared ancestor. Best-effort — returns [] when offline/unreachable
+ * so the profile simply hides the chips instead of erroring.
+ */
+export async function fetchInterests(ids: string[], locale: Locale): Promise<Interest[]> {
+  if (!ids.length) {
+    return [];
+  }
+  const params = new URLSearchParams({ ids: ids.join(","), lang: locale });
+  try {
+    return await getJson<Interest[]>(`/interests?${params.toString()}`);
+  } catch {
+    return [];
+  }
 }
 
 export function fetchSearch(

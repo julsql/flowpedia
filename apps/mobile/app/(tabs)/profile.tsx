@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { type Article, classifyTopics } from "@flowpedia/shared";
+import type { Interest } from "@flowpedia/shared";
 import { radii, spacing, useTheme, type ThemeColors, type ThemeMode } from "../../src/theme";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
+import { fetchInterests } from "../../src/api/client";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useUser } from "../../src/user/UserProvider";
 import { LOCALE_LABELS, SUPPORTED_LOCALES, useLocale, type TranslationKey } from "../../src/i18n";
@@ -26,44 +27,8 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-// A topic only becomes an interest once the user has opened/kept this many
-// articles of it — so a one-off page doesn't create a bogus "interest".
-const MIN_INTEREST_COUNT = 3;
-const MAX_INTERESTS = 8;
-
-/**
- * Top broad topics across the user's activity → interest chips. Uses the
- * articles' `topics` ids (short, global categories), counted across distinct
- * articles, kept only past a threshold. Returns the topic ids, most frequent
- * first. The screen localizes each id to a clear, simple label.
- */
-function deriveInterests(articles: Article[]): string[] {
-  const counts = new Map<string, number>();
-  const seen = new Set<string>();
-  for (const a of articles) {
-    if (seen.has(a.id)) {
-      continue; // an article both read and liked counts once
-    }
-    seen.add(a.id);
-    // Fall back to classifying on-device when `topics` is absent — articles
-    // saved/read before the API added the field (or any older cache) still
-    // feed the interest chips instead of vanishing.
-    const topics = a.topics ?? classifyTopics(`${a.title} ${a.category ?? ""}`);
-    for (const topic of topics) {
-      counts.set(topic, (counts.get(topic) ?? 0) + 1);
-    }
-  }
-  return [...counts.entries()]
-    .filter(([, n]) => n >= MIN_INTEREST_COUNT)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, MAX_INTERESTS)
-    .map(([id]) => id);
-}
-
-/** Localize a topic id ("sport") to a short, clear label ("Sport"). */
-function topicLabel(id: string, t: (key: TranslationKey) => string): string {
-  return t(`topic.${id}` as TranslationKey);
-}
+// Cap how many kept titles we send for interest derivation (most recent first).
+const MAX_INTEREST_SEEDS = 40;
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -77,10 +42,36 @@ export default function ProfileScreen() {
   // Which list (history / liked / saved) is expanded under the stats, if any.
   const [openList, setOpenList] = useState<"read" | "liked" | "saved" | null>(null);
 
-  const interests = useMemo(() => {
+  // Titles the user kept, deduped, most recent first — the input the API turns
+  // into adaptive interest chips (real Wikipedia categories at the right level).
+  const keptIds = useMemo(() => {
+    const ids = [...liked, ...saved, ...read].map((a) => a.id);
+    return Array.from(new Set(ids)).slice(0, MAX_INTEREST_SEEDS);
+  }, [liked, saved, read]);
+  const keptKey = keptIds.join(",");
+
+  const [interests, setInterests] = useState<Interest[]>([]);
+  useEffect(() => {
+    if (!keptIds.length) {
+      setInterests([]);
+      return;
+    }
+    let active = true;
+    void fetchInterests(keptIds, locale).then((res) => {
+      if (active) {
+        setInterests(res);
+      }
+    });
+    return () => {
+      active = false;
+    };
+    // keptKey captures changes to keptIds; locale also re-derives (labels follow language).
+  }, [keptKey, locale]);
+
+  const visibleInterests = useMemo(() => {
     const muted = new Set(mutedInterests);
-    return deriveInterests([...read, ...liked, ...saved]).filter((i) => !muted.has(i));
-  }, [read, liked, saved, mutedInterests]);
+    return interests.filter((i) => !muted.has(i.id));
+  }, [interests, mutedInterests]);
 
   const openArticle = (id: string) =>
     router.push({ pathname: "/article/[id]", params: { id: encodeURIComponent(id) } });
@@ -198,37 +189,34 @@ export default function ProfileScreen() {
         ) : null}
 
         {/* Interests — removable chips steer the recommendation algorithm. */}
-        {interests.length > 0 ? (
+        {visibleInterests.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>{t("profile.interests")}</Text>
             <View style={styles.chips}>
-              {interests.map((interestId) => {
-                const label = topicLabel(interestId, t);
-                return (
-                <View key={interestId} style={styles.interestChip}>
+              {visibleInterests.map((interest) => (
+                <View key={interest.id} style={styles.interestChip}>
                   {/* Tap the label to search this theme; tap the cross to mute it. */}
                   <Pressable
-                    onPress={() => searchInterest(label)}
+                    onPress={() => searchInterest(interest.label)}
                     hitSlop={10}
                     style={styles.interestChipLabel}
                     accessibilityRole="button"
-                    accessibilityLabel={t("a11y.searchInterest", { interest: label })}
+                    accessibilityLabel={t("a11y.searchInterest", { interest: interest.label })}
                   >
                     <Text style={styles.interestChipText} numberOfLines={1}>
-                      {label}
+                      {interest.label}
                     </Text>
                   </Pressable>
                   <Pressable
-                    onPress={() => muteInterest(interestId)}
+                    onPress={() => muteInterest(interest.id)}
                     hitSlop={12}
                     accessibilityRole="button"
-                    accessibilityLabel={t("a11y.muteInterest", { interest: label })}
+                    accessibilityLabel={t("a11y.muteInterest", { interest: interest.label })}
                   >
                     <MaterialIcons name="close" size={15} color={colors.interestChipText} />
                   </Pressable>
                 </View>
-                );
-              })}
+              ))}
             </View>
           </View>
         ) : null}
