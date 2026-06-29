@@ -44,22 +44,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # Single source of truth: every app-level var (WIKIPEDIA_*, ARTICLE_CACHE_TTL,
+    # JWT_*, APP_URL, EMAIL_*…) comes from the root .env — add one there and it
+    # reaches the container, no edit to this file needed.
+    env_file:
+      - .env
     environment:
+      # Only values derived from the container network (and the required JWT
+      # guard) live here. `environment` takes precedence over `env_file`.
       PORT: 3000
-      WIKIPEDIA_USER_AGENT: ${WIKIPEDIA_USER_AGENT}
-      WIKIPEDIA_LANG: ${WIKIPEDIA_LANG:-fr}
-      ARTICLE_CACHE_TTL: ${ARTICLE_CACHE_TTL:-86400}
       DATABASE_URL: postgresql://${POSTGRES_USER:-flowpedia}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-flowpedia}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      # Auth — JWT_SECRET is required (deploy fails loudly if unset).
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-30d}
-      APP_URL: ${APP_URL:-https://flowpedia.julsql.fr}
-      # Email (reset links). Empty USER/PASSWORD ⇒ links are logged, not sent.
-      EMAIL_HOST: ${EMAIL_HOST:-smtp.gmail.com}
-      EMAIL_PORT: ${EMAIL_PORT:-587}
-      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
-      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
     ports:
       - "127.0.0.1:${API_PORT:-8111}:3000"
 
