@@ -48,11 +48,14 @@ export default function ConversationScreen() {
     <AuthScaffold title={displayName}>
       <Pressable
         onPress={() => router.push(`/u/${username}`)}
-        style={styles.profileLink}
+        style={styles.profileHeader}
         accessibilityRole="link"
         accessibilityLabel={t("conversation.openProfile")}
       >
-        <Text style={styles.profileLinkText}>{t("conversation.openProfile")}</Text>
+        <LetterThumb text={displayName} style={styles.avatar} fontSize={18} />
+        <Text style={styles.profileName} numberOfLines={1}>
+          {displayName}
+        </Text>
       </Pressable>
 
       {loading ? (
@@ -107,8 +110,16 @@ export default function ConversationScreen() {
 
 function makeStyles(colors: ThemeColors) {
   return StyleSheet.create({
-    profileLink: { alignSelf: "flex-start", marginBottom: 8 },
-    profileLinkText: { color: colors.accent, fontSize: 14, fontWeight: "600" },
+    profileHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      alignSelf: "flex-start",
+      marginBottom: 12,
+      minHeight: 44,
+    },
+    avatar: { width: 40, height: 40, borderRadius: 20 },
+    profileName: { color: colors.textPrimary, fontSize: 16, fontWeight: "700" },
     empty: { color: colors.textTertiary, fontSize: 15, textAlign: "center", marginTop: 40 },
     thread: { gap: 10 },
     bubble: {
