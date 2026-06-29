@@ -1,5 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { DatabaseModule } from "./database/database.module";
+import { MailModule } from "./mail/mail.module";
+import { AuthModule } from "./auth/auth.module";
 import { CacheModule } from "./cache/cache.module";
 import { WikipediaModule } from "./wikipedia/wikipedia.module";
 import { FeedModule } from "./feed/feed.module";
@@ -13,6 +16,9 @@ import { HealthController } from "./health/health.controller";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    DatabaseModule,
+    MailModule,
+    AuthModule,
     CacheModule,
     WikipediaModule,
     FeedModule,
