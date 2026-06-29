@@ -83,6 +83,7 @@ export function InfoCard({ article, colors, onImagePress }: InfoCardProps) {
   const mapThumb = selectedMap ? (
     <View style={styles.mapBox}>
       <Pressable
+        style={styles.mapPress}
         disabled={!onImagePress}
         onPress={() =>
           onImagePress?.(
@@ -285,11 +286,15 @@ const makeStyles = (colors: ThemeColors) =>
       borderColor: colors.separator,
       alignItems: "center",
     },
+    // Full width so the child map's "100%" resolves against the card, not a
+    // content-hugging Pressable (which would collapse the map to zero width).
+    mapPress: { width: "100%", alignItems: "center" },
+    // No maxHeight: it would clamp height while width stays, breaking the
+    // aspect ratio (and the pin alignment) for tall département maps.
     mapImageWrap: {
       position: "relative",
       width: "100%",
       maxWidth: 280,
-      maxHeight: 240,
       borderRadius: radii.media,
       backgroundColor: colors.field,
       overflow: "hidden",
