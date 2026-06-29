@@ -611,12 +611,14 @@ export default function ArticleScreen() {
         if (ancestors.some((a) => collapsedSections.has(a))) {
           return null;
         }
+        const prevLevel = item.index > 0 ? a.sections[item.index - 1]?.level ?? 0 : 0;
         return (
           <View style={[centeredColumn, styles.blockPad]}>
             <SectionBlock
               section={item.section}
               showHeading={item.index > 0}
               level={item.section.level}
+              firstUnderParent={prevLevel < item.section.level}
               styles={styles}
               colors={colors}
               mainArticleLabel={t("article.mainArticle")}
@@ -1152,6 +1154,8 @@ interface SectionBlockProps {
   showHeading: boolean;
   /** Heading depth (2 = section, 3+ = sub-section → progressively smaller title). */
   level: number;
+  /** True when this sub-section directly follows its parent (tighter top gap). */
+  firstUnderParent: boolean;
   styles: ReturnType<typeof makeStyles>;
   colors: ThemeColors;
   mainArticleLabel: string;
@@ -1239,6 +1243,7 @@ function SectionBlock({
   section,
   showHeading,
   level,
+  firstUnderParent,
   styles,
   colors,
   mainArticleLabel,
@@ -1261,7 +1266,12 @@ function SectionBlock({
   // order), starting at the section's offset so it aligns with the parent count.
   const matchCounter = { n: 0 };
   return (
-    <View style={styles.section}>
+    <View
+      style={[
+        styles.section,
+        level >= 3 && (firstUnderParent ? styles.sectionSubTight : styles.sectionSub),
+      ]}
+    >
       {showHeading ? (
         <View style={styles.sectionTitleRow}>
           <Pressable
@@ -1630,6 +1640,10 @@ const makeStyles = (colors: ThemeColors) =>
     marginTop: 6,
   },
   section: { marginTop: 20 },
+  // Sub-sections sit closer to the text above; the first one under its parent
+  // section hugs it tighter still.
+  sectionSub: { marginTop: 12 },
+  sectionSubTight: { marginTop: 6 },
   // Heading row: the title plus a "read from here" speaker button.
   sectionTitleRow: {
     flexDirection: "row",
