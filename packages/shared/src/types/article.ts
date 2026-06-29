@@ -6,6 +6,11 @@
 export interface TextRun {
   text: string;
   linkTargetId?: string;
+  /**
+   * A colour key/swatch (e.g. a results-grid legend entry): renders as a small
+   * filled square. When set, `text` is empty — the label follows in the next run.
+   */
+  swatch?: string;
 }
 
 /** A paragraph, made of plain-text and internal-link runs. */

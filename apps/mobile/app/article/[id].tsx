@@ -1298,7 +1298,14 @@ function SectionBlock({
                         ]}
                       >
                         {cell.runs.map((run, runIndex) =>
-                          run.linkTargetId ? (
+                          run.swatch ? (
+                            <Text key={runIndex}>
+                              <Text style={[styles.legendSwatch, { backgroundColor: run.swatch }]}>
+                                {"  "}
+                              </Text>
+                              {" "}
+                            </Text>
+                          ) : run.linkTargetId ? (
                             <Text
                               key={runIndex}
                               style={styles.link}
@@ -1341,7 +1348,14 @@ function SectionBlock({
         ) : (
           <Text key={pIndex} style={styles.paragraph}>
             {paragraph.runs.map((run, rIndex) =>
-              run.linkTargetId ? (
+              run.swatch ? (
+                <Text key={rIndex}>
+                  <Text style={[styles.legendSwatch, { backgroundColor: run.swatch }]}>
+                    {"  "}
+                  </Text>
+                  {" "}
+                </Text>
+              ) : run.linkTargetId ? (
                 <Text
                   key={rIndex}
                   style={styles.link}
@@ -1571,6 +1585,9 @@ const makeStyles = (colors: ThemeColors) =>
     textDecorationLine: "underline",
     textDecorationColor: colors.accentLinkUnderline,
   },
+  // Inline colour key (results-grid legend): a small filled square. The spaces
+  // give it width; the colour is applied inline from the run's `swatch`.
+  legendSwatch: { fontSize: 13, borderRadius: 3, color: "transparent" },
   explore: { marginTop: 28 },
   exploreTitle: {
     color: colors.textPrimary,

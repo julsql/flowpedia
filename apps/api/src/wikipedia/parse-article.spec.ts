@@ -578,6 +578,23 @@ describe("parseArticleSections — editorial markers", () => {
   });
 });
 
+describe("parseArticleSections — legend colour swatches", () => {
+  it("keeps an inline colour key as a swatch run", () => {
+    const html = `<html><body><section data-mw-section-id="0"><p><span style="display:inline-block;width:1.3em;height:1.3em;background:#80FF00;border:1px solid gray"> </span> Gagnant <span style="display:inline-block;width:1.3em;height:1.3em;background:gold;border:1px solid gray"> </span> Finaliste</p></section></body></html>`;
+    const runs = parseArticleSections(html, "Résumé")[0].paragraphs[0].runs;
+    const swatches = runs.filter((r) => r.swatch).map((r) => r.swatch);
+    expect(swatches).toEqual(["#80FF00", "gold"]);
+    expect(runs.map((r) => r.text).join("")).toContain("Gagnant");
+  });
+
+  it("ignores a normal span (not a swatch)", () => {
+    const html = `<html><body><section data-mw-section-id="0"><p><span style="color:red">Important</span> texte</p></section></body></html>`;
+    const runs = parseArticleSections(html, "Résumé")[0].paragraphs[0].runs;
+    expect(runs.some((r) => r.swatch)).toBe(false);
+    expect(runs.map((r) => r.text).join("")).toContain("Important");
+  });
+});
+
 describe("parseArticleSections — wide tables", () => {
   it("keeps more than 6 columns (electoral results / year grids)", () => {
     const cols = Array.from({ length: 10 }, (_, i) => `<th>C${i + 1}</th>`).join("");

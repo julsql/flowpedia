@@ -463,7 +463,12 @@ function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
           pushText(runs, text); // external/other link → plain text
         }
       } else {
-        walk(el); // i, b, span, etc. → flatten to text/links
+        const swatch = swatchColor(el);
+        if (swatch) {
+          runs.push({ text: "", swatch }); // legend colour key → coloured square
+        } else {
+          walk(el); // i, b, span, etc. → flatten to text/links
+        }
       }
     }
   };
@@ -483,10 +488,35 @@ function pushText(runs: TextRun[], text: string): void {
 const EDITORIAL_MARKER =
   /\s*\[\s*(?:réf\.?[^\]]*|citation needed|citation nécessaire|pas clair|quand\s*\??|qui\s*\??|combien\s*\??|où\s*\??|évasif|passage évasif|précision nécessaire|incompréhensible|interprétation personnelle|style à revoir|non neutre|source insuffisante|source détournée|selon qui\s*\??|when\?|who\?|clarification needed|dubious|page needed)\s*\]/gi;
 
+/**
+ * An inline colour swatch (legend key): a small `display:inline-block` span with
+ * a background colour and no text (the label follows it). We keep its colour so
+ * the app can draw the square — otherwise the legend is just unexplained words.
+ */
+function swatchColor(el: HTMLElement): string | undefined {
+  if (el.rawTagName?.toLowerCase() !== "span") {
+    return undefined;
+  }
+  const style = el.getAttribute("style") ?? "";
+  if (!/display\s*:\s*inline-block/i.test(style) || el.text.trim()) {
+    return undefined;
+  }
+  const m = style.match(/background(?:-color)?\s*:\s*([^;]+)/i);
+  const color = m?.[1]?.trim();
+  if (!color || /transparent|inherit|none|var\(|url\(|gradient/i.test(color)) {
+    return undefined;
+  }
+  return color;
+}
+
 /** Collapse whitespace, merge adjacent plain runs, trim edges, drop empties. */
 function normalizeRuns(runs: TextRun[]): TextRun[] {
   const merged: TextRun[] = [];
   for (const run of runs) {
+    if (run.swatch) {
+      merged.push({ text: "", swatch: run.swatch }); // keep legend colour keys
+      continue;
+    }
     const text = collapseWhitespace(run.text).replace(EDITORIAL_MARKER, "");
     if (!text) {
       continue;
@@ -513,7 +543,7 @@ function normalizeRuns(runs: TextRun[]): TextRun[] {
     merged[0].text = merged[0].text.replace(/^\s+/, "");
     merged[merged.length - 1].text = merged[merged.length - 1].text.replace(/\s+$/, "");
   }
-  return merged.filter((r) => r.text.length > 0);
+  return merged.filter((r) => r.text.length > 0 || r.swatch);
 }
 
 function collapseWhitespace(text: string): string {
