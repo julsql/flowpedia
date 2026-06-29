@@ -10,7 +10,9 @@ import type { Locale } from "../i18n";
 const INDEX_KEY = "flowpedia.offline.articles.index";
 const ARTICLE_PREFIX = "flowpedia.offline.article.";
 const FEED_PREFIX = "flowpedia.offline.feed.";
-const MAX_ARTICLES = 40;
+// Hard cap on offline-cached articles (LRU). Bookmarks/viewed share this pool,
+// so the newest 50 are kept and older ones are evicted.
+const MAX_ARTICLES = 50;
 
 const articleKey = (id: string, locale: Locale) => `${locale}::${id}`;
 const articleStoreKey = (key: string) => `${ARTICLE_PREFIX}${key}`;

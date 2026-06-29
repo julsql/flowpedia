@@ -25,6 +25,7 @@ import {
   fetchArticle,
   fetchFeed,
   fetchSummaries,
+  getCachedArticle,
   largeImageUrl,
   sendEvents,
 } from "../../src/api/client";
@@ -196,20 +197,39 @@ export default function ArticleScreen() {
   );
 
   const load = useCallback(async () => {
-    setLoading(true);
     setError(false);
-    try {
-      const data = await fetchArticle(articleId, locale);
-      setArticle(data);
-      setActiveSection(data.sections[0]?.id ?? null);
-      markRead(data);
-      sendEvents([{ articleId: data.id, type: "openFull", ts: Date.now() }]);
-    } catch {
-      setError(true);
-    } finally {
+    // 1. Instant: show the offline copy at once if we have one (no spinner, no
+    //    waiting on the network) — opening a cached article is immediate.
+    const cached = await getCachedArticle(articleId, locale);
+    if (cached) {
+      setArticle(cached);
+      setActiveSection((prev) => prev ?? cached.sections[0]?.id ?? null);
+      markRead(cached);
       setLoading(false);
+    } else {
+      setLoading(true);
     }
-  }, [articleId, locale]);
+    // 2. Revalidate in the background. fetchArticle has a 20s timeout and falls
+    //    back to the cache, so offline returns the cached copy. Update in place
+    //    only when the content actually changed — an identical revalidation
+    //    leaves the article object untouched, preserving the reading position.
+    try {
+      const fresh = await fetchArticle(articleId, locale);
+      setArticle((prev) => (prev && JSON.stringify(prev) === JSON.stringify(fresh) ? prev : fresh));
+      setActiveSection((prev) => prev ?? fresh.sections[0]?.id ?? null);
+      if (!cached) {
+        markRead(fresh);
+        sendEvents([{ articleId: fresh.id, type: "openFull", ts: Date.now() }]);
+      }
+      setLoading(false);
+    } catch {
+      if (!cached) {
+        setError(true);
+        setLoading(false);
+      }
+      // Had a cached copy → keep showing it (offline); not an error.
+    }
+  }, [articleId, locale, markRead]);
 
   useEffect(() => {
     void load();

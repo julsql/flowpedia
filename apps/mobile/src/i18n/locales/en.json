@@ -102,5 +102,6 @@
   "topic.food": "Food",
   "topic.health": "Health",
   "topic.space": "Space",
-  "a11y.toggleSection": "Collapse or expand section"
+  "a11y.toggleSection": "Collapse or expand section",
+  "share.viaFlowpedia": "Shared with Flowpedia — a social way to explore Wikipedia."
 }

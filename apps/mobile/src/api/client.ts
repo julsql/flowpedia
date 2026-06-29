@@ -7,6 +7,10 @@ import {
   getCachedFeedPage,
 } from "../cache/offlineCache";
 
+// Re-export so screens can read the offline copy directly (instant display
+// before revalidating from the network).
+export { getCachedArticle } from "../cache/offlineCache";
+
 // Override with EXPO_PUBLIC_API_URL. On a physical device, use the host machine
 // LAN IP instead of localhost (e.g. http://192.168.1.20:3000/api).
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api";
@@ -36,12 +40,22 @@ export function setCurrentUserId(id: string): void {
   currentUserId = id;
 }
 
+// Abort a request after this long so an offline/slow network falls back to the
+// cache quickly instead of hanging (was effectively ~60s on a dropped network).
+const REQUEST_TIMEOUT_MS = 20_000;
+
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`);
-  if (!res.ok) {
-    throw new Error(`API ${res.status} on ${path}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, { signal: controller.signal });
+    if (!res.ok) {
+      throw new Error(`API ${res.status} on ${path}`);
+    }
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
   }
-  return (await res.json()) as T;
 }
 
 export function fetchFeed(

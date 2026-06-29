@@ -14,6 +14,7 @@ import type { Article } from "@flowpedia/shared";
 import { radii, spacing, useTheme, type ThemeColors } from "../theme";
 import { useLocale } from "../i18n";
 import { useLibrary } from "../library/LibraryProvider";
+import { shareExternal } from "./shareExternal";
 import { sendEvents } from "../api/client";
 
 interface ShareSheetValue {
@@ -66,9 +67,11 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
     }).start(() => setVisible(false));
   };
 
-  const shareWith = () => {
+  const shareWith = async () => {
     if (article) {
-      sendEvents([{ articleId: article.id, type: "share", ts: Date.now() }]);
+      // Open the OS share sheet with a "via Flowpedia" tagline (shareExternal
+      // logs the share event itself).
+      await shareExternal(article, t("share.viaFlowpedia"));
       recordShare(article);
     }
     close();

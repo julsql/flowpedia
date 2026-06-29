@@ -7,21 +7,25 @@ import { sendEvents } from "../api/client";
  * any installed messaging app — outside Flowpedia. Falls back to copying the
  * link on web browsers without the Share API. Returns true if it shared/copied.
  */
-export async function shareExternal(article: Article): Promise<boolean> {
+export async function shareExternal(article: Article, tagline?: string): Promise<boolean> {
   const url = article.sourceUrl;
   const title = article.title;
+  // Sharing to someone outside the app appends a short "via Flowpedia" line.
+  // (Copying the link elsewhere copies only the bare Wikipedia URL.)
+  const text = tagline ? `${title}\n\n${tagline}` : title;
+  const message = tagline ? `${title} — ${url}\n\n${tagline}` : `${title} — ${url}`;
   try {
     if (Platform.OS === "web") {
       const nav = typeof navigator !== "undefined" ? (navigator as Navigator) : undefined;
       if (nav?.share) {
-        await nav.share({ title, text: title, url });
+        await nav.share({ title, text, url });
       } else if (nav?.clipboard) {
         await nav.clipboard.writeText(url);
       } else {
         return false;
       }
     } else {
-      const result = await Share.share({ message: `${title} — ${url}`, url, title });
+      const result = await Share.share({ message, url, title });
       if (result.action === Share.dismissedAction) {
         return false;
       }
