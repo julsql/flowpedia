@@ -10,6 +10,7 @@ import {
 import { Animated, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
+import { useRouter } from "expo-router";
 import type { Article } from "@flowpedia/shared";
 import { radii, spacing, useTheme, type ThemeColors } from "../theme";
 import { useLocale } from "../i18n";
@@ -40,6 +41,7 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { recordShare } = useLibrary();
   const auth = useAuth();
+  const router = useRouter();
   const [article, setArticle] = useState<Article | null>(null);
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -51,6 +53,20 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
     setCopied(false);
     setReshared(false);
     setVisible(true);
+  };
+
+  const sendToAccount = () => {
+    if (article) {
+      close();
+      router.push({
+        pathname: "/send/[articleId]",
+        params: {
+          articleId: encodeURIComponent(article.id),
+          title: article.title,
+          image: article.image ?? "",
+        },
+      });
+    }
   };
 
   const reshareToFollowers = async () => {
@@ -145,6 +161,18 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
             </Pressable>
           ) : null}
 
+          {auth.user ? (
+            <Pressable
+              style={styles.sendToAccountBtn}
+              onPress={sendToAccount}
+              accessibilityRole="button"
+              accessibilityLabel={t("a11y.sendToAccount")}
+            >
+              <MaterialIcons name="send" size={20} color={colors.textPrimary} />
+              <Text style={styles.sendToAccountLabel}>{t("send.action")}</Text>
+            </Pressable>
+          ) : null}
+
           <Text style={styles.sectionLabel}>{t("share.sendTo")}</Text>
           <View style={styles.contactsRow}>
             {CONTACTS.map((contact) => (
@@ -231,6 +259,17 @@ const makeStyles = (colors: ThemeColors) =>
     marginBottom: 20,
   },
   reshareLabel: { color: colors.onAccent, fontSize: 15, fontWeight: "700" },
+  sendToAccountBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.field,
+    borderRadius: 14,
+    minHeight: 48,
+    marginBottom: 20,
+  },
+  sendToAccountLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: "600" },
   sectionLabel: {
     color: colors.textSecondary,
     fontSize: 13,

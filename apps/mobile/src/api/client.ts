@@ -13,11 +13,16 @@ import type {
   LibraryKind,
   LibrarySnapshot,
   LoginRequest,
+  NotificationItem,
   ProfileView,
   PublicUser,
+  RegisterPushTokenRequest,
   RegisterRequest,
   ResetPasswordRequest,
+  SendPageRequest,
+  SentPageItem,
   StoryGroup,
+  UnreadCount,
   UpdateProfileRequest,
 } from "@flowpedia/shared";
 import type { Locale } from "../i18n";
@@ -239,6 +244,38 @@ export function createStory(req: CreateStoryRequest): Promise<void> {
 /** Active stories from people you follow (plus your own), grouped by author. */
 export function fetchStories(): Promise<StoryGroup[]> {
   return requestJson<StoryGroup[]>("/stories", "GET");
+}
+
+/** In-app notifications (follow requests, accepted requests, new followers, pages). */
+export function fetchNotifications(): Promise<NotificationItem[]> {
+  return requestJson<NotificationItem[]>("/notifications", "GET");
+}
+
+export function fetchUnreadCount(): Promise<UnreadCount> {
+  return requestJson<UnreadCount>("/notifications/unread-count", "GET");
+}
+
+export function markNotificationsRead(): Promise<void> {
+  return requestJson<void>("/notifications/read", "POST");
+}
+
+/** Register this device's Expo push token so the server can push to it. */
+export function registerPushToken(body: RegisterPushTokenRequest): Promise<void> {
+  return requestJson<void>("/notifications/token", "POST", body);
+}
+
+/** Send a page (article) directly to another account's inbox. */
+export function sendPage(body: SendPageRequest): Promise<void> {
+  return requestJson<void>("/messages", "POST", body);
+}
+
+/** Pages received from other accounts, most recent first. */
+export function fetchInbox(): Promise<SentPageItem[]> {
+  return requestJson<SentPageItem[]>("/messages", "GET");
+}
+
+export function markPageRead(id: string): Promise<void> {
+  return requestJson<void>(`/messages/${encodeURIComponent(id)}/read`, "POST");
 }
 
 export function fetchFeed(

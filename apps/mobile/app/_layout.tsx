@@ -9,6 +9,7 @@ import i18n from "../src/i18n";
 import { ThemeProvider, useTheme } from "../src/theme";
 import { UserProvider } from "../src/user/UserProvider";
 import { AuthProvider } from "../src/auth/AuthProvider";
+import { NotificationsProvider } from "../src/notifications/NotificationProvider";
 import { LibraryProvider } from "../src/library/LibraryProvider";
 import { SeenProvider } from "../src/seen/SeenProvider";
 import { SearchHistoryProvider } from "../src/search/SearchHistoryProvider";
@@ -50,6 +51,7 @@ export default function RootLayout() {
         <ThemeProvider>
           <UserProvider>
             <AuthProvider>
+            <NotificationsProvider>
             <LibraryProvider>
               <SeenProvider>
                 <SearchHistoryProvider>
@@ -59,6 +61,7 @@ export default function RootLayout() {
                 </SearchHistoryProvider>
               </SeenProvider>
             </LibraryProvider>
+            </NotificationsProvider>
             </AuthProvider>
           </UserProvider>
         </ThemeProvider>

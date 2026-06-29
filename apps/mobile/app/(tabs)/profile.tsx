@@ -172,6 +172,26 @@ export default function ProfileScreen() {
               <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
             </Pressable>
             <Pressable
+              onPress={() => router.push("/notifications")}
+              style={styles.accountRow}
+              accessibilityRole="button"
+              accessibilityLabel={t("notif.title")}
+            >
+              <MaterialIcons name="notifications-none" size={20} color={colors.textSecondary} />
+              <Text style={styles.accountRowText}>{t("notif.title")}</Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push("/inbox")}
+              style={styles.accountRow}
+              accessibilityRole="button"
+              accessibilityLabel={t("inbox.title")}
+            >
+              <MaterialIcons name="inbox" size={20} color={colors.textSecondary} />
+              <Text style={styles.accountRowText}>{t("inbox.title")}</Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+            </Pressable>
+            <Pressable
               onPress={() => router.push("/account")}
               style={styles.accountRow}
               accessibilityRole="button"

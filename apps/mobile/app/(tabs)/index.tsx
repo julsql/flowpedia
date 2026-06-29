@@ -18,6 +18,7 @@ import type { Article, FeedTab } from "@flowpedia/shared";
 import { ArticleCard } from "../../src/components/ArticleCard";
 import { SkeletonList } from "../../src/components/SkeletonCard";
 import { StoriesBar } from "../../src/components/StoriesBar";
+import { NotificationBell } from "../../src/components/NotificationBell";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { fetchFeed } from "../../src/api/client";
 import { useShare } from "../../src/share/ShareSheetProvider";
@@ -263,6 +264,7 @@ export default function FeedScreen() {
     <ScreenContainer style={{ paddingTop: insets.top }}>
       <View style={[styles.header, centeredColumn]}>
         <Text style={styles.brand}>Flowpedia</Text>
+        <NotificationBell />
       </View>
 
       <View style={[styles.tabsRow, centeredColumn]}>
@@ -346,7 +348,13 @@ export default function FeedScreen() {
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     feedArea: { flex: 1 },
-    header: { paddingHorizontal: spacing.screenPadding, paddingVertical: 12 },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: spacing.screenPadding,
+      paddingVertical: 6,
+    },
     brand: {
       fontFamily: typography.brandFamily,
       fontSize: typography.brandSize,
