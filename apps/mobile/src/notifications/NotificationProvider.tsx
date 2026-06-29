@@ -9,22 +9,9 @@ import {
   type ReactNode,
 } from "react";
 import { AppState, Platform } from "react-native";
-import * as Notifications from "expo-notifications";
 import { fetchUnreadCount, markNotificationsRead, registerPushToken } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
-import { registerForPushNotificationsAsync } from "./registerPush";
-
-// Foreground behaviour: still show the banner while the app is open.
-Notifications.setNotificationHandler({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handleNotification: async () =>
-    ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }) as any,
-});
+import { addPushReceivedListener, registerForPushNotificationsAsync } from "./registerPush";
 
 const POLL_MS = 60_000;
 
@@ -84,15 +71,24 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [authed, refresh]);
 
-  // Bump the count when a push lands while the app is open.
+  // Bump the count when a push lands while the app is open (no-op without push).
   useEffect(() => {
     if (!authed) {
       return;
     }
-    const sub = Notifications.addNotificationReceivedListener(() => {
-      void refresh();
+    let unsubscribe = () => undefined as void;
+    let cancelled = false;
+    void addPushReceivedListener(() => void refresh()).then((off) => {
+      if (cancelled) {
+        off();
+      } else {
+        unsubscribe = off;
+      }
     });
-    return () => sub.remove();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [authed, refresh]);
 
   // Refresh on app foreground and on a slow poll.
