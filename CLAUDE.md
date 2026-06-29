@@ -117,6 +117,11 @@ the seeds; shown ids accumulate in `exclude`.
   valid `User-Agent` is mandatory for all Wikimedia calls.
 - Visual source of truth: `design/README.md` (Direction A). README "What works
   now" maps features to handoff screen numbers.
+- Store listings live in `store-listings/<locale>.md` (one per supported locale,
+  same ideas in each language; Google Play section uses emoji, App Store does
+  not). When a **significant** new feature ships (a real capability users would
+  care about — not bug fixes, copy tweaks or small UI changes), update these
+  files across **all** locales so the descriptions stay accurate.
 
 ## Accessibility (WCAG — target AAA, AA minimum)
 
