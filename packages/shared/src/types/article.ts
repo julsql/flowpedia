@@ -11,6 +11,13 @@ export interface TextRun {
    * filled square. When set, `text` is empty — the label follows in the next run.
    */
   swatch?: string;
+  /**
+   * Superscript / subscript ordinal or index (e.g. the "e" in "16ᵉ", the "2" in
+   * "H₂O"). Rendered as raised/lowered smaller text by the app — we keep the raw
+   * text rather than rare Unicode modifier glyphs, which many device fonts lack.
+   */
+  sup?: boolean;
+  sub?: boolean;
 }
 
 /** A paragraph, made of plain-text and internal-link runs. */

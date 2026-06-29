@@ -478,8 +478,11 @@ function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
         if (el.querySelector("a") || /reference|mw-ref/i.test(el.getAttribute("class") ?? "")) {
           continue;
         }
-        if (el.text.trim().length <= 4) {
-          pushText(runs, toUnicodeScript(el.text, tag === "sup"));
+        const raw = el.text.trim();
+        if (raw && raw.length <= 4) {
+          // Keep as a structured run; the app raises/lowers it with real (font-
+          // independent) styling instead of fragile Unicode modifier glyphs.
+          runs.push(tag === "sup" ? { text: raw, sup: true } : { text: raw, sub: true });
         }
         continue;
       }
@@ -555,6 +558,13 @@ function normalizeRuns(runs: TextRun[]): TextRun[] {
       merged.push({ text: "", swatch: run.swatch }); // keep legend colour keys
       continue;
     }
+    if (run.sup || run.sub) {
+      const t = run.text.replace(/[^\S\n]+/g, " ").trim();
+      if (t) {
+        merged.push(run.sup ? { text: t, sup: true } : { text: t, sub: true });
+      }
+      continue;
+    }
     // Collapse spaces/tabs but PRESERVE newlines (intentional <br> separators).
     const text = run.text.replace(/[^\S\n]+/g, " ").replace(EDITORIAL_MARKER, "");
     if (!text) {
@@ -563,7 +573,7 @@ function normalizeRuns(runs: TextRun[]): TextRun[] {
     const last = merged[merged.length - 1];
     // Don't merge into/through a swatch run, or its label ("Gagnant") would be
     // absorbed and then hidden (the swatch renders as a square, ignoring text).
-    if (last && !last.linkTargetId && !last.swatch && !run.linkTargetId) {
+    if (last && !last.linkTargetId && !last.swatch && !last.sup && !last.sub && !run.linkTargetId) {
       last.text += text;
     } else {
       merged.push({ text, ...(run.linkTargetId ? { linkTargetId: run.linkTargetId } : {}) });
@@ -709,13 +719,13 @@ function figureImage(figure: HTMLElement) {
   const caption = cap ? collapseWhitespace(cap.text).trim() : "";
   // Keep the caption's internal links tappable when it has any.
   const captionRuns = cap ? normalizeRuns(buildRuns(cap, false)) : [];
-  const hasLink = captionRuns.some((r) => r.linkTargetId);
+  const rich = captionRuns.some((r) => r.linkTargetId || r.sup || r.sub);
   return {
     url,
     caption: caption || undefined,
     width,
     height: toInt(img.getAttribute("height")),
-    ...(hasLink ? { captionRuns } : {}),
+    ...(rich ? { captionRuns } : {}),
   };
 }
 
@@ -1068,8 +1078,8 @@ function infoboxBlocks(el: HTMLElement): InfoboxBlock[] {
     // Keep the value's internal links tappable when it has any (the plain
     // `value` stays the fallback). `cleanCellText` already stripped ref sups.
     const valueRuns = normalizeRuns(buildRuns(td, false));
-    const hasLink = valueRuns.some((r) => r.linkTargetId);
-    cur.rows.push(hasLink ? { label, value, valueRuns } : { label, value });
+    const rich = valueRuns.some((r) => r.linkTargetId || r.sup || r.sub);
+    cur.rows.push(rich ? { label, value, valueRuns } : { label, value });
   }
   push();
   return blocks;

@@ -226,14 +226,12 @@ describe("parseArticleSections — inline annotations", () => {
     expect(text).toContain("de la France");
   });
 
-  it("keeps ordinal superscripts (1er, 2e)", () => {
+  it("keeps ordinal superscripts as structured sup runs (1er, 2e)", () => {
     const html = `<html><body><section data-mw-section-id="0"><p>Le 1<sup>er</sup> et le 2<sup>e</sup> jour<sup class="mw-ref"><a href="#c">[1]</a></sup>.</p></section></body></html>`;
-    const t = parseArticleSections(html, "Résumé")[0]
-      .paragraphs.flatMap((p) => p.runs.map((r) => r.text))
-      .join("");
-    expect(t).toContain("1ᵉʳ");
-    expect(t).toContain("2ᵉ");
-    expect(t).not.toContain("[1]");
+    const runs = parseArticleSections(html, "Résumé")[0].paragraphs[0].runs;
+    const sup = runs.filter((r) => r.sup).map((r) => r.text);
+    expect(sup).toEqual(["er", "e"]);
+    expect(runs.map((r) => r.text).join("")).not.toContain("[1]");
   });
 
   it("drops the chronologie navigation box", () => {
@@ -592,13 +590,14 @@ describe("parseArticleSections — inline figure position", () => {
 });
 
 describe("parseArticleSections — ordinal super/subscripts", () => {
-  it("renders short <sup>/<sub> as unicode glyphs (16ᵉ, H₂O)", () => {
+  it("keeps short <sup>/<sub> as structured runs (16e sup, H2O sub)", () => {
     const html = `<html><body><section data-mw-section-id="0"><p>Le 16<sup>e</sup> arrondissement, formule H<sub>2</sub>O.</p></section></body></html>`;
-    const text = parseArticleSections(html, "Résumé")[0]
-      .paragraphs.flatMap((p) => p.runs.map((r) => r.text))
-      .join("");
-    expect(text).toContain("16ᵉ");
-    expect(text).toContain("H₂O");
+    const runs = parseArticleSections(html, "Résumé")[0].paragraphs[0].runs;
+    expect(runs.find((r) => r.sup)?.text).toBe("e");
+    expect(runs.find((r) => r.sub)?.text).toBe("2");
+    // The base text stays on its own runs (not glued to the index).
+    expect(runs.map((r) => r.text).join("")).toContain("16");
+    expect(runs.map((r) => r.text).join("")).toContain("O");
   });
 });
 
