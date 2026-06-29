@@ -1304,11 +1304,7 @@ function SectionBlock({
       {img.captionRuns ? (
         <Text style={styles.figureCaption}>
           {img.captionRuns.map((run, ri) =>
-            run.sup || run.sub ? (
-              <Text key={ri} style={run.sup ? styles.superscript : styles.subscript}>
-                {run.text}
-              </Text>
-            ) : run.linkTargetId ? (
+            run.linkTargetId ? (
               <Text
                 key={ri}
                 style={styles.figureCaptionLink}
@@ -1455,14 +1451,7 @@ function SectionBlock({
                         ]}
                       >
                         {cell.runs.map((run, runIndex) =>
-                          run.sup || run.sub ? (
-                            <Text
-                              key={runIndex}
-                              style={run.sup ? styles.superscript : styles.subscript}
-                            >
-                              {run.text}
-                            </Text>
-                          ) : run.swatch ? (
+                          run.swatch ? (
                             <Text key={runIndex}>
                               <Text style={[styles.legendSwatch, { backgroundColor: run.swatch }]}>
                                 {"  "}
@@ -1514,11 +1503,7 @@ function SectionBlock({
         ) : (
           <Text style={styles.paragraph}>
             {paragraph.runs.map((run, rIndex) =>
-              run.sup || run.sub ? (
-                <Text key={rIndex} style={run.sup ? styles.superscript : styles.subscript}>
-                  {run.text}
-                </Text>
-              ) : run.swatch ? (
+              run.swatch ? (
                 <Text key={rIndex}>
                   <Text style={[styles.legendSwatch, { backgroundColor: run.swatch }]}>
                     {"  "}
@@ -1636,10 +1621,6 @@ const makeStyles = (colors: ThemeColors) =>
     textAlign: "center",
   },
   figureCaptionLink: { color: colors.accent, fontWeight: "600" },
-  // Ordinal/index marks (16ᵉ, H₂O). Smaller real glyphs — reliable on every
-  // device font (Unicode super/subscript letters render as tofu on some Androids).
-  superscript: { fontSize: 11, lineHeight: 14 },
-  subscript: { fontSize: 11, lineHeight: 14 },
   // Full-size image lightbox.
   lightbox: {
     flex: 1,

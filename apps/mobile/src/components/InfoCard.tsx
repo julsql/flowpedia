@@ -216,16 +216,9 @@ export function InfoCard({ article, colors, onImagePress, onLinkPress }: InfoCar
               <View key={i} style={styles.factRow}>
                 <Text style={styles.factLabel}>{row.label}</Text>
                 <Text style={styles.factValue}>
-                  {row.valueRuns
+                  {row.valueRuns && onLinkPress
                     ? row.valueRuns.map((run, ri) =>
-                        run.sup || run.sub ? (
-                          <Text
-                            key={ri}
-                            style={run.sup ? styles.superscript : styles.subscript}
-                          >
-                            {run.text}
-                          </Text>
-                        ) : run.linkTargetId && onLinkPress ? (
+                        run.linkTargetId ? (
                           <Text
                             key={ri}
                             style={styles.factLink}
@@ -382,8 +375,6 @@ const makeStyles = (colors: ThemeColors) =>
     factLabel: { color: colors.muted, fontSize: 13, width: 120, lineHeight: 19 },
     factValue: { color: colors.textPrimary, fontSize: 14, flex: 1, lineHeight: 19 },
     factLink: { color: colors.accent, fontWeight: "600" },
-    superscript: { fontSize: 11, lineHeight: 14 },
-    subscript: { fontSize: 11, lineHeight: 14 },
     toggle: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 2 },
     toggleText: { color: colors.accent, fontSize: 13, fontWeight: "600" },
   });
