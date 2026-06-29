@@ -584,7 +584,10 @@ describe("parseArticleSections — legend colour swatches", () => {
     const runs = parseArticleSections(html, "Résumé")[0].paragraphs[0].runs;
     const swatches = runs.filter((r) => r.swatch).map((r) => r.swatch);
     expect(swatches).toEqual(["#80FF00", "gold"]);
-    expect(runs.map((r) => r.text).join("")).toContain("Gagnant");
+    // A swatch run carries no text — its label is a separate, visible run.
+    expect(runs.every((r) => !(r.swatch && r.text.trim()))).toBe(true);
+    expect(runs.some((r) => !r.swatch && r.text.includes("Gagnant"))).toBe(true);
+    expect(runs.some((r) => !r.swatch && r.text.includes("Finaliste"))).toBe(true);
   });
 
   it("ignores a normal span (not a swatch)", () => {

@@ -34,8 +34,8 @@ type SupportedLang = (typeof SUPPORTED_LANGS)[number];
 
 // Bump this whenever the parsed Article/summary shape changes, so a deploy
 // invalidates stale cached objects instead of serving the old structure for the
-// 24h TTL (Redis survives restarts). Last bump: keep <br> as newlines.
-const CACHE_SCHEMA_VERSION = "v13";
+// 24h TTL (Redis survives restarts). Last bump: legend swatch labels kept.
+const CACHE_SCHEMA_VERSION = "v14";
 
 const POPULAR_TTL_MS = 6 * 60 * 60 * 1000;
 const NEWS_TTL_MS = 60 * 60 * 1000;

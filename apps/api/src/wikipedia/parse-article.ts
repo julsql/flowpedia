@@ -530,7 +530,9 @@ function normalizeRuns(runs: TextRun[]): TextRun[] {
       continue;
     }
     const last = merged[merged.length - 1];
-    if (last && !last.linkTargetId && !run.linkTargetId) {
+    // Don't merge into/through a swatch run, or its label ("Gagnant") would be
+    // absorbed and then hidden (the swatch renders as a square, ignoring text).
+    if (last && !last.linkTargetId && !last.swatch && !run.linkTargetId) {
       last.text += text;
     } else {
       merged.push({ text, ...(run.linkTargetId ? { linkTargetId: run.linkTargetId } : {}) });
