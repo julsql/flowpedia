@@ -5,13 +5,9 @@ import type { StoryGroup } from "@flowpedia/shared";
 import { fetchStories } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import { useSeenStories } from "../seen/SeenStoriesProvider";
+import { sortStoryGroups } from "../stories/order";
 import { useLocale } from "../i18n";
 import { useTheme, type ThemeColors } from "../theme";
-
-/** Most recent story timestamp in a group (items come back newest-first). */
-function latestAt(group: StoryGroup): number {
-  return group.items.reduce((max, it) => Math.max(max, Date.parse(it.createdAt) || 0), 0);
-}
 
 function initials(name: string): string {
   return name
@@ -50,14 +46,7 @@ export function StoriesBar() {
   // Unseen bubbles first (leftmost), each block ordered by most-recent story.
   // So a fresh reshare from someone you'd fully seen pops back to the far left
   // with a colored ring.
-  const ordered = useMemo(() => {
-    return [...groups].sort((a, b) => {
-      const ua = hasUnseen(a) ? 1 : 0;
-      const ub = hasUnseen(b) ? 1 : 0;
-      if (ua !== ub) return ub - ua;
-      return latestAt(b) - latestAt(a);
-    });
-  }, [groups, hasUnseen]);
+  const ordered = useMemo(() => sortStoryGroups(groups, hasUnseen), [groups, hasUnseen]);
 
   if (!auth.user || !groups.length) {
     return null;

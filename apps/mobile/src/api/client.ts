@@ -149,7 +149,10 @@ async function requestJson<T>(path: string, method: string, body?: unknown): Pro
     if (res.status === 204) {
       return undefined as T;
     }
-    return (await res.json()) as T;
+    // A handler returning null (e.g. "no story for this user") yields a 200 with
+    // an empty body — JSON.parse("") would throw, so treat empty as null.
+    const text = await res.text();
+    return (text ? JSON.parse(text) : null) as T;
   } finally {
     clearTimeout(timer);
   }

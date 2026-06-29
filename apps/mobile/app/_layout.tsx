@@ -36,6 +36,9 @@ function ThemedNavigation() {
       <StatusBar style={scheme === "light" ? "dark" : "light"} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        {/* Full-screen story viewer: its own tap zones drive navigation, so the
+            swipe-to-dismiss gesture is disabled (a downward swipe was closing it). */}
+        <Stack.Screen name="stories/[username]" options={{ gestureEnabled: false }} />
         <Stack.Screen name="auth/login" options={{ presentation: "modal" }} />
         <Stack.Screen name="auth/register" options={{ presentation: "modal" }} />
         <Stack.Screen name="auth/forgot" options={{ presentation: "modal" }} />

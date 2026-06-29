@@ -8,13 +8,21 @@ import type { StoryGroup } from "@flowpedia/shared";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { colorForText } from "../../src/components/LetterThumb";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
-import { fetchUserStories } from "../../src/api/client";
+import { fetchStories, fetchUserStories } from "../../src/api/client";
 import { useSeenStories } from "../../src/seen/SeenStoriesProvider";
+import { sortStoryGroups } from "../../src/stories/order";
 import { useLocale } from "../../src/i18n";
 import { useTheme, type ThemeColors } from "../../src/theme";
 
 // How long each story is shown before auto-advancing (Instagram ≈ 5s).
 const STORY_DURATION_MS = 6000;
+
+// Oldest first → newest last (Instagram order); the newest are the unseen ones.
+function sortItems(group: StoryGroup) {
+  return [...group.items].sort(
+    (a, b) => (Date.parse(a.createdAt) || 0) - (Date.parse(b.createdAt) || 0),
+  );
+}
 
 export default function StoryViewerScreen() {
   const router = useRouter();
@@ -22,54 +30,84 @@ export default function StoryViewerScreen() {
   const { t } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { isStorySeen, markStorySeen } = useSeenStories();
+  const { isStorySeen, markStorySeen, hasUnseen } = useSeenStories();
   const params = useLocalSearchParams<{ username?: string }>();
   const username = String(params.username ?? "");
 
-  const [group, setGroup] = useState<StoryGroup | null>(null);
+  // The ordered queue of people to traverse, starting at the tapped user and
+  // continuing in bubble order — finishing one person rolls to the next.
+  const [queue, setQueue] = useState<StoryGroup[]>([]);
+  const [gi, setGi] = useState(0); // person index in the queue
+  const [index, setIndex] = useState(0); // story index within that person
   const [loading, setLoading] = useState(true);
-  const [index, setIndex] = useState(0);
   const started = useRef(false);
   const progress = useRef(new Animated.Value(0)).current;
 
-  // Oldest first → newest last (Instagram order); the newest are the unseen ones
-  // you resume at.
-  const items = useMemo(
-    () =>
-      [...(group?.items ?? [])].sort(
-        (a, b) => (Date.parse(a.createdAt) || 0) - (Date.parse(b.createdAt) || 0),
-      ),
-    [group],
+  // Read seen-state at open time so the queue/order doesn't reshuffle while you
+  // watch (watching marks stories seen, which would otherwise re-sort).
+  const hasUnseenRef = useRef(hasUnseen);
+  hasUnseenRef.current = hasUnseen;
+
+  const group = queue[gi] ?? null;
+  const items = useMemo(() => (group ? sortItems(group) : []), [group]);
+  const current = items[index];
+
+  // Where to start a person: their first unseen story, or the very start when
+  // everything was already watched (a re-open replays from the beginning).
+  const entryIndex = useCallback(
+    (g: StoryGroup) => {
+      const its = sortItems(g);
+      const firstUnseen = its.findIndex((it) => !isStorySeen(it.id));
+      return firstUnseen === -1 ? 0 : firstUnseen;
+    },
+    [isStorySeen],
   );
 
   useEffect(() => {
     let active = true;
-    fetchUserStories(username)
-      .then((g) => {
-        if (!active) return;
-        setGroup(g);
-        setLoading(false);
-      })
-      .catch(() => active && setLoading(false));
+    setLoading(true);
+    started.current = false;
+    void (async () => {
+      let q: StoryGroup[] = [];
+      try {
+        // Same order as the bubbles: chain forward from the tapped user.
+        const feed = sortStoryGroups(await fetchStories(), hasUnseenRef.current);
+        const start = feed.findIndex((g) => g.user.username === username);
+        if (start >= 0) q = feed.slice(start);
+      } catch {
+        // ignore — fall back to the single-user fetch below
+      }
+      if (!q.length) {
+        // Tapped from a profile of someone not in your feed (public account):
+        // just their stories, no chaining.
+        try {
+          const single = await fetchUserStories(username);
+          if (single) q = [single];
+        } catch {
+          // ignore
+        }
+      }
+      if (!active) return;
+      setQueue(q);
+      setLoading(false);
+    })();
     return () => {
       active = false;
     };
   }, [username]);
 
-  // Once loaded, resume at the first unseen story (fall back to the start when
-  // everything was already watched).
+  // Enter the first person once the queue is loaded.
   useEffect(() => {
-    if (started.current || !items.length) return;
+    if (started.current || !queue.length) return;
     started.current = true;
-    const firstUnseen = items.findIndex((it) => !isStorySeen(it.id));
-    setIndex(firstUnseen === -1 ? 0 : firstUnseen);
-  }, [items, isStorySeen]);
+    setGi(0);
+    setIndex(entryIndex(queue[0]));
+  }, [queue, entryIndex]);
 
   // Mark the story on screen as watched.
   useEffect(() => {
-    const it = items[index];
-    if (it) markStorySeen(it.id);
-  }, [index, items, markStorySeen]);
+    if (current) markStorySeen(current.id);
+  }, [current?.id, current, markStorySeen]);
 
   const close = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -77,16 +115,33 @@ export default function StoryViewerScreen() {
   }, [router]);
 
   const goNext = useCallback(() => {
-    setIndex((i) => {
-      if (i < items.length - 1) return i + 1;
+    if (index < items.length - 1) {
+      setIndex(index + 1);
+      return;
+    }
+    // End of this person. Roll to the next person only while there's still new
+    // content; once the new stories run out, close.
+    const nextGi = gi + 1;
+    if (nextGi < queue.length && hasUnseenRef.current(queue[nextGi])) {
+      setGi(nextGi);
+      setIndex(entryIndex(queue[nextGi]));
+    } else {
       close();
-      return i;
-    });
-  }, [items.length, close]);
+    }
+  }, [index, items.length, gi, queue, entryIndex, close]);
 
   const goPrev = useCallback(() => {
-    setIndex((i) => (i > 0 ? i - 1 : i));
-  }, []);
+    if (index > 0) {
+      setIndex(index - 1);
+      return;
+    }
+    // Back past the first story → the previous person's last story.
+    if (gi > 0) {
+      const prevItems = sortItems(queue[gi - 1]);
+      setGi(gi - 1);
+      setIndex(Math.max(0, prevItems.length - 1));
+    }
+  }, [index, gi, queue]);
 
   // Animate the current segment, auto-advance when it fills.
   useEffect(() => {
@@ -101,19 +156,16 @@ export default function StoryViewerScreen() {
       if (finished) goNext();
     });
     return () => anim.stop();
-  }, [index, items.length, goNext, progress]);
+  }, [gi, index, items.length, goNext, progress]);
 
   const openArticle = () => {
-    const item = items[index];
-    if (item) {
+    if (current) {
       router.push({
         pathname: "/article/[id]",
-        params: { id: encodeURIComponent(item.articleId) },
+        params: { id: encodeURIComponent(current.articleId) },
       });
     }
   };
-
-  const current = items[index];
 
   return (
     <View style={styles.root}>
