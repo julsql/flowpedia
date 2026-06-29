@@ -6,8 +6,12 @@ type Row = Record<string, unknown>;
 
 function matches(row: Row, where: Row): boolean {
   return Object.entries(where).every(([k, v]) => {
-    if (v && typeof v === "object" && Array.isArray((v as { value?: unknown[] }).value)) {
-      return ((v as { value: unknown[] }).value as unknown[]).includes(row[k]);
+    if (v && typeof v === "object") {
+      const op = v as { _type?: string; _value?: unknown; value?: unknown };
+      // TypeORM Not(x)
+      if (op._type === "not") return row[k] !== op._value;
+      // TypeORM In([...])
+      if (Array.isArray(op.value)) return (op.value as unknown[]).includes(row[k]);
     }
     return row[k] === v;
   });

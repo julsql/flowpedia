@@ -294,8 +294,18 @@ export function fetchThread(username: string): Promise<ConversationMessage[]> {
   return requestJson<ConversationMessage[]>(`/messages/with/${encodeURIComponent(username)}`, "GET");
 }
 
+/** Accounts you send pages to most (for quick-send). Empty if you've sent none. */
+export function fetchTopContacts(limit = 5): Promise<PublicUser[]> {
+  return requestJson<PublicUser[]>(`/messages/top-contacts?limit=${limit}`, "GET");
+}
+
 export function markPageRead(id: string): Promise<void> {
   return requestJson<void>(`/messages/${encodeURIComponent(id)}/read`, "POST");
+}
+
+/** Count of unread received pages (drives the Messages tab badge). */
+export function fetchMessagesUnreadCount(): Promise<UnreadCount> {
+  return requestJson<UnreadCount>("/messages/unread-count", "GET");
 }
 
 export function fetchFeed(

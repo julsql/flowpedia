@@ -2,11 +2,13 @@ import { Tabs } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTheme } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
+import { useNotifications } from "../../src/notifications/NotificationProvider";
 
-// Bottom tab bar — handoff: home, search, bolt (flow), forum (shared), person.
+// Bottom tab bar — handoff: home, search, bolt (flow), messages, person.
 export default function TabsLayout() {
   const { t } = useLocale();
   const { colors } = useTheme();
+  const { messagesUnread } = useNotifications();
 
   return (
     <Tabs
@@ -49,6 +51,8 @@ export default function TabsLayout() {
         options={{
           title: t("tab.share"),
           tabBarIcon: ({ color, size }) => <MaterialIcons name="forum" size={size} color={color} />,
+          tabBarBadge: messagesUnread > 0 ? (messagesUnread > 99 ? "99+" : messagesUnread) : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.danger, color: "#fff", fontSize: 10 },
         }}
       />
       <Tabs.Screen

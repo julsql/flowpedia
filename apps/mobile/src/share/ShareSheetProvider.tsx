@@ -11,13 +11,13 @@ import { Animated, Image, Modal, Pressable, StyleSheet, Text, View } from "react
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import type { Article } from "@flowpedia/shared";
+import type { Article, PublicUser } from "@flowpedia/shared";
 import { radii, spacing, useTheme, type ThemeColors } from "../theme";
 import { useLocale } from "../i18n";
 import { useLibrary } from "../library/LibraryProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { shareExternal } from "./shareExternal";
-import { createStory, sendEvents } from "../api/client";
+import { createStory, fetchTopContacts, sendEvents, sendPage } from "../api/client";
 
 interface ShareSheetValue {
   openShare: (article: Article) => void;
@@ -25,13 +25,17 @@ interface ShareSheetValue {
 
 const ShareSheetContext = createContext<ShareSheetValue | null>(null);
 
-const CONTACTS = [
-  { name: "Léa", color: "#c77d3a" },
-  { name: "Théo", color: "#3a7ec7" },
-  { name: "Sara", color: "#b54f8e" },
-  { name: "Noé", color: "#4a9d6b" },
-  { name: "Mia", color: "#9a6cc0" },
-];
+// Avatar colors for quick-send contacts (white text ≥ 4.5:1 on each).
+const AV_COLORS = ["#c77d3a", "#3a7ec7", "#b54f8e", "#4a9d6b", "#9a6cc0"];
+
+function initials(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 const SHEET_HEIGHT = 420;
 
@@ -46,13 +50,46 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reshared, setReshared] = useState(false);
+  const [topContacts, setTopContacts] = useState<PublicUser[]>([]);
+  const [sentTo, setSentTo] = useState<Set<string>>(new Set());
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
   const openShare = (next: Article) => {
     setArticle(next);
     setCopied(false);
     setReshared(false);
+    setSentTo(new Set());
     setVisible(true);
+    // Quick-send row = the people you message most (only when signed in).
+    if (auth.user) {
+      fetchTopContacts(5)
+        .then(setTopContacts)
+        .catch(() => setTopContacts([]));
+    } else {
+      setTopContacts([]);
+    }
+  };
+
+  const quickSend = async (u: PublicUser) => {
+    if (!article || sentTo.has(u.username)) {
+      return;
+    }
+    setSentTo((prev) => new Set(prev).add(u.username));
+    try {
+      await sendPage({
+        toUsername: u.username,
+        articleId: article.id,
+        title: article.title,
+        image: article.image ?? undefined,
+      });
+      recordShare(article);
+    } catch {
+      setSentTo((prev) => {
+        const next = new Set(prev);
+        next.delete(u.username);
+        return next;
+      });
+    }
   };
 
   const sendToAccount = () => {
@@ -173,21 +210,43 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
             </Pressable>
           ) : null}
 
-          <Text style={styles.sectionLabel}>{t("share.sendTo")}</Text>
-          <View style={styles.contactsRow}>
-            {CONTACTS.map((contact) => (
-              <Pressable
-                key={contact.name}
-                style={styles.contact}
-                onPress={shareWith}
-              >
-                <View style={[styles.avatar, { backgroundColor: contact.color }]}>
-                  <Text style={styles.avatarText}>{contact.name.charAt(0)}</Text>
-                </View>
-                <Text style={styles.contactName}>{contact.name}</Text>
-              </Pressable>
-            ))}
-          </View>
+          {auth.user && topContacts.length > 0 ? (
+            <>
+              <Text style={styles.sectionLabel}>{t("share.sendTo")}</Text>
+              <View style={styles.contactsRow}>
+                {topContacts.map((u, i) => {
+                  const sent = sentTo.has(u.username);
+                  return (
+                    <Pressable
+                      key={u.id}
+                      style={styles.contact}
+                      onPress={() => void quickSend(u)}
+                      disabled={sent}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("a11y.sendPageTo", { name: u.displayName })}
+                      accessibilityState={{ disabled: sent }}
+                    >
+                      <View
+                        style={[
+                          styles.avatar,
+                          { backgroundColor: sent ? colors.accent : AV_COLORS[i % AV_COLORS.length] },
+                        ]}
+                      >
+                        {sent ? (
+                          <MaterialIcons name="check" size={24} color={colors.onAccent} />
+                        ) : (
+                          <Text style={styles.avatarText}>{initials(u.displayName)}</Text>
+                        )}
+                      </View>
+                      <Text style={styles.contactName} numberOfLines={1}>
+                        {sent ? t("send.sent") : u.displayName}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          ) : null}
 
           <View style={styles.actionsRow}>
             <Pressable style={styles.action} onPress={copyLink}>

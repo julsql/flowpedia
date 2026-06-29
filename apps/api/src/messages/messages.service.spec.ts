@@ -67,6 +67,7 @@ describe("MessagesService", () => {
     expect(msgRepo.rows).toHaveLength(1);
     expect(notifications.notify).toHaveBeenCalledWith(
       expect.objectContaining({ recipientId: "bob", actorId: "alice", type: "page_received" }),
+      expect.objectContaining({ persist: false, event: "message" }),
     );
   });
 
@@ -100,6 +101,15 @@ describe("MessagesService", () => {
     expect(threads[0].lastArticleId).toBe("Lyon");
     expect(threads[0].mine).toBe(true);
     expect(threads[0].unread).toBe(1);
+  });
+
+  it("ranks top contacts by sent count, empty when none sent", async () => {
+    const { service } = makeService();
+    expect(await service.topContacts("alice")).toEqual([]);
+    await service.send("alice", { toUsername: "bob", articleId: "A" });
+    await service.send("alice", { toUsername: "bob", articleId: "B" });
+    const top = await service.topContacts("alice");
+    expect(top.map((u) => u.username)).toEqual(["bob"]);
   });
 
   it("returns the full ordered thread and marks received pages read", async () => {

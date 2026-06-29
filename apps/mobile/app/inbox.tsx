@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import type { SentPageItem } from "@flowpedia/shared";
 import { AuthScaffold } from "../src/components/AuthScaffold";
 import { RemoteImage } from "../src/components/RemoteImage";
+import { LetterThumb } from "../src/components/LetterThumb";
 import { fetchInbox, markPageRead } from "../src/api/client";
 import { useLocale } from "../src/i18n";
 import { radii, useTheme, type ThemeColors } from "../src/theme";
@@ -60,7 +61,7 @@ export default function InboxScreen() {
                   importantForAccessibility="no-hide-descendants"
                 />
               ) : (
-                <View style={[styles.thumb, styles.thumbPlaceholder]} />
+                <LetterThumb text={item.title ?? item.articleId} style={styles.thumb} />
               )}
               <View style={styles.body}>
                 <Text style={styles.title} numberOfLines={2}>

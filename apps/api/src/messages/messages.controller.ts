@@ -1,9 +1,21 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import type {
   ConversationMessage,
   ConversationSummary,
+  PublicUser,
   SendPageRequest,
   SentPageItem,
+  UnreadCount,
 } from "@flowpedia/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard, type AuthPrincipal } from "../auth/jwt-auth.guard";
@@ -22,6 +34,20 @@ export class MessagesController {
   @Get("threads")
   threads(@CurrentUser() me: AuthPrincipal): Promise<ConversationSummary[]> {
     return this.messages.threads(me.id);
+  }
+
+  @Get("unread-count")
+  async unread(@CurrentUser() me: AuthPrincipal): Promise<UnreadCount> {
+    return { count: await this.messages.unreadCount(me.id) };
+  }
+
+  @Get("top-contacts")
+  topContacts(
+    @CurrentUser() me: AuthPrincipal,
+    @Query("limit") limit?: string,
+  ): Promise<PublicUser[]> {
+    const n = Math.min(Math.max(Number(limit) || 5, 1), 10);
+    return this.messages.topContacts(me.id, n);
   }
 
   @Get("with/:username")

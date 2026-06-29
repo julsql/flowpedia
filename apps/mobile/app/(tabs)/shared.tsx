@@ -85,6 +85,8 @@ export default function SharedScreen() {
         >
           {threads.map((c) => {
             const preview = `${c.mine ? t("conversations.you") : ""}${c.lastTitle ?? c.lastArticleId}`;
+            // No unread pill on a conversation whose last message is my own send.
+            const showUnread = c.unread > 0 && !c.mine;
             return (
               <Pressable
                 key={c.user.id}
@@ -101,7 +103,7 @@ export default function SharedScreen() {
                     {c.user.displayName}
                   </Text>
                   <Text
-                    style={[styles.rowPreview, c.unread > 0 && styles.rowPreviewUnread]}
+                    style={[styles.rowPreview, showUnread && styles.rowPreviewUnread]}
                     numberOfLines={1}
                   >
                     {preview}
@@ -109,7 +111,7 @@ export default function SharedScreen() {
                 </View>
                 <View style={styles.rowMeta}>
                   <Text style={styles.time}>{ago(c.lastAt)}</Text>
-                  {c.unread > 0 ? (
+                  {showUnread ? (
                     <View style={styles.badge}>
                       <Text style={styles.badgeText}>{c.unread > 99 ? "99+" : c.unread}</Text>
                     </View>

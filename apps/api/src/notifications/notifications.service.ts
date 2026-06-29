@@ -1,5 +1,5 @@
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
-import { In, type Repository } from "typeorm";
+import { In, Not, type Repository } from "typeorm";
 import type {
   NotificationItem,
   NotificationType,
@@ -43,20 +43,29 @@ export class NotificationsService {
     return repo;
   }
 
-  /** Persist a notification and fire a push. Best-effort: silently skips when no
-   *  database is connected, and never notifies a user about their own action. */
-  async notify(input: NotifyInput): Promise<void> {
-    const repo = this.db.repo(Notification);
-    if (!repo || input.recipientId === input.actorId) {
+  /** Fire a push + live event, and (by default) persist an in-app notification.
+   *  `persist:false` skips the bell entry — used for messages, which live in their
+   *  own inbox. `event` is the realtime channel ("notification" vs "message").
+   *  Never notifies a user about their own action. */
+  async notify(
+    input: NotifyInput,
+    opts?: { persist?: boolean; event?: string },
+  ): Promise<void> {
+    if (input.recipientId === input.actorId) {
       return;
     }
-    await repo.insert({
-      recipientId: input.recipientId,
-      actorId: input.actorId,
-      type: input.type,
-      articleId: input.articleId ?? null,
-      title: input.title ?? null,
-    });
+    if (opts?.persist !== false) {
+      const repo = this.db.repo(Notification);
+      if (repo) {
+        await repo.insert({
+          recipientId: input.recipientId,
+          actorId: input.actorId,
+          type: input.type,
+          articleId: input.articleId ?? null,
+          title: input.title ?? null,
+        });
+      }
+    }
     const userRepo = this.db.repo(User);
     const actor = userRepo ? await userRepo.findOne({ where: { id: input.actorId } }) : null;
     const name = actor?.displayName || actor?.username || "Someone";
@@ -72,7 +81,7 @@ export class NotificationsService {
       );
     }
     // Live in-app event (badge bump, toast, open-thread refresh).
-    this.realtime.emitToUser(input.recipientId, "notification", {
+    this.realtime.emitToUser(input.recipientId, opts?.event ?? "notification", {
       type: input.type,
       actor: actor ? { username: actor.username, displayName: actor.displayName } : null,
       articleId: input.articleId ?? undefined,
@@ -81,8 +90,9 @@ export class NotificationsService {
   }
 
   async list(userId: string): Promise<NotificationItem[]> {
+    // Messages (page_received) live in their own inbox, never in the bell.
     const rows = await this.repo().find({
-      where: { recipientId: userId },
+      where: { recipientId: userId, type: Not("page_received") },
       order: { createdAt: "DESC" },
       take: 100,
     });
@@ -105,11 +115,16 @@ export class NotificationsService {
   }
 
   async unreadCount(userId: string): Promise<number> {
-    return this.repo().count({ where: { recipientId: userId, read: false } });
+    return this.repo().count({
+      where: { recipientId: userId, read: false, type: Not("page_received") },
+    });
   }
 
   async markAllRead(userId: string): Promise<void> {
-    await this.repo().update({ recipientId: userId, read: false }, { read: true });
+    await this.repo().update(
+      { recipientId: userId, read: false, type: Not("page_received") },
+      { read: true },
+    );
   }
 
   async markRead(userId: string, id: string): Promise<void> {

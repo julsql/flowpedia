@@ -192,10 +192,18 @@ export default function StoryViewerScreen() {
 
 function makeStyles(colors: ThemeColors) {
   return StyleSheet.create({
-    // Black letterbox; the story column is centered and capped at the feed width
-    // on web so it never spans wider than the rest of the app.
-    root: { flex: 1, backgroundColor: "#000", alignItems: "center" },
-    column: { flex: 1, width: "100%", maxWidth: CONTENT_MAX_WIDTH, overflow: "hidden" },
+    // Sides use the app background (like every other screen); the story itself
+    // lives in a centered black band capped at the feed width, so on web it never
+    // spans wider than the rest of the app.
+    root: { flex: 1, backgroundColor: colors.bg, alignItems: "center" },
+    column: {
+      flex: 1,
+      width: "100%",
+      maxWidth: CONTENT_MAX_WIDTH,
+      marginHorizontal: "auto",
+      overflow: "hidden",
+      backgroundColor: "#000",
+    },
     emptyBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
     empty: { color: "#bbb", fontSize: 15 },
     closeText: { color: colors.accent, fontSize: 15, fontWeight: "700" },

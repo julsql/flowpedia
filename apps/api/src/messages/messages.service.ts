@@ -67,13 +67,18 @@ export class MessagesService {
       image: body.image ?? null,
       note: body.note?.trim() ? body.note.trim() : null,
     });
-    await this.notifications.notify({
-      recipientId: recipient.id,
-      actorId: fromUserId,
-      type: "page_received",
-      articleId: body.articleId,
-      title: body.title ?? null,
-    });
+    // A page is a message, not a bell notification: push + live "message" event,
+    // but no entry in the notifications center.
+    await this.notifications.notify(
+      {
+        recipientId: recipient.id,
+        actorId: fromUserId,
+        type: "page_received",
+        articleId: body.articleId,
+        title: body.title ?? null,
+      },
+      { persist: false, event: "message" },
+    );
   }
 
   /** The account's received pages, most recent first. */
@@ -171,6 +176,29 @@ export class MessagesService {
       read: r.read,
       createdAt: r.createdAt.toISOString(),
     }));
+  }
+
+  /** The accounts the user sends pages to most (ranked by sent count). Empty when
+   *  the user hasn't sent any — no placeholder contacts. */
+  async topContacts(userId: string, limit = 5): Promise<PublicUser[]> {
+    const rows = await this.messages().find({ where: { fromUserId: userId } });
+    if (!rows.length) {
+      return [];
+    }
+    const counts = new Map<string, number>();
+    for (const r of rows) {
+      counts.set(r.toUserId, (counts.get(r.toUserId) ?? 0) + 1);
+    }
+    const top = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([id]) => id);
+    const users = await this.users().find({ where: { id: In(top) } });
+    const byId = new Map(users.map((u) => [u.id, u]));
+    return top
+      .map((id) => byId.get(id))
+      .filter((u): u is User => Boolean(u))
+      .map(toPublic);
   }
 
   async unreadCount(userId: string): Promise<number> {

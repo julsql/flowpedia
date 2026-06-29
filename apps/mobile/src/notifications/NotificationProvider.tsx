@@ -10,6 +10,7 @@ import {
 } from "react";
 import { AppState, Platform } from "react-native";
 import {
+  fetchMessagesUnreadCount,
   fetchUnreadCount,
   getAuthToken,
   markNotificationsRead,
@@ -24,11 +25,14 @@ import { LiveToast } from "./LiveToast";
 const POLL_MS = 60_000;
 
 interface NotificationsValue {
-  /** Unread in-app notification count (drives the badge). */
+  /** Unread bell notifications (follows) — excludes messages. */
   unread: number;
+  /** Unread received pages — drives the Messages tab badge. */
+  messagesUnread: number;
   /** Bumped on every live event — screens depend on it to refetch in real time. */
   lastEventAt: number;
   refresh: () => Promise<void>;
+  refreshMessages: () => Promise<void>;
   markAllRead: () => Promise<void>;
 }
 
@@ -42,6 +46,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { locale } = useLocale();
   const authed = auth.status === "authenticated";
   const [unread, setUnread] = useState(0);
+  const [messagesUnread, setMessagesUnread] = useState(0);
   const [lastEventAt, setLastEventAt] = useState(0);
   const [toast, setToast] = useState<LiveEvent | null>(null);
   const refreshing = useRef(false);
@@ -61,6 +66,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, [authed]);
 
+  const refreshMessages = useCallback(async () => {
+    if (!authed) {
+      return;
+    }
+    try {
+      const { count } = await fetchMessagesUnreadCount();
+      setMessagesUnread(count);
+    } catch {
+      // best-effort
+    }
+  }, [authed]);
+
   const markAllRead = useCallback(async () => {
     setUnread(0);
     try {
@@ -74,6 +91,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!authed) {
       setUnread(0);
+      setMessagesUnread(0);
       return;
     }
     void (async () => {
@@ -84,9 +102,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       }
     })();
     void refresh();
-  }, [authed, refresh, locale]);
+    void refreshMessages();
+  }, [authed, refresh, refreshMessages, locale]);
 
-  // Realtime socket: live badge bump, screen refresh, and a toast.
+  // Realtime socket: live badge bump, screen refresh, and a toast. Messages and
+  // bell notifications arrive on distinct channels and update distinct counters.
   useEffect(() => {
     if (!authed) {
       return;
@@ -95,14 +115,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     if (!token) {
       return;
     }
-    const onEvent = (e: LiveEvent) => {
-      void refresh();
+    const onEvent = (kind: "notification" | "message", e: LiveEvent) => {
+      if (kind === "message") {
+        void refreshMessages();
+      } else {
+        void refresh();
+      }
       setLastEventAt(Date.now());
       setToast(e);
     };
     const disconnect = connectRealtime(token, onEvent);
     return disconnect;
-  }, [authed, refresh]);
+  }, [authed, refresh, refreshMessages]);
 
   // Bump the count when a push lands while the app is open (no-op without push).
   useEffect(() => {
@@ -132,18 +156,22 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     const appSub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         void refresh();
+        void refreshMessages();
       }
     });
-    const timer = setInterval(() => void refresh(), POLL_MS);
+    const timer = setInterval(() => {
+      void refresh();
+      void refreshMessages();
+    }, POLL_MS);
     return () => {
       appSub.remove();
       clearInterval(timer);
     };
-  }, [authed, refresh]);
+  }, [authed, refresh, refreshMessages]);
 
   const value = useMemo<NotificationsValue>(
-    () => ({ unread, lastEventAt, refresh, markAllRead }),
-    [unread, lastEventAt, refresh, markAllRead],
+    () => ({ unread, messagesUnread, lastEventAt, refresh, refreshMessages, markAllRead }),
+    [unread, messagesUnread, lastEventAt, refresh, refreshMessages, markAllRead],
   );
 
   return (

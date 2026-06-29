@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import type { ConversationMessage } from "@flowpedia/shared";
 import { AuthScaffold } from "../../src/components/AuthScaffold";
 import { RemoteImage } from "../../src/components/RemoteImage";
+import { LetterThumb } from "../../src/components/LetterThumb";
 import { fetchProfile, fetchThread } from "../../src/api/client";
 import { useNotifications } from "../../src/notifications/NotificationProvider";
 import { useLocale } from "../../src/i18n";
@@ -16,7 +17,7 @@ export default function ConversationScreen() {
   const { t } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { lastEventAt, refresh } = useNotifications();
+  const { lastEventAt, refreshMessages } = useNotifications();
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [displayName, setDisplayName] = useState(`@${username}`);
   const [loading, setLoading] = useState(true);
@@ -26,11 +27,11 @@ export default function ConversationScreen() {
       .then((list) => {
         setMessages(list);
         setLoading(false);
-        // Opening/refreshing the thread marks received pages read server-side.
-        void refresh();
+        // Opening/refreshing the thread marks received pages read → update badge.
+        void refreshMessages();
       })
       .catch(() => setLoading(false));
-  }, [username, refresh]);
+  }, [username, refreshMessages]);
 
   useEffect(() => {
     fetchProfile(username)
@@ -81,7 +82,7 @@ export default function ConversationScreen() {
                   importantForAccessibility="no-hide-descendants"
                 />
               ) : (
-                <View style={[styles.thumb, styles.placeholder]} />
+                <LetterThumb text={m.title ?? m.articleId} style={styles.thumb} />
               )}
               <View style={styles.bubbleText}>
                 <Text

@@ -11,9 +11,15 @@ export interface LiveEvent {
 
 let socket: Socket | undefined;
 
-/** Open the authenticated realtime socket and forward each live event. Returns an
- *  unsubscribe that closes the socket. Safe to call repeatedly (reconnects). */
-export function connectRealtime(token: string, onEvent: (e: LiveEvent) => void): () => void {
+/** What channel an event came in on: bell notifications vs messages. */
+export type LiveKind = "notification" | "message";
+
+/** Open the authenticated realtime socket and forward each live event with its
+ *  kind. Returns an unsubscribe that closes the socket. Safe to call repeatedly. */
+export function connectRealtime(
+  token: string,
+  onEvent: (kind: LiveKind, e: LiveEvent) => void,
+): () => void {
   disconnectRealtime();
   socket = io(API_ORIGIN, {
     auth: { token },
@@ -21,7 +27,8 @@ export function connectRealtime(token: string, onEvent: (e: LiveEvent) => void):
     reconnection: true,
     reconnectionDelay: 1000,
   });
-  socket.on("notification", (payload: LiveEvent) => onEvent(payload));
+  socket.on("notification", (payload: LiveEvent) => onEvent("notification", payload));
+  socket.on("message", (payload: LiveEvent) => onEvent("message", payload));
   return disconnectRealtime;
 }
 
