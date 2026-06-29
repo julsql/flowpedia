@@ -12,6 +12,8 @@ import type {
   Interest,
   LibraryKind,
   LibrarySnapshot,
+  ConversationMessage,
+  ConversationSummary,
   LoginRequest,
   NotificationItem,
   ProfileView,
@@ -40,6 +42,9 @@ export { getCachedArticle } from "../cache/offlineCache";
 // Override with EXPO_PUBLIC_API_URL. On a physical device, use the host machine
 // LAN IP instead of localhost (e.g. http://192.168.1.20:3000/api).
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api";
+
+/** Server origin without the /api prefix — used by the realtime socket. */
+export const API_ORIGIN = BASE_URL.replace(/\/api\/?$/, "");
 
 /**
  * Route a remote image through the API proxy. Devices can't always load
@@ -75,6 +80,11 @@ export function setAuthToken(token: string | undefined): void {
 
 function authHeaders(): Record<string, string> {
   return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+}
+
+/** Current bearer token (for the realtime socket handshake). */
+export function getAuthToken(): string | undefined {
+  return authToken;
 }
 
 /** An API error carrying the HTTP status and the server's message (if any). */
@@ -272,6 +282,16 @@ export function sendPage(body: SendPageRequest): Promise<void> {
 /** Pages received from other accounts, most recent first. */
 export function fetchInbox(): Promise<SentPageItem[]> {
   return requestJson<SentPageItem[]>("/messages", "GET");
+}
+
+/** Conversations: one summary per person you've exchanged pages with. */
+export function fetchThreads(): Promise<ConversationSummary[]> {
+  return requestJson<ConversationSummary[]>("/messages/threads", "GET");
+}
+
+/** Full thread with one account (sent + received). Marks received pages read. */
+export function fetchThread(username: string): Promise<ConversationMessage[]> {
+  return requestJson<ConversationMessage[]>(`/messages/with/${encodeURIComponent(username)}`, "GET");
 }
 
 export function markPageRead(id: string): Promise<void> {

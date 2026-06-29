@@ -208,5 +208,11 @@
   "a11y.notifications": "Notifications, {{count}} non lues",
   "a11y.openInbox": "Ouvrir les pages reçues",
   "a11y.sendToAccount": "Envoyer cette page à un compte",
-  "a11y.sendPageTo": "Envoyer à {{name}}"
+  "a11y.sendPageTo": "Envoyer à {{name}}",
+  "conversations.empty": "Aucune conversation. Envoie une page depuis un article pour en démarrer une.",
+  "conversations.signIn": "Connecte-toi pour discuter avec d'autres lecteurs et partager des pages.",
+  "conversations.you": "Vous : ",
+  "conversation.empty": "Aucune page échangée pour l'instant.",
+  "conversation.openProfile": "Voir le profil",
+  "a11y.openConversation": "Ouvrir la conversation avec {{name}}"
 }

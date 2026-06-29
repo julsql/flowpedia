@@ -9,27 +9,39 @@ import {
   type ReactNode,
 } from "react";
 import { AppState, Platform } from "react-native";
-import { fetchUnreadCount, markNotificationsRead, registerPushToken } from "../api/client";
+import {
+  fetchUnreadCount,
+  getAuthToken,
+  markNotificationsRead,
+  registerPushToken,
+} from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import { addPushReceivedListener, registerForPushNotificationsAsync } from "./registerPush";
+import { connectRealtime, type LiveEvent } from "./realtime";
+import { LiveToast } from "./LiveToast";
 
 const POLL_MS = 60_000;
 
 interface NotificationsValue {
   /** Unread in-app notification count (drives the badge). */
   unread: number;
+  /** Bumped on every live event — screens depend on it to refetch in real time. */
+  lastEventAt: number;
   refresh: () => Promise<void>;
   markAllRead: () => Promise<void>;
 }
 
 const NotificationsContext = createContext<NotificationsValue | null>(null);
 
-/** Tracks the unread badge, registers the device push token on login, and keeps
- *  the count fresh on incoming push / app foreground. Guest mode = always 0. */
+/** Tracks the unread badge, registers the device push token on login, opens the
+ *  realtime socket (live follows/messages), and shows an in-app toast. Guest mode
+ *  = always 0 and no socket. */
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const authed = auth.status === "authenticated";
   const [unread, setUnread] = useState(0);
+  const [lastEventAt, setLastEventAt] = useState(0);
+  const [toast, setToast] = useState<LiveEvent | null>(null);
   const refreshing = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -71,6 +83,24 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [authed, refresh]);
 
+  // Realtime socket: live badge bump, screen refresh, and a toast.
+  useEffect(() => {
+    if (!authed) {
+      return;
+    }
+    const token = getAuthToken();
+    if (!token) {
+      return;
+    }
+    const onEvent = (e: LiveEvent) => {
+      void refresh();
+      setLastEventAt(Date.now());
+      setToast(e);
+    };
+    const disconnect = connectRealtime(token, onEvent);
+    return disconnect;
+  }, [authed, refresh]);
+
   // Bump the count when a push lands while the app is open (no-op without push).
   useEffect(() => {
     if (!authed) {
@@ -91,7 +121,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     };
   }, [authed, refresh]);
 
-  // Refresh on app foreground and on a slow poll.
+  // Refresh on app foreground and on a slow poll (socket is the primary signal).
   useEffect(() => {
     if (!authed) {
       return;
@@ -109,11 +139,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [authed, refresh]);
 
   const value = useMemo<NotificationsValue>(
-    () => ({ unread, refresh, markAllRead }),
-    [unread, refresh, markAllRead],
+    () => ({ unread, lastEventAt, refresh, markAllRead }),
+    [unread, lastEventAt, refresh, markAllRead],
   );
 
-  return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
+  return (
+    <NotificationsContext.Provider value={value}>
+      {children}
+      <LiveToast event={toast} onHide={() => setToast(null)} />
+    </NotificationsContext.Provider>
+  );
 }
 
 export function useNotifications(): NotificationsValue {

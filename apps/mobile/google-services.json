@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "349764939554",
+    "project_id": "flowpedia-175a8",
+    "storage_bucket": "flowpedia-175a8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:349764939554:android:ea6950b2d329da58753f7b",
+        "android_client_info": {
+          "package_name": "fr.julsql.flowpedia"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8K8QtPIlE55Raqm1F6PH6Vn8F_cdJWlI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

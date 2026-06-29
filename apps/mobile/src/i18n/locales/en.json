@@ -210,5 +210,11 @@
   "a11y.notifications": "Notifications, {{count}} unread",
   "a11y.openInbox": "Open received pages",
   "a11y.sendToAccount": "Send this page to an account",
-  "a11y.sendPageTo": "Send to {{name}}"
+  "a11y.sendPageTo": "Send to {{name}}",
+  "conversations.empty": "No conversations yet. Send a page from any article to start one.",
+  "conversations.signIn": "Sign in to message other readers and share pages.",
+  "conversations.you": "You: ",
+  "conversation.empty": "No pages exchanged yet.",
+  "conversation.openProfile": "View profile",
+  "a11y.openConversation": "Open conversation with {{name}}"
 }
