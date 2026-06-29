@@ -84,7 +84,7 @@ export default function RegisterScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        autoComplete="new-password"
+        autoComplete="password-new"
         textContentType="newPassword"
         returnKeyType="go"
         onSubmitEditing={submit}

@@ -20,6 +20,7 @@
     },
     "android": {
       "package": "app.flowpedia.mobile",
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#121110"
