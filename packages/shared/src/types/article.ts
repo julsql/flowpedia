@@ -24,6 +24,12 @@ export interface SectionImage {
   caption?: string;
   width?: number;
   height?: number;
+  /**
+   * How many of the section's paragraphs precede this image in the source, so
+   * the app can place it at its real spot in the text (like mobile Wikipedia)
+   * instead of bunching all images at the top of the section.
+   */
+  afterParagraph?: number;
 }
 
 /**

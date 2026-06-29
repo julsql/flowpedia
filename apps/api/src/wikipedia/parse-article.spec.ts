@@ -532,7 +532,7 @@ describe("parseArticleSections — figures", () => {
   it("attaches section figures (https url + caption), not in the lead", () => {
     const sections = parseArticleSections(INFOBOX_HTML, "Résumé");
     const career = sections.find((s) => s.title === "Carrière");
-    expect(career?.images?.[0]).toEqual({
+    expect(career?.images?.[0]).toMatchObject({
       url: "https://upload.wikimedia.org/lab.jpg",
       caption: "Au laboratoire",
       width: 300,
@@ -575,6 +575,19 @@ describe("parseArticleSections — editorial markers", () => {
     expect(text).not.toContain("Quand");
     expect(text).toContain("Le site est ancien");
     expect(text).toContain("de l'époque");
+  });
+});
+
+describe("parseArticleSections — inline figure position", () => {
+  it("records how many paragraphs precede a figure (afterParagraph)", () => {
+    const html = `<html><body>
+      <h2>Vie</h2>
+      <p>Premier paragraphe.</p>
+      <figure typeof="mw:File"><img src="//upload.wikimedia.org/x.jpg" width="300" height="200"/><figcaption>Une photo</figcaption></figure>
+      <p>Second paragraphe.</p>
+    </body></html>`;
+    const vie = parseArticleSections(html, "Résumé").find((s) => s.title === "Vie");
+    expect(vie?.images?.[0]?.afterParagraph).toBe(1);
   });
 });
 

@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -20,7 +28,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
-import type { Article, ArticleSection } from "@flowpedia/shared";
+import type { Article, ArticleSection, SectionImage } from "@flowpedia/shared";
 import {
   fetchArticle,
   fetchFeed,
@@ -1265,6 +1273,37 @@ function SectionBlock({
   // Running global match index for this section's highlighted prose (in render
   // order), starting at the section's offset so it aligns with the parent count.
   const matchCounter = { n: 0 };
+  // Figures are placed inline at their real spot in the text (afterParagraph),
+  // like mobile Wikipedia — not bunched at the top of the section.
+  const images = section.images ?? [];
+  const renderFigure = (img: SectionImage, key: string) => (
+    <Pressable
+      key={key}
+      style={styles.figure}
+      onPress={() => onImagePress(img.url, img.caption)}
+      accessibilityRole="imagebutton"
+      accessibilityLabel={img.caption ? `${img.caption}, ${viewImageLabel}` : viewImageLabel}
+    >
+      <RemoteImage
+        source={{ uri: img.url }}
+        style={[
+          styles.figureImage,
+          img.width && img.height ? { aspectRatio: img.width / img.height } : null,
+        ]}
+        resizeMode="cover"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
+      {img.caption ? <Text style={styles.figureCaption}>{img.caption}</Text> : null}
+    </Pressable>
+  );
+  const imagesBefore = (p: number) =>
+    images
+      .filter((im) => (im.afterParagraph ?? 0) === p)
+      .map((im, i) => renderFigure(im, `img-${p}-${i}`));
+  const trailingImages = images
+    .filter((im) => (im.afterParagraph ?? 0) >= section.paragraphs.length)
+    .map((im, i) => renderFigure(im, `img-end-${i}`));
   return (
     <View
       style={[
@@ -1333,28 +1372,6 @@ function SectionBlock({
           ))}
         </View>
       ) : null}
-
-      {section.images?.map((img, i) => (
-        <Pressable
-          key={`img-${i}`}
-          style={styles.figure}
-          onPress={() => onImagePress(img.url, img.caption)}
-          accessibilityRole="imagebutton"
-          accessibilityLabel={img.caption ? `${img.caption}, ${viewImageLabel}` : viewImageLabel}
-        >
-          <RemoteImage
-            source={{ uri: img.url }}
-            style={[
-              styles.figureImage,
-              img.width && img.height ? { aspectRatio: img.width / img.height } : null,
-            ]}
-            resizeMode="cover"
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          />
-          {img.caption ? <Text style={styles.figureCaption}>{img.caption}</Text> : null}
-        </Pressable>
-      ))}
 
       {section.tables?.map((table, tIndex) => {
         // Stretch the columns to fill the content width when there are few of
@@ -1437,9 +1454,11 @@ function SectionBlock({
         );
       })}
 
-      {section.paragraphs.map((paragraph, pIndex) =>
-        isLinkList(paragraph) ? (
-          <View key={pIndex} style={styles.chipGrid}>
+      {section.paragraphs.map((paragraph, pIndex) => (
+        <Fragment key={pIndex}>
+          {imagesBefore(pIndex)}
+          {isLinkList(paragraph) ? (
+          <View style={styles.chipGrid}>
             {paragraph.runs
               .filter((r) => r.linkTargetId)
               .map((run, rIndex) => (
@@ -1455,7 +1474,7 @@ function SectionBlock({
               ))}
           </View>
         ) : (
-          <Text key={pIndex} style={styles.paragraph}>
+          <Text style={styles.paragraph}>
             {paragraph.runs.map((run, rIndex) =>
               run.swatch ? (
                 <Text key={rIndex}>
@@ -1479,8 +1498,10 @@ function SectionBlock({
               ),
             )}
           </Text>
-        ),
-      )}
+          )}
+        </Fragment>
+      ))}
+      {trailingImages}
       </>
       )}
     </View>

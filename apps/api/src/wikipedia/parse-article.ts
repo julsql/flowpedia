@@ -284,7 +284,8 @@ export function parseArticleSections(html: string, leadTitle: string): ArticleSe
       // handled by the summary card, so figures in the intro are skipped.
       const image = figureImage(node);
       if (image) {
-        (current.images ??= []).push(image);
+        // Remember how many paragraphs came before it, to place it inline.
+        (current.images ??= []).push({ ...image, afterParagraph: current.paragraphs.length });
       }
     } else if (!skip && tag === "table" && isContentNode(node)) {
       // Content tables (e.g. the per-month list on a "Deaths in 2026" page).
