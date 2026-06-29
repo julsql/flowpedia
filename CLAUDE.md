@@ -110,6 +110,8 @@ the seeds; shown ids accumulate in `exclude`.
 ## Conventions
 
 - Conventional Commits, messages in English (`feat:`, `fix:`, `chore:`…).
+- While in active development, end every completed user story with a commit **and**
+  a push — don't leave the work uncommitted.
 - Prettier, 100-char width.
 - Wikipedia content is **CC BY-SA** — keep the source link visible in the UI; a
   valid `User-Agent` is mandatory for all Wikimedia calls.
