@@ -45,19 +45,21 @@ export default function ConversationScreen() {
   }, [load, lastEventAt]);
 
   return (
-    <AuthScaffold title={displayName}>
-      <Pressable
-        onPress={() => router.push(`/u/${username}`)}
-        style={styles.profileHeader}
-        accessibilityRole="link"
-        accessibilityLabel={t("conversation.openProfile")}
-      >
-        <LetterThumb text={displayName} style={styles.avatar} fontSize={18} />
-        <Text style={styles.profileName} numberOfLines={1}>
-          {displayName}
-        </Text>
-      </Pressable>
-
+    <AuthScaffold
+      headerContent={
+        <Pressable
+          onPress={() => router.push(`/u/${username}`)}
+          style={styles.profileHeader}
+          accessibilityRole="link"
+          accessibilityLabel={t("conversation.openProfile")}
+        >
+          <LetterThumb text={displayName} style={styles.avatar} fontSize={16} />
+          <Text style={styles.profileName} numberOfLines={1}>
+            {displayName}
+          </Text>
+        </Pressable>
+      }
+    >
       {loading ? (
         <ActivityIndicator color={colors.accent} style={{ marginTop: 40 }} />
       ) : messages.length === 0 ? (
@@ -111,15 +113,14 @@ export default function ConversationScreen() {
 function makeStyles(colors: ThemeColors) {
   return StyleSheet.create({
     profileHeader: {
+      flex: 1,
       flexDirection: "row",
       alignItems: "center",
       gap: 10,
-      alignSelf: "flex-start",
-      marginBottom: 12,
       minHeight: 44,
     },
-    avatar: { width: 40, height: 40, borderRadius: 20 },
-    profileName: { color: colors.textPrimary, fontSize: 16, fontWeight: "700" },
+    avatar: { width: 36, height: 36, borderRadius: 18 },
+    profileName: { flex: 1, color: colors.textPrimary, fontSize: 17, fontWeight: "700" },
     empty: { color: colors.textTertiary, fontSize: 15, textAlign: "center", marginTop: 40 },
     thread: { gap: 10 },
     bubble: {

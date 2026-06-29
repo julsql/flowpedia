@@ -16,16 +16,25 @@ import { ScreenContainer, centeredColumn } from "./ScreenContainer";
 import { useLocale } from "../i18n";
 
 interface AuthScaffoldProps {
-  title: string;
+  title?: string;
   subtitle?: string;
   children: ReactNode;
+  /** Custom content rendered inline in the top bar, next to the back arrow.
+   *  When set, the large page title is omitted (the bar carries the heading). */
+  headerContent?: ReactNode;
   /** Footer area (secondary links). */
   footer?: ReactNode;
 }
 
 /** Shared chrome for the auth screens: back button, title/subtitle, keyboard-safe
  *  scroll. Keeps every form visually and a11y-consistent. */
-export function AuthScaffold({ title, subtitle, children, footer }: AuthScaffoldProps) {
+export function AuthScaffold({
+  title,
+  subtitle,
+  children,
+  headerContent,
+  footer,
+}: AuthScaffoldProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors } = useTheme();
@@ -44,6 +53,7 @@ export function AuthScaffold({ title, subtitle, children, footer }: AuthScaffold
         >
           <MaterialIcons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
+        {headerContent ? <View style={styles.headerContent}>{headerContent}</View> : null}
       </View>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -54,9 +64,11 @@ export function AuthScaffold({ title, subtitle, children, footer }: AuthScaffold
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.title} accessibilityRole="header">
-            {title}
-          </Text>
+          {title ? (
+            <Text style={styles.title} accessibilityRole="header">
+              {title}
+            </Text>
+          ) : null}
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           <View style={styles.form}>{children}</View>
           {footer ? <View style={styles.footer}>{footer}</View> : null}
@@ -69,7 +81,8 @@ export function AuthScaffold({ title, subtitle, children, footer }: AuthScaffold
 function makeStyles(colors: ThemeColors) {
   return StyleSheet.create({
     flex: { flex: 1 },
-    header: { height: 44, justifyContent: "center" },
+    header: { minHeight: 44, flexDirection: "row", alignItems: "center" },
+    headerContent: { flex: 1 },
     backBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
     scroll: { paddingHorizontal: 20, paddingBottom: 40, gap: 8 },
     title: { color: colors.textPrimary, fontSize: 26, fontWeight: "800", marginTop: 8 },
