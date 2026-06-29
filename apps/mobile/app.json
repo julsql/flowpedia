@@ -20,6 +20,7 @@
     },
     "android": {
       "package": "fr.julsql.flowpedia",
+      "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
