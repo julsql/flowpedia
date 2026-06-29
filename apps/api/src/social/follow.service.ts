@@ -8,6 +8,7 @@ import { In, type Repository } from "typeorm";
 import type { FollowResult, FollowState, ProfileView, PublicUser } from "@flowpedia/shared";
 import { DatabaseService } from "../database/database.service";
 import { User } from "../auth/user.entity";
+import { NotificationsService } from "../notifications/notifications.service";
 import { Follow } from "./follow.entity";
 
 function toPublic(u: User): PublicUser {
@@ -18,7 +19,10 @@ function toPublic(u: User): PublicUser {
  *  following lists, pending requests, and privacy-aware public profiles. */
 @Injectable()
 export class FollowService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   private users(): Repository<User> {
     const repo = this.db.repo(User);
@@ -60,6 +64,12 @@ export class FollowService {
     }
     const status = target.isPrivate ? "pending" : "active";
     await repo.insert({ followerId: viewerId, followingId: target.id, status });
+    // Notify the target: a request to approve (private) or a new follower (public).
+    await this.notifications.notify({
+      recipientId: target.id,
+      actorId: viewerId,
+      type: status === "pending" ? "follow_request" : "follower",
+    });
     return { state: status as FollowState };
   }
 
@@ -77,10 +87,18 @@ export class FollowService {
 
   async acceptRequest(viewerId: string, username: string): Promise<void> {
     const follower = await this.requireUser(username);
-    await this.follows().update(
+    const result = await this.follows().update(
       { followerId: follower.id, followingId: viewerId, status: "pending" },
       { status: "active" },
     );
+    // Only notify when a pending request was actually approved.
+    if (result.affected) {
+      await this.notifications.notify({
+        recipientId: follower.id,
+        actorId: viewerId,
+        type: "follow_accepted",
+      });
+    }
   }
 
   async rejectRequest(viewerId: string, username: string): Promise<void> {

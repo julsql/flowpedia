@@ -26,6 +26,9 @@ import { Interaction } from "../events/interaction.entity";
 import { LibraryItem } from "../library/library-item.entity";
 import { Follow } from "../social/follow.entity";
 import { Story } from "../stories/story.entity";
+import { Notification } from "../notifications/notification.entity";
+import { PushToken } from "../notifications/push-token.entity";
+import { PageMessage } from "../messages/page-message.entity";
 import { User } from "./user.entity";
 import {
   assertValidEmail,
@@ -239,6 +242,11 @@ export class AuthService {
     await this.db.repo(Follow)?.delete({ followerId: userId });
     await this.db.repo(Follow)?.delete({ followingId: userId });
     await this.db.repo(Story)?.delete({ userId });
+    await this.db.repo(Notification)?.delete({ recipientId: userId });
+    await this.db.repo(Notification)?.delete({ actorId: userId });
+    await this.db.repo(PushToken)?.delete({ userId });
+    await this.db.repo(PageMessage)?.delete({ fromUserId: userId });
+    await this.db.repo(PageMessage)?.delete({ toUserId: userId });
   }
 
   private authResponse(user: User): AuthResponse {

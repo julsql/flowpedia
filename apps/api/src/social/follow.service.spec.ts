@@ -55,9 +55,10 @@ function makeService() {
   const db = {
     repo: (e: unknown) => (e === User ? userRepo : e === Follow ? followRepo : undefined),
   };
+  const notifications = { notify: jest.fn(async () => undefined) };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const service = new FollowService(db as any);
-  return { service, addUser, followRepo };
+  const service = new FollowService(db as any, notifications as any);
+  return { service, addUser, followRepo, notifications };
 }
 
 describe("FollowService", () => {

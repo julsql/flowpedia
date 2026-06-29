@@ -3,5 +3,7 @@ export * from "./types/feed";
 export * from "./types/interaction";
 export * from "./types/interest";
 export * from "./types/auth";
+export * from "./types/notification";
+export * from "./types/message";
 export * from "./design/tokens";
 export * from "./topics";

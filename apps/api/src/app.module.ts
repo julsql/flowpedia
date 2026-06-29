@@ -14,6 +14,8 @@ import { InterestsModule } from "./interests/interests.module";
 import { LibraryModule } from "./library/library.module";
 import { SocialModule } from "./social/social.module";
 import { StoriesModule } from "./stories/stories.module";
+import { NotificationsModule } from "./notifications/notifications.module";
+import { MessagesModule } from "./messages/messages.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -33,6 +35,8 @@ import { HealthController } from "./health/health.controller";
     LibraryModule,
     SocialModule,
     StoriesModule,
+    NotificationsModule,
+    MessagesModule,
   ],
   controllers: [HealthController],
 })

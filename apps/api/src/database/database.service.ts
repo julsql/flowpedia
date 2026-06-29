@@ -6,10 +6,22 @@ import { User } from "../auth/user.entity";
 import { LibraryItem } from "../library/library-item.entity";
 import { Follow } from "../social/follow.entity";
 import { Story } from "../stories/story.entity";
+import { Notification } from "../notifications/notification.entity";
+import { PushToken } from "../notifications/push-token.entity";
+import { PageMessage } from "../messages/page-message.entity";
 
 // Every persisted entity is registered here so a single connection (and a single
 // `synchronize`) owns the schema. Add new entities to this list.
-const ENTITIES = [Interaction, User, LibraryItem, Follow, Story];
+const ENTITIES = [
+  Interaction,
+  User,
+  LibraryItem,
+  Follow,
+  Story,
+  Notification,
+  PushToken,
+  PageMessage,
+];
 
 /**
  * One shared Postgres connection for the whole API. Mirrors the project's
