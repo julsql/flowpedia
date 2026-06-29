@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import type { SentPageItem } from "@flowpedia/shared";
 import { AuthScaffold } from "../src/components/AuthScaffold";
-import { fetchInbox, markPageRead, proxiedImageUrl } from "../src/api/client";
+import { RemoteImage } from "../src/components/RemoteImage";
+import { fetchInbox, markPageRead } from "../src/api/client";
 import { useLocale } from "../src/i18n";
 import { radii, useTheme, type ThemeColors } from "../src/theme";
 
@@ -52,8 +53,8 @@ export default function InboxScreen() {
               })}`}
             >
               {item.image ? (
-                <Image
-                  source={{ uri: proxiedImageUrl(item.image) }}
+                <RemoteImage
+                  source={{ uri: item.image }}
                   style={styles.thumb}
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"

@@ -214,5 +214,9 @@
   "conversations.you": "Vous : ",
   "conversation.empty": "Aucune page échangée pour l'instant.",
   "conversation.openProfile": "Voir le profil",
-  "a11y.openConversation": "Ouvrir la conversation avec {{name}}"
+  "a11y.openConversation": "Ouvrir la conversation avec {{name}}",
+  "story.readArticle": "Lire l'article",
+  "a11y.nextStory": "Suivant",
+  "a11y.previousStory": "Précédent",
+  "a11y.closeStories": "Fermer les stories"
 }

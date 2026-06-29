@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import type { ConversationMessage } from "@flowpedia/shared";
 import { AuthScaffold } from "../../src/components/AuthScaffold";
-import { fetchProfile, fetchThread, proxiedImageUrl } from "../../src/api/client";
+import { RemoteImage } from "../../src/components/RemoteImage";
+import { fetchProfile, fetchThread } from "../../src/api/client";
 import { useNotifications } from "../../src/notifications/NotificationProvider";
 import { useLocale } from "../../src/i18n";
 import { radii, useTheme, type ThemeColors } from "../../src/theme";
@@ -73,8 +74,8 @@ export default function ConversationScreen() {
               accessibilityLabel={m.title ?? m.articleId}
             >
               {m.image ? (
-                <Image
-                  source={{ uri: proxiedImageUrl(m.image) }}
+                <RemoteImage
+                  source={{ uri: m.image }}
                   style={styles.thumb}
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"

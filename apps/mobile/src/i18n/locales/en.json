@@ -216,5 +216,9 @@
   "conversations.you": "You: ",
   "conversation.empty": "No pages exchanged yet.",
   "conversation.openProfile": "View profile",
-  "a11y.openConversation": "Open conversation with {{name}}"
+  "a11y.openConversation": "Open conversation with {{name}}",
+  "story.readArticle": "Read article",
+  "a11y.nextStory": "Next",
+  "a11y.previousStory": "Previous",
+  "a11y.closeStories": "Close stories"
 }

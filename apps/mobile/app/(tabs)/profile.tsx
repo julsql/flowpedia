@@ -12,7 +12,6 @@ import { useAuth } from "../../src/auth/AuthProvider";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { TextLink } from "../../src/components/TextLink";
 import { useLibrary } from "../../src/library/LibraryProvider";
-import { useUser } from "../../src/user/UserProvider";
 import { LOCALE_LABELS, SUPPORTED_LOCALES, useLocale, type TranslationKey } from "../../src/i18n";
 
 const THEME_OPTIONS: { mode: ThemeMode; label: TranslationKey }[] = [
@@ -39,7 +38,6 @@ export default function ProfileScreen() {
   const { colors, mode, setMode, contrast, setContrast } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale, setLocale } = useLocale();
-  const user = useUser();
   const auth = useAuth();
   const { read, liked, saved, mutedInterests, muteInterest, removeRead, clearRead } = useLibrary();
 
@@ -108,18 +106,24 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, centeredColumn]}
       >
-        {/* Identity */}
+        {/* Identity — real account when signed in, neutral guest otherwise */}
         <View style={styles.identity}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {initials(auth.user?.displayName ?? user.name)}
-            </Text>
-          </View>
-          <Text style={styles.name}>{auth.user?.displayName ?? user.name}</Text>
           {auth.user ? (
-            <Text style={styles.handle}>@{auth.user.username}</Text>
+            <>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials(auth.user.displayName)}</Text>
+              </View>
+              <Text style={styles.name}>{auth.user.displayName}</Text>
+              <Text style={styles.handle}>@{auth.user.username}</Text>
+            </>
           ) : (
-            <Text style={styles.bio}>{t("profile.bio")}</Text>
+            <>
+              <View style={styles.avatar}>
+                <MaterialIcons name="person" size={34} color={colors.mutedLight} />
+              </View>
+              <Text style={styles.name}>{t("auth.guestTitle")}</Text>
+              <Text style={styles.bio}>{t("auth.guestSubtitle")}</Text>
+            </>
           )}
         </View>
 

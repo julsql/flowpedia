@@ -9,7 +9,7 @@ export interface TempUser {
   name: string;
 }
 
-const DEFAULT_NAME = "Jul SQL";
+const DEFAULT_NAME = "Guest";
 
 function createUser(): TempUser {
   const id =
