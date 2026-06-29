@@ -256,6 +256,12 @@ export function fetchStories(): Promise<StoryGroup[]> {
   return requestJson<StoryGroup[]>("/stories", "GET");
 }
 
+/** One user's active stories (null when none / not allowed). Backs the
+ *  "tap a profile avatar to watch their stories" entry point. */
+export function fetchUserStories(username: string): Promise<StoryGroup | null> {
+  return requestJson<StoryGroup | null>(`/stories/u/${encodeURIComponent(username)}`, "GET");
+}
+
 /** In-app notifications (follow requests, accepted requests, new followers, pages). */
 export function fetchNotifications(): Promise<NotificationItem[]> {
   return requestJson<NotificationItem[]>("/notifications", "GET");

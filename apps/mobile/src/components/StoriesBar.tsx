@@ -4,8 +4,14 @@ import { useRouter } from "expo-router";
 import type { StoryGroup } from "@flowpedia/shared";
 import { fetchStories } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
+import { useSeenStories } from "../seen/SeenStoriesProvider";
 import { useLocale } from "../i18n";
 import { useTheme, type ThemeColors } from "../theme";
+
+/** Most recent story timestamp in a group (items come back newest-first). */
+function latestAt(group: StoryGroup): number {
+  return group.items.reduce((max, it) => Math.max(max, Date.parse(it.createdAt) || 0), 0);
+}
 
 function initials(name: string): string {
   return name
@@ -24,6 +30,7 @@ export function StoriesBar() {
   const { t } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { hasUnseen } = useSeenStories();
   const [groups, setGroups] = useState<StoryGroup[]>([]);
 
   useEffect(() => {
@@ -40,6 +47,18 @@ export function StoriesBar() {
     };
   }, [auth.user?.id]);
 
+  // Unseen bubbles first (leftmost), each block ordered by most-recent story.
+  // So a fresh reshare from someone you'd fully seen pops back to the far left
+  // with a colored ring.
+  const ordered = useMemo(() => {
+    return [...groups].sort((a, b) => {
+      const ua = hasUnseen(a) ? 1 : 0;
+      const ub = hasUnseen(b) ? 1 : 0;
+      if (ua !== ub) return ub - ua;
+      return latestAt(b) - latestAt(a);
+    });
+  }, [groups, hasUnseen]);
+
   if (!auth.user || !groups.length) {
     return null;
   }
@@ -51,8 +70,9 @@ export function StoriesBar() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
       >
-        {groups.map((g) => {
+        {ordered.map((g) => {
           const isSelf = g.user.id === auth.user!.id;
+          const unseen = hasUnseen(g);
           return (
             <Pressable
               key={g.user.id}
@@ -61,7 +81,7 @@ export function StoriesBar() {
               accessibilityRole="button"
               accessibilityLabel={t("a11y.openStory", { name: g.user.displayName })}
             >
-              <View style={styles.ring}>
+              <View style={[styles.ring, unseen ? styles.ringUnseen : styles.ringSeen]}>
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>{initials(g.user.displayName)}</Text>
                 </View>
@@ -87,10 +107,12 @@ function makeStyles(colors: ThemeColors) {
       height: 64,
       borderRadius: 32,
       borderWidth: 2,
-      borderColor: colors.accent,
       alignItems: "center",
       justifyContent: "center",
     },
+    // Colored ring = has unseen stories; muted ring = everything watched.
+    ringUnseen: { borderColor: colors.accent },
+    ringSeen: { borderColor: colors.separatorThick },
     avatar: {
       width: 56,
       height: 56,

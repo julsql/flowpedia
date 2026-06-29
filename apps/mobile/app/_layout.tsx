@@ -12,6 +12,7 @@ import { AuthProvider } from "../src/auth/AuthProvider";
 import { NotificationsProvider } from "../src/notifications/NotificationProvider";
 import { LibraryProvider } from "../src/library/LibraryProvider";
 import { SeenProvider } from "../src/seen/SeenProvider";
+import { SeenStoriesProvider } from "../src/seen/SeenStoriesProvider";
 import { SearchHistoryProvider } from "../src/search/SearchHistoryProvider";
 import { ShareSheetProvider } from "../src/share/ShareSheetProvider";
 
@@ -54,11 +55,13 @@ export default function RootLayout() {
             <NotificationsProvider>
             <LibraryProvider>
               <SeenProvider>
-                <SearchHistoryProvider>
-                  <ShareSheetProvider>
-                    <ThemedNavigation />
-                  </ShareSheetProvider>
-                </SearchHistoryProvider>
+                <SeenStoriesProvider>
+                  <SearchHistoryProvider>
+                    <ShareSheetProvider>
+                      <ThemedNavigation />
+                    </ShareSheetProvider>
+                  </SearchHistoryProvider>
+                </SeenStoriesProvider>
               </SeenProvider>
             </LibraryProvider>
             </NotificationsProvider>

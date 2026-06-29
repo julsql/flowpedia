@@ -6,8 +6,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { StoryGroup } from "@flowpedia/shared";
 import { RemoteImage } from "../../src/components/RemoteImage";
+import { colorForText } from "../../src/components/LetterThumb";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
-import { fetchStories } from "../../src/api/client";
+import { fetchUserStories } from "../../src/api/client";
+import { useSeenStories } from "../../src/seen/SeenStoriesProvider";
 import { useLocale } from "../../src/i18n";
 import { useTheme, type ThemeColors } from "../../src/theme";
 
@@ -20,22 +22,32 @@ export default function StoryViewerScreen() {
   const { t } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { isStorySeen, markStorySeen } = useSeenStories();
   const params = useLocalSearchParams<{ username?: string }>();
   const username = String(params.username ?? "");
 
   const [group, setGroup] = useState<StoryGroup | null>(null);
   const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
+  const started = useRef(false);
   const progress = useRef(new Animated.Value(0)).current;
 
-  const items = group?.items ?? [];
+  // Oldest first → newest last (Instagram order); the newest are the unseen ones
+  // you resume at.
+  const items = useMemo(
+    () =>
+      [...(group?.items ?? [])].sort(
+        (a, b) => (Date.parse(a.createdAt) || 0) - (Date.parse(b.createdAt) || 0),
+      ),
+    [group],
+  );
 
   useEffect(() => {
     let active = true;
-    fetchStories()
-      .then((groups) => {
+    fetchUserStories(username)
+      .then((g) => {
         if (!active) return;
-        setGroup(groups.find((g) => g.user.username === username) ?? null);
+        setGroup(g);
         setLoading(false);
       })
       .catch(() => active && setLoading(false));
@@ -43,6 +55,21 @@ export default function StoryViewerScreen() {
       active = false;
     };
   }, [username]);
+
+  // Once loaded, resume at the first unseen story (fall back to the start when
+  // everything was already watched).
+  useEffect(() => {
+    if (started.current || !items.length) return;
+    started.current = true;
+    const firstUnseen = items.findIndex((it) => !isStorySeen(it.id));
+    setIndex(firstUnseen === -1 ? 0 : firstUnseen);
+  }, [items, isStorySeen]);
+
+  // Mark the story on screen as watched.
+  useEffect(() => {
+    const it = items[index];
+    if (it) markStorySeen(it.id);
+  }, [index, items, markStorySeen]);
 
   const close = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -105,7 +132,19 @@ export default function StoryViewerScreen() {
             {current.image ? (
               <RemoteImage source={{ uri: current.image }} style={StyleSheet.absoluteFill} noBackdrop />
             ) : (
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  styles.coloredBg,
+                  { backgroundColor: colorForText(current.title ?? current.articleId) },
+                ]}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <Text style={styles.bgTitle} numberOfLines={6}>
+                  {current.title ?? current.articleId}
+                </Text>
+              </View>
             )}
             {/* Legibility scrims top & bottom. */}
             <LinearGradient
@@ -203,6 +242,16 @@ function makeStyles(colors: ThemeColors) {
       marginHorizontal: "auto",
       overflow: "hidden",
       backgroundColor: "#000",
+    },
+    // No-image story: fill with a color derived from the title, with the title
+    // faded large in the background (the readable copy still sits in the footer).
+    coloredBg: { alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
+    bgTitle: {
+      color: "rgba(255,255,255,0.18)",
+      fontSize: 44,
+      fontWeight: "900",
+      textAlign: "center",
+      lineHeight: 50,
     },
     emptyBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
     empty: { color: "#bbb", fontSize: 15 },

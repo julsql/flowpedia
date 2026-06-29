@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import type { FollowState, ProfileView } from "@flowpedia/shared";
+import type { FollowState, ProfileView, StoryGroup } from "@flowpedia/shared";
 import { AuthScaffold } from "../../src/components/AuthScaffold";
 import { FollowButton } from "../../src/components/FollowButton";
-import { fetchProfile } from "../../src/api/client";
+import { fetchProfile, fetchUserStories } from "../../src/api/client";
+import { useSeenStories } from "../../src/seen/SeenStoriesProvider";
 import { useLocale } from "../../src/i18n";
 import { useTheme, type ThemeColors } from "../../src/theme";
 
@@ -26,15 +27,21 @@ export default function UserProfileScreen() {
   const params = useLocalSearchParams<{ username?: string }>();
   const username = String(params.username ?? "");
 
+  const { hasUnseen } = useSeenStories();
   const [view, setView] = useState<ProfileView | null>(null);
+  const [story, setStory] = useState<StoryGroup | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setStory(null);
     fetchProfile(username)
       .then((v) => active && (setView(v), setLoading(false)))
       .catch(() => active && setLoading(false));
+    fetchUserStories(username)
+      .then((g) => active && setStory(g))
+      .catch(() => undefined);
     return () => {
       active = false;
     };
@@ -55,9 +62,22 @@ export default function UserProfileScreen() {
       ) : (
         <>
           <View style={styles.identity}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials(view.user.displayName)}</Text>
-            </View>
+            {story ? (
+              <Pressable
+                onPress={() => router.push(`/stories/${view.user.username}`)}
+                style={[styles.avatarRing, hasUnseen(story) ? styles.ringUnseen : styles.ringSeen]}
+                accessibilityRole="button"
+                accessibilityLabel={t("a11y.openStory", { name: view.user.displayName })}
+              >
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{initials(view.user.displayName)}</Text>
+                </View>
+              </Pressable>
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials(view.user.displayName)}</Text>
+              </View>
+            )}
             <Text style={styles.name}>{view.user.displayName}</Text>
             {view.followsYou ? (
               <Text style={styles.followsYou}>{t("social.followsYou")}</Text>
@@ -127,6 +147,17 @@ function makeStyles(colors: ThemeColors) {
   return StyleSheet.create({
     loader: { marginTop: 40 },
     identity: { alignItems: "center", gap: 8 },
+    // Tappable story ring around the avatar (colored = unseen, muted = all seen).
+    avatarRing: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      borderWidth: 3,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    ringUnseen: { borderColor: colors.accent },
+    ringSeen: { borderColor: colors.separatorThick },
     avatar: {
       width: 84,
       height: 84,

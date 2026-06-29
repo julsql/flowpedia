@@ -3,12 +3,13 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-nat
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { Interest, ProfileView } from "@flowpedia/shared";
+import type { Interest, ProfileView, StoryGroup } from "@flowpedia/shared";
 import { radii, spacing, useTheme, type ThemeColors, type ThemeMode } from "../../src/theme";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
-import { fetchInterests, fetchProfile } from "../../src/api/client";
+import { fetchInterests, fetchProfile, fetchUserStories } from "../../src/api/client";
 import { useAuth } from "../../src/auth/AuthProvider";
+import { useSeenStories } from "../../src/seen/SeenStoriesProvider";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { TextLink } from "../../src/components/TextLink";
 import { useLibrary } from "../../src/library/LibraryProvider";
@@ -39,6 +40,7 @@ export default function ProfileScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale, setLocale } = useLocale();
   const auth = useAuth();
+  const { hasUnseen } = useSeenStories();
   const { read, liked, saved, mutedInterests, muteInterest, removeRead, clearRead } = useLibrary();
 
   // Which list (history / liked / saved) is expanded under the stats, if any.
@@ -75,8 +77,9 @@ export default function ProfileScreen() {
     return interests.filter((i) => !muted.has(i.id));
   }, [interests, mutedInterests]);
 
-  // Own follower/following counts (only when signed in).
+  // Own follower/following counts + active story (only when signed in).
   const [ownProfile, setOwnProfile] = useState<ProfileView | null>(null);
+  const [ownStory, setOwnStory] = useState<StoryGroup | null>(null);
   useEffect(() => {
     if (!auth.user) {
       setOwnProfile(null);
@@ -85,6 +88,9 @@ export default function ProfileScreen() {
     let active = true;
     fetchProfile(auth.user.username)
       .then((p) => active && setOwnProfile(p))
+      .catch(() => undefined);
+    fetchUserStories(auth.user.username)
+      .then((g) => active && setOwnStory(g))
       .catch(() => undefined);
     return () => {
       active = false;
@@ -110,9 +116,25 @@ export default function ProfileScreen() {
         <View style={styles.identity}>
           {auth.user ? (
             <>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initials(auth.user.displayName)}</Text>
-              </View>
+              {ownStory ? (
+                <Pressable
+                  onPress={() => router.push(`/stories/${auth.user!.username}`)}
+                  style={[
+                    styles.avatarRing,
+                    hasUnseen(ownStory) ? styles.ringUnseen : styles.ringSeen,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("a11y.openStory", { name: auth.user.displayName })}
+                >
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>{initials(auth.user.displayName)}</Text>
+                  </View>
+                </Pressable>
+              ) : (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{initials(auth.user.displayName)}</Text>
+                </View>
+              )}
               <Text style={styles.name}>{auth.user.displayName}</Text>
               <Text style={styles.handle}>@{auth.user.username}</Text>
             </>
@@ -473,6 +495,17 @@ const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     scroll: { paddingHorizontal: spacing.screenPadding, paddingBottom: 32 },
     identity: { alignItems: "center", marginBottom: 24 },
+    // Tappable story ring around the avatar (colored = unseen, muted = all seen).
+    avatarRing: {
+      width: 84,
+      height: 84,
+      borderRadius: 42,
+      borderWidth: 3,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    ringUnseen: { borderColor: colors.accent },
+    ringSeen: { borderColor: colors.separatorThick },
     avatar: {
       width: 72,
       height: 72,

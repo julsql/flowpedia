@@ -36,6 +36,7 @@ function fakeRepo() {
       }
       return out;
     },
+    findOne: async ({ where }: { where: Row }) => rows.find((r) => matches(r, where)) ?? null,
     delete: async (where: Row) => {
       for (let i = rows.length - 1; i >= 0; i -= 1) if (matches(rows[i], where)) rows.splice(i, 1);
       return {};
@@ -52,7 +53,7 @@ function makeService(following: string[] = []) {
   const follows = { followingIds: async () => following };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = new StoriesService(db as any, follows as any);
-  return { service, storyRepo, addUser };
+  return { service, storyRepo, userRepo, addUser };
 }
 
 describe("StoriesService", () => {
@@ -93,5 +94,43 @@ describe("StoriesService", () => {
     const { service, addUser } = makeService([]);
     addUser("me");
     expect(await service.feed("me")).toEqual([]);
+  });
+
+  describe("userFeed", () => {
+    it("returns a public author's active stories to anyone", async () => {
+      const { service, storyRepo, addUser } = makeService([]);
+      addUser("alice");
+      const now = Date.now();
+      storyRepo.rows.push(
+        { id: "1", userId: "alice", articleId: "X", title: "X", image: null, createdAt: new Date(now - 1000) },
+        { id: "2", userId: "alice", articleId: "OLD", title: "o", image: null, createdAt: new Date(now - 25 * 3600 * 1000) },
+      );
+      const group = await service.userFeed("viewer", "alice");
+      expect(group?.user.username).toBe("alice");
+      expect(group?.items.map((i) => i.articleId)).toEqual(["X"]); // OLD excluded
+    });
+
+    it("hides a private author's stories from a non-follower, shows them to a follower", async () => {
+      const build = (following: string[]) => {
+        const { service, storyRepo, userRepo } = makeService(following);
+        userRepo.rows.push({ id: "priv", username: "priv", displayName: "Priv", isPrivate: true });
+        storyRepo.rows.push({
+          id: "1", userId: "priv", articleId: "X", title: "X", image: null, createdAt: new Date(),
+        });
+        return service;
+      };
+      // Viewer does not follow priv → blocked.
+      expect(await build([]).userFeed("viewer", "priv")).toBeNull();
+      // Viewer follows priv → allowed.
+      const group = await build(["priv"]).userFeed("viewer", "priv");
+      expect(group?.items.map((i) => i.articleId)).toEqual(["X"]);
+    });
+
+    it("returns null for an unknown user or one without active stories", async () => {
+      const { service, addUser } = makeService([]);
+      addUser("alice");
+      expect(await service.userFeed("viewer", "ghost")).toBeNull();
+      expect(await service.userFeed("viewer", "alice")).toBeNull(); // no stories
+    });
   });
 });

@@ -14,6 +14,14 @@ export class StoriesController {
     return this.stories.feed(me.id);
   }
 
+  @Get("u/:username")
+  userFeed(
+    @CurrentUser() me: AuthPrincipal,
+    @Param("username") username: string,
+  ): Promise<StoryGroup | null> {
+    return this.stories.userFeed(me.id, username);
+  }
+
   @Post()
   @HttpCode(204)
   create(@CurrentUser() me: AuthPrincipal, @Body() body: CreateStoryRequest): Promise<void> {

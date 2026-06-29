@@ -92,4 +92,51 @@ export class StoriesService {
     // ordered by most-recent story first.
     return [...groups.values()];
   }
+
+  /** A single author's active (≤24h) stories, if the viewer is allowed to see
+   *  them (self, public account, or an active follower). Returns null when the
+   *  user is unknown, private-and-not-followed, or has no active story. Powers
+   *  the "tap a profile avatar to watch their stories" entry point. */
+  async userFeed(viewerId: string, username: string): Promise<StoryGroup | null> {
+    const userRepo = this.db.repo(User);
+    if (!userRepo) {
+      return null;
+    }
+    const target = await userRepo.findOne({ where: { username } });
+    if (!target) {
+      return null;
+    }
+    const allowed =
+      target.id === viewerId ||
+      !target.isPrivate ||
+      (await this.follows.followingIds(viewerId)).includes(target.id);
+    if (!allowed) {
+      return null;
+    }
+
+    const cutoff = new Date(Date.now() - STORY_TTL_MS);
+    const rows = await this.stories().find({
+      where: { userId: target.id, createdAt: MoreThan(cutoff) },
+      order: { createdAt: "DESC" },
+    });
+    if (!rows.length) {
+      return null;
+    }
+
+    return {
+      user: {
+        id: target.id,
+        username: target.username,
+        displayName: target.displayName,
+        isPrivate: target.isPrivate,
+      },
+      items: rows.map((row) => ({
+        id: row.id,
+        articleId: row.articleId,
+        title: row.title ?? undefined,
+        image: row.image ?? undefined,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    };
+  }
 }
