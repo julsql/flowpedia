@@ -102,7 +102,11 @@ export default function ArticleScreen() {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   // Tapped section image shown full-size in a lightbox (with its caption).
-  const [lightbox, setLightbox] = useState<{ url: string; caption?: string } | null>(null);
+  const [lightbox, setLightbox] = useState<{
+    url: string;
+    caption?: string;
+    marker?: { top: number; left: number; ratio: number };
+  } | null>(null);
   // A slim secondary header carrying the page title slides in below the summary
   // bar when the reader scrolls up (mid-page), and retracts when scrolling down.
   const subHeaderAnim = useRef(new Animated.Value(0)).current;
@@ -118,7 +122,7 @@ export default function ArticleScreen() {
 
   // On a wide web window the table of contents sits in a fixed sidebar on the
   // right (easier to use); on mobile / narrow web it stays a horizontal bar.
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const tocAsSidebar =
     Platform.OS === "web" && windowWidth >= CONTENT_MAX_WIDTH + 2 * (TOC_WIDTH + TOC_GAP);
   const tocRightOffset = (windowWidth - CONTENT_MAX_WIDTH) / 2 - TOC_WIDTH - TOC_GAP;
@@ -538,7 +542,9 @@ export default function ArticleScreen() {
             <InfoCard
               article={a}
               colors={colors}
-              onImagePress={(url, caption) => setLightbox({ url: largeImageUrl(url), caption })}
+              onImagePress={(url, caption, marker) =>
+                setLightbox({ url: largeImageUrl(url), caption, marker })
+              }
             />
             {a.charts?.map((chart, i) => (
               <PieChartCard key={`chart-${i}`} chart={chart} colors={colors} />
@@ -560,7 +566,9 @@ export default function ArticleScreen() {
               matchOffset={findActive ? matchOffsets[item.index] ?? 0 : 0}
               activeMatch={activeMatch}
               onLinkPress={openLink}
-              onImagePress={(url, caption) => setLightbox({ url: largeImageUrl(url), caption })}
+              onImagePress={(url, caption, marker) =>
+                setLightbox({ url: largeImageUrl(url), caption, marker })
+              }
               onReadSection={readFromSection}
               canRead={speechAvailable}
               isReading={currentSectionId === item.section.id}
@@ -1011,13 +1019,49 @@ export default function ArticleScreen() {
         >
           {lightbox ? (
             <>
-              <RemoteImage
-                source={{ uri: lightbox.url }}
-                style={styles.lightboxImage}
-                resizeMode="contain"
-                noBackdrop
-                accessibilityLabel={lightbox.caption ?? article?.title}
-              />
+              {lightbox.marker ? (
+                // Locator map: size the box to the image's exact aspect ratio
+                // (fit within the screen) so the pin can be positioned by % over
+                // the now box-filling image — no letterboxing to throw it off.
+                (() => {
+                  const ratio = lightbox.marker.ratio || 1;
+                  const maxW = windowWidth * 0.94;
+                  const maxH = windowHeight * 0.78;
+                  let w = maxW;
+                  let h = w / ratio;
+                  if (h > maxH) {
+                    h = maxH;
+                    w = h * ratio;
+                  }
+                  return (
+                    <View style={{ width: w, height: h, position: "relative" }}>
+                      <RemoteImage
+                        source={{ uri: lightbox.url }}
+                        style={styles.lightboxMapImage}
+                        resizeMode="contain"
+                        noBackdrop
+                        accessibilityLabel={lightbox.caption ?? article?.title}
+                      />
+                      <View
+                        style={[
+                          styles.lightboxPin,
+                          { top: `${lightbox.marker.top}%`, left: `${lightbox.marker.left}%` },
+                        ]}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
+                      />
+                    </View>
+                  );
+                })()
+              ) : (
+                <RemoteImage
+                  source={{ uri: lightbox.url }}
+                  style={styles.lightboxImage}
+                  resizeMode="contain"
+                  noBackdrop
+                  accessibilityLabel={lightbox.caption ?? article?.title}
+                />
+              )}
               {lightbox.caption ? (
                 <Text style={styles.lightboxCaption}>{lightbox.caption}</Text>
               ) : null}
@@ -1055,7 +1099,11 @@ interface SectionBlockProps {
   /** Index of the currently focused match across the whole article. */
   activeMatch: number;
   onLinkPress: (targetId: string) => void;
-  onImagePress: (url: string, caption?: string) => void;
+  onImagePress: (
+    url: string,
+    caption?: string,
+    marker?: { top: number; left: number; ratio: number },
+  ) => void;
   /** Start reading aloud from this section. */
   onReadSection: (sectionId: string) => void;
   /** Whether TTS is available (hides the per-section "read from here" button). */
@@ -1407,6 +1455,19 @@ const makeStyles = (colors: ThemeColors) =>
     justifyContent: "center",
   },
   lightboxImage: { width: "100%", height: "78%" },
+  lightboxMapImage: { width: "100%", height: "100%" },
+  // Place marker over the enlarged locator map (bigger than the thumbnail pin).
+  lightboxPin: {
+    position: "absolute",
+    width: 22,
+    height: 22,
+    marginTop: -11,
+    marginLeft: -11,
+    borderRadius: 11,
+    backgroundColor: colors.accent,
+    borderWidth: 3,
+    borderColor: "#fff",
+  },
   lightboxCaption: {
     color: "rgba(255,255,255,0.9)",
     fontSize: 13,

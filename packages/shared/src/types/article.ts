@@ -103,11 +103,30 @@ export interface ArticleInfobox {
    * Position of the place marker (pin) over the locator map, as percentages
    * (0–100) of the map's width/height — Wikipedia draws it as a CSS-positioned
    * overlay, so we keep the coordinates and redraw the dot in the app. Absent
-   * when the map has no marker (e.g. a plain region outline).
+   * when the map has no marker (e.g. a plain region outline). Mirrors `maps[0]`
+   * for older clients/cache.
    */
   mapMarkerTop?: number;
   mapMarkerLeft?: number;
+  /**
+   * All locator maps the page offers (country, region, département…), each with
+   * its own marker — so the app can let the user switch the framing. `maps[0]`
+   * is the default and matches the `mapImage`/`mapMarker*` fields above.
+   */
+  maps?: ArticleLocatorMap[];
   rows: InfoboxRow[];
+}
+
+/** One selectable locator map: the place shown within a given area. */
+export interface ArticleLocatorMap {
+  image: string;
+  width?: number;
+  height?: number;
+  /** Pin position as percentages (0–100) of the map, when the map has one. */
+  markerTop?: number;
+  markerLeft?: number;
+  /** Area name for the switcher (e.g. "France", "Bourgogne-Franche-Comté"). */
+  label?: string;
 }
 
 /**

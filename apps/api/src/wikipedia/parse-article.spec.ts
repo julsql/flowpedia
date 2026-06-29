@@ -657,6 +657,31 @@ describe("parseInfobox — locator map", () => {
     expect(box?.mapMarkerTop).toBeCloseTo(45.9497, 2);
     expect(box?.mapMarkerLeft).toBeCloseTo(71.8636, 2);
   });
+
+  it("collects several framings (France/département) with labels, deduped", () => {
+    const geobox = (area: string, file: string, top: string, left: string) => `
+      <div class="geobox">
+        <div><small>Géolocalisation sur la carte : <a rel="mw:WikiLink" href="./${area}">${area}</a></small></div>
+        <table class="DebutCarte"><tbody><tr><td><div style="position:relative;">
+          <span typeof="mw:File"><a><img resource="./Fichier:${file}" src="//upload.wikimedia.org/${file}.png" width="280" height="269"/></a></span>
+          <div style="position:absolute;top:calc(${top}% - 8px);left:calc(${left}% - 8px);"><span typeof="mw:File"><a><img resource="./Fichier:City_locator_14.svg" src="//upload.wikimedia.org/pin.png" width="20" height="20"/></a></span></div>
+        </div></td></tr></tbody></table>
+      </div>`;
+    const html = `<html><body><table class="infobox">
+      <tr><td>${geobox("France", "France_relief", "45.94", "71.86")}</td></tr>
+      <tr><td>${geobox("France", "France_admin", "45.94", "71.86")}</td></tr>
+      <tr><td>${geobox("Jura", "Jura_relief", "58.37", "35.00")}</td></tr>
+      <tr><th>Région</th><td>Bourgogne-Franche-Comté</td></tr>
+      <tr><th>Préfecture</th><td>Lons-le-Saunier</td></tr>
+    </table></body></html>`;
+    const box = parseInfobox(html);
+    // The two "France" framings dedupe by label → France + Jura.
+    expect(box?.maps?.map((m) => m.label)).toEqual(["France", "Jura"]);
+    expect(box?.maps?.[1].markerTop).toBeCloseTo(58.37, 2);
+    expect(box?.maps?.[1].markerLeft).toBeCloseTo(35.0, 2);
+    // Singletons mirror the first map.
+    expect(box?.mapImage).toBe("https://upload.wikimedia.org/France_relief.png");
+  });
 });
 
 describe("parseArticleSections — multi-row table headers (electoral results)", () => {

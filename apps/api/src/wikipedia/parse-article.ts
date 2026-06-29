@@ -4,6 +4,7 @@ import type {
   ArticleChart,
   ArticleInfobox,
   ArticleLink,
+  ArticleLocatorMap,
   ArticleSection,
   ArticleTable,
   ChartSlice,
@@ -980,24 +981,30 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
   let mapImageHeight: number | undefined;
   let mapMarkerTop: number | undefined;
   let mapMarkerLeft: number | undefined;
-  // Prefer the structured "Géolocalisation" pushpin box: it gives us both the
-  // base map AND the marker's position, which a bare <img> scan can't (the pin
-  // is a separate CSS-positioned overlay, so without it the map shows no point).
-  const locator = extractLocatorMap(el);
-  if (locator) {
-    mapImage = locator.url;
-    mapImageWidth = locator.width;
-    mapImageHeight = locator.height;
-    mapMarkerTop = locator.markerTop;
-    mapMarkerLeft = locator.markerLeft;
+  // Prefer the structured "Géolocalisation" pushpin boxes: they give us the base
+  // map(s) AND each marker's position (a bare <img> scan can't — the pin is a
+  // separate CSS-positioned overlay, so without it the map shows no point). A
+  // page often offers several framings (country/region/département): keep them
+  // all so the app can switch, with maps[0] mirrored into the singleton fields.
+  let maps: ArticleLocatorMap[] = extractLocatorMaps(el);
+  if (maps.length) {
+    const first = maps[0];
+    mapImage = first.image;
+    mapImageWidth = first.width;
+    mapImageHeight = first.height;
+    mapMarkerTop = first.markerTop;
+    mapMarkerLeft = first.markerLeft;
   }
+  // Base maps already taken from the pushpin boxes — never reuse them as the
+  // lead image (a commune with no photo would otherwise show a map as its lead).
+  const mapImageUrls = new Set(maps.map((m) => m.image));
   for (const img of el.querySelectorAll("img")) {
     const width = toInt(img.getAttribute("width"));
     if (width !== undefined && width < 60) {
       continue; // skip tiny icons (arrows, rating stars…)
     }
     const url = resolveImageUrl(img.getAttribute("src"));
-    if (!url) {
+    if (!url || mapImageUrls.has(url)) {
       continue;
     }
     // A locator/position map (region highlighted within its country) — kept
@@ -1059,11 +1066,20 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
   if (!image && !rows.length) {
     return undefined;
   }
-  // Never surface the same file twice (lead + "locator map").
-  if (mapImage && mapImage === image) {
-    mapImage = mapImageWidth = mapImageHeight = undefined;
-    mapMarkerTop = mapMarkerLeft = undefined;
+  // Generic fallback (no pushpin box, just a "…-Position.svg" image): expose it
+  // as a single, markerless map so the switcher logic has a uniform shape.
+  if (!maps.length && mapImage) {
+    maps = [{ image: mapImage, width: mapImageWidth, height: mapImageHeight }];
   }
+  // Never surface the same file twice (lead image == a locator map).
+  maps = maps.filter((m) => m.image !== image);
+  // Re-sync the singleton fields with the (possibly filtered) first map.
+  const lead = maps[0];
+  mapImage = lead?.image;
+  mapImageWidth = lead?.width;
+  mapImageHeight = lead?.height;
+  mapMarkerTop = lead?.markerTop;
+  mapMarkerLeft = lead?.markerLeft;
   return {
     image,
     imageWidth,
@@ -1073,18 +1089,9 @@ export function parseInfobox(html: string): ArticleInfobox | undefined {
     mapImageHeight,
     mapMarkerTop,
     mapMarkerLeft,
+    maps: maps.length ? maps : undefined,
     rows,
   };
-}
-
-/** A locator map extracted from a "Géolocalisation" pushpin box. */
-interface LocatorMap {
-  url: string;
-  width?: number;
-  height?: number;
-  /** Marker position as percentages (0–100) of the map, when present. */
-  markerTop?: number;
-  markerLeft?: number;
 }
 
 /** Read a `top`/`left` percentage from an inline style (`calc(NN% - 8px)` too). */
@@ -1098,16 +1105,12 @@ function stylePercent(style: string, prop: "top" | "left"): number | undefined {
 }
 
 /**
- * Extract the infobox "Géolocalisation sur la carte" pushpin box: a base map
- * image with a place marker positioned over it via absolute CSS (top/left in
- * %). We keep the base map and the marker's coordinates so the app can redraw
- * the dot — otherwise the map shows a country with no point on it.
+ * Read one "Géolocalisation sur la carte" pushpin box: a base map image plus a
+ * place marker positioned over it via absolute CSS (top/left in %). We keep the
+ * base map, the marker's coordinates (so the app can redraw the dot — otherwise
+ * the map shows a country with no point on it) and the area label.
  */
-function extractLocatorMap(el: HTMLElement): LocatorMap | undefined {
-  const box = el.querySelector(".geobox") ?? el.querySelector(".DebutCarte");
-  if (!box) {
-    return undefined;
-  }
+function readLocatorBox(box: HTMLElement): ArticleLocatorMap | undefined {
   // Base map = the first non-tiny image in the box (the pin image is ~20px).
   let base: HTMLElement | undefined;
   for (const img of box.querySelectorAll("img")) {
@@ -1117,8 +1120,8 @@ function extractLocatorMap(el: HTMLElement): LocatorMap | undefined {
       break;
     }
   }
-  const url = base && resolveImageUrl(base.getAttribute("src"));
-  if (!base || !url) {
+  const image = base && resolveImageUrl(base.getAttribute("src"));
+  if (!base || !image) {
     return undefined;
   }
   // Marker = an absolutely-positioned overlay carrying top/left percentages.
@@ -1137,13 +1140,58 @@ function extractLocatorMap(el: HTMLElement): LocatorMap | undefined {
       break;
     }
   }
+  // Label = the area name in "Géolocalisation sur la carte : <area>".
+  const small = box.querySelector("small");
+  let label = small?.querySelector("a")?.text?.trim();
+  if (!label && small) {
+    const txt = collapseWhitespace(small.text);
+    const colon = txt.lastIndexOf(":");
+    label = colon >= 0 ? txt.slice(colon + 1).trim() : undefined;
+  }
   return {
-    url,
+    image,
     width: toInt(base.getAttribute("width")),
     height: toInt(base.getAttribute("height")),
     markerTop,
     markerLeft,
+    label: label || undefined,
   };
+}
+
+/**
+ * Extract every locator map the infobox offers (country, region, département…),
+ * deduped by area label and image, so the app can let the user switch framing.
+ */
+function extractLocatorMaps(el: HTMLElement): ArticleLocatorMap[] {
+  const out: ArticleLocatorMap[] = [];
+  const seenLabel = new Set<string>();
+  const seenImage = new Set<string>();
+  for (const box of el.querySelectorAll(".geobox")) {
+    const map = readLocatorBox(box);
+    if (!map) {
+      continue;
+    }
+    const key = (map.label ?? "").toLowerCase();
+    // Keep the first map per area (a "relief" and an "administrative" France map
+    // share the label) and never the same image twice.
+    if ((key && seenLabel.has(key)) || seenImage.has(map.image)) {
+      continue;
+    }
+    if (key) {
+      seenLabel.add(key);
+    }
+    seenImage.add(map.image);
+    out.push(map);
+  }
+  // A bare ".DebutCarte" without the ".geobox" wrapper (older markup).
+  if (!out.length) {
+    const box = el.querySelector(".DebutCarte");
+    const map = box ? readLocatorBox(box) : undefined;
+    if (map) {
+      out.push(map);
+    }
+  }
+  return out;
 }
 
 // Filenames of locator/position maps (a region shown within its country/world).

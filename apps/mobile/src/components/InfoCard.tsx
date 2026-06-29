@@ -18,8 +18,16 @@ const COLLAPSED_ROWS = 7;
 interface InfoCardProps {
   article: Article;
   colors: ThemeColors;
-  /** Open the lead/infobox image full-size (lightbox). */
-  onImagePress?: (url: string, caption?: string) => void;
+  /**
+   * Open the lead/infobox image full-size (lightbox). `marker` (locator maps
+   * only) carries the pin's % position + map aspect ratio so the lightbox can
+   * redraw the dot over the enlarged map.
+   */
+  onImagePress?: (
+    url: string,
+    caption?: string,
+    marker?: { top: number; left: number; ratio: number },
+  ) => void;
 }
 
 /**
@@ -35,46 +43,102 @@ export function InfoCard({ article, colors, onImagePress }: InfoCardProps) {
   // on a narrow web window. Only a wide web window keeps the side-by-side layout.
   const stacked = Platform.OS !== "web" || windowWidth < STACK_BREAKPOINT;
   const [expanded, setExpanded] = useState(false);
+  const [mapIdx, setMapIdx] = useState(0);
   const infobox = article.infobox;
   const image = infobox?.image ?? article.image;
   const width = infobox?.image ? infobox.imageWidth : article.imageWidth;
   const height = infobox?.image ? infobox.imageHeight : article.imageHeight;
   const allRows = infobox?.rows ?? [];
 
-  // Locator/position map (e.g. a region within its country), shown under the card.
-  // Skip it when it's the very same file as the lead image (avoids a duplicate).
-  const mapUrl = infobox?.mapImage !== image ? infobox?.mapImage : undefined;
+  // Locator/position maps (country / region / département…). Switchable; each can
+  // carry a pin we redraw at the % coordinates Wikipedia uses. Drop any map that
+  // is just the lead image again. Falls back to the singleton fields for older
+  // cached articles that predate `infobox.maps`.
+  const mapList = (
+    infobox?.maps ??
+    (infobox?.mapImage
+      ? [
+          {
+            image: infobox.mapImage,
+            width: infobox.mapImageWidth,
+            height: infobox.mapImageHeight,
+            markerTop: infobox.mapMarkerTop,
+            markerLeft: infobox.mapMarkerLeft,
+            label: undefined as string | undefined,
+          },
+        ]
+      : [])
+  ).filter((m) => m.image !== image);
+  const selectedMap = mapList.length ? mapList[Math.min(mapIdx, mapList.length - 1)] : undefined;
+  const mapLabel = selectedMap?.label ?? t("article.locatorMap");
   const mapRatio =
-    infobox?.mapImageWidth && infobox?.mapImageHeight
-      ? infobox.mapImageWidth / infobox.mapImageHeight
-      : 1;
-  // Place marker (pin) drawn over the map at the % coordinates Wikipedia uses.
+    selectedMap?.width && selectedMap?.height ? selectedMap.width / selectedMap.height : 1;
   const mapMarker =
-    infobox?.mapMarkerTop !== undefined && infobox?.mapMarkerLeft !== undefined
-      ? { top: `${infobox.mapMarkerTop}%` as const, left: `${infobox.mapMarkerLeft}%` as const }
+    selectedMap?.markerTop !== undefined && selectedMap?.markerLeft !== undefined
+      ? {
+          top: `${selectedMap.markerTop}%` as const,
+          left: `${selectedMap.markerLeft}%` as const,
+        }
       : undefined;
-  const mapThumb = mapUrl ? (
-    <Pressable
-      disabled={!onImagePress}
-      onPress={() => onImagePress?.(mapUrl, t("article.locatorMap"))}
-      style={styles.mapBox}
-      accessibilityRole={onImagePress ? "imagebutton" : "image"}
-      accessibilityLabel={
-        onImagePress ? `${t("article.locatorMap")}, ${t("a11y.viewMap")}` : t("article.locatorMap")
-      }
-    >
-      <View style={[styles.mapImageWrap, { aspectRatio: mapRatio }]}>
-        <RemoteImage source={{ uri: mapUrl }} style={styles.mapImageFill} resizeMode="contain" />
-        {mapMarker ? (
-          <View
-            style={[styles.mapPin, mapMarker]}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
+  const mapThumb = selectedMap ? (
+    <View style={styles.mapBox}>
+      <Pressable
+        disabled={!onImagePress}
+        onPress={() =>
+          onImagePress?.(
+            selectedMap.image,
+            mapLabel,
+            mapMarker
+              ? { top: selectedMap.markerTop!, left: selectedMap.markerLeft!, ratio: mapRatio }
+              : undefined,
+          )
+        }
+        accessibilityRole={onImagePress ? "imagebutton" : "image"}
+        accessibilityLabel={onImagePress ? `${mapLabel}, ${t("a11y.viewMap")}` : mapLabel}
+      >
+        <View style={[styles.mapImageWrap, { aspectRatio: mapRatio }]}>
+          <RemoteImage
+            source={{ uri: selectedMap.image }}
+            style={styles.mapImageFill}
+            resizeMode="contain"
           />
-        ) : null}
-      </View>
-      <Text style={styles.mapCaption}>{t("article.locatorMap")}</Text>
-    </Pressable>
+          {mapMarker ? (
+            <View
+              style={[styles.mapPin, mapMarker]}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            />
+          ) : null}
+        </View>
+      </Pressable>
+      {mapList.length > 1 ? (
+        <View style={styles.mapTabs}>
+          {mapList.map((m, i) => {
+            const label = m.label ?? `${i + 1}`;
+            const active = i === Math.min(mapIdx, mapList.length - 1);
+            return (
+              <Pressable
+                key={`${m.image}-${i}`}
+                onPress={() => setMapIdx(i)}
+                style={[styles.mapTab, active && styles.mapTabActive]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={label}
+              >
+                <Text
+                  style={[styles.mapTabText, active && styles.mapTabTextActive]}
+                  numberOfLines={1}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : (
+        <Text style={styles.mapCaption}>{mapLabel}</Text>
+      )}
+    </View>
   ) : null;
 
   if (!image && allRows.length === 0) {
@@ -245,6 +309,27 @@ const makeStyles = (colors: ThemeColors) =>
       borderColor: colors.surface,
     },
     mapCaption: { color: colors.muted, fontSize: 12, marginTop: 6, fontStyle: "italic" },
+    // Switcher between the available framings (France / region / département…).
+    mapTabs: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      gap: 6,
+      marginTop: 8,
+    },
+    mapTab: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: colors.field,
+      borderWidth: 1,
+      borderColor: colors.separator,
+      minHeight: 32,
+      justifyContent: "center",
+    },
+    mapTabActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+    mapTabText: { color: colors.textPrimary, fontSize: 12, fontWeight: "600" },
+    mapTabTextActive: { color: colors.surface },
     facts: { justifyContent: "center", gap: 9 },
     factsRow: { flex: 1 },
     factsStacked: { width: "100%" },
