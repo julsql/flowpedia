@@ -152,6 +152,9 @@ export default function ArticleScreen() {
 
   const openOriginal = useCallback(() => {
     if (article?.sourceUrl) {
+      // Log the "view on Wikipedia" tap: frequently-opened pages flag likely
+      // parsing gaps (the reader wasn't enough, so the user went to the source).
+      sendEvents([{ articleId: article.id, type: "openWikipedia", ts: Date.now() }]);
       void Linking.openURL(article.sourceUrl);
     }
   }, [article]);

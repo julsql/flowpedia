@@ -3,6 +3,7 @@ import {
   Animated,
   Image,
   StyleSheet,
+  View,
   type ImageProps,
   type ImageURISource,
 } from "react-native";
@@ -66,10 +67,11 @@ export function RemoteImage({
     }
   }
 
+  const skeletonColor = scheme === "light" ? "#cfcfcf" : "#3a3a3a";
   const image = (
     <Image
       source={resolved}
-      style={noBackdrop ? style : StyleSheet.absoluteFill}
+      style={StyleSheet.absoluteFill}
       onLoadEnd={() => {
         setLoaded(true);
         onLoadEnd?.();
@@ -82,13 +84,24 @@ export function RemoteImage({
       {...rest}
     />
   );
+  const skeleton = !loaded ? (
+    <Animated.View
+      pointerEvents="none"
+      style={[styles.skeleton, { opacity: pulse, backgroundColor: skeletonColor }]}
+    />
+  ) : null;
 
-  // Lightbox / transparent contexts: just the image, no gradient rectangle.
+  // Lightbox / transparent contexts: no gradient rectangle, but still a pulsing
+  // skeleton over the (dark) scrim while the full-size image loads.
   if (noBackdrop) {
-    return image;
+    return (
+      <View style={[style, styles.clip]}>
+        {image}
+        {skeleton}
+      </View>
+    );
   }
 
-  const skeletonColor = scheme === "light" ? "#cfcfcf" : "#3a3a3a";
   return (
     <LinearGradient
       colors={scheme === "light" ? BACKDROP_LIGHT : BACKDROP_DARK}
@@ -97,12 +110,7 @@ export function RemoteImage({
       style={[style, styles.clip]}
     >
       {image}
-      {!loaded ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.skeleton, { opacity: pulse, backgroundColor: skeletonColor }]}
-        />
-      ) : null}
+      {skeleton}
     </LinearGradient>
   );
 }

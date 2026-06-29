@@ -9,7 +9,8 @@ export type InteractionType =
   | "like"
   | "share"
   | "save"
-  | "openFull"; // opened the full article
+  | "openFull" // opened the full article
+  | "openWikipedia"; // tapped "view on Wikipedia" (signals a likely parsing gap)
 
 export interface InteractionEvent {
   articleId: string;
