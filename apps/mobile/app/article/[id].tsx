@@ -204,6 +204,12 @@ export default function ArticleScreen() {
     [goBack],
   );
 
+  // markRead changes identity whenever the read history mutates; keep it in a ref
+  // so calling it inside `load` doesn't re-create `load` and re-trigger the load
+  // effect (which caused the article to reload in a loop / re-fetch the image).
+  const markReadRef = useRef(markRead);
+  markReadRef.current = markRead;
+
   const load = useCallback(async () => {
     setError(false);
     // 1. Instant: show the offline copy at once if we have one (no spinner, no
@@ -212,7 +218,7 @@ export default function ArticleScreen() {
     if (cached) {
       setArticle(cached);
       setActiveSection((prev) => prev ?? cached.sections[0]?.id ?? null);
-      markRead(cached);
+      markReadRef.current(cached);
       setLoading(false);
     } else {
       setLoading(true);
@@ -226,7 +232,7 @@ export default function ArticleScreen() {
       setArticle((prev) => (prev && JSON.stringify(prev) === JSON.stringify(fresh) ? prev : fresh));
       setActiveSection((prev) => prev ?? fresh.sections[0]?.id ?? null);
       if (!cached) {
-        markRead(fresh);
+        markReadRef.current(fresh);
         sendEvents([{ articleId: fresh.id, type: "openFull", ts: Date.now() }]);
       }
       setLoading(false);
@@ -237,7 +243,7 @@ export default function ArticleScreen() {
       }
       // Had a cached copy → keep showing it (offline); not an error.
     }
-  }, [articleId, locale, markRead]);
+  }, [articleId, locale]);
 
   useEffect(() => {
     void load();
