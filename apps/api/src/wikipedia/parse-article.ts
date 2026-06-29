@@ -460,6 +460,12 @@ function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
         pushText(runs, "\n");
         continue;
       }
+      // A nested list item inside a value/cell: one entry per line, links kept.
+      if (tag === "li") {
+        pushText(runs, "\n");
+        walk(el);
+        continue;
+      }
       // Drop small page chrome (pronunciation "Écouter ⓘ" widget, edit links…).
       if (isInlineAnnotation(el)) {
         continue;
@@ -701,7 +707,16 @@ function figureImage(figure: HTMLElement) {
   }
   const cap = figure.querySelector("figcaption");
   const caption = cap ? collapseWhitespace(cap.text).trim() : "";
-  return { url, caption: caption || undefined, width, height: toInt(img.getAttribute("height")) };
+  // Keep the caption's internal links tappable when it has any.
+  const captionRuns = cap ? normalizeRuns(buildRuns(cap, false)) : [];
+  const hasLink = captionRuns.some((r) => r.linkTargetId);
+  return {
+    url,
+    caption: caption || undefined,
+    width,
+    height: toInt(img.getAttribute("height")),
+    ...(hasLink ? { captionRuns } : {}),
+  };
 }
 
 /** Extract a cell's background colour from `bgcolor` or an inline style. */
@@ -1050,7 +1065,11 @@ function infoboxBlocks(el: HTMLElement): InfoboxBlock[] {
     if (!label || !value || label.length > 40 || value.length > 180) {
       continue;
     }
-    cur.rows.push({ label, value });
+    // Keep the value's internal links tappable when it has any (the plain
+    // `value` stays the fallback). `cleanCellText` already stripped ref sups.
+    const valueRuns = normalizeRuns(buildRuns(td, false));
+    const hasLink = valueRuns.some((r) => r.linkTargetId);
+    cur.rows.push(hasLink ? { label, value, valueRuns } : { label, value });
   }
   push();
   return blocks;

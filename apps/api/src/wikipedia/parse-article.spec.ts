@@ -643,6 +643,42 @@ describe("parseInfobox — multi-value entries", () => {
   });
 });
 
+describe("parseInfobox — links in values", () => {
+  it("keeps an internal link in a value as a tappable run", () => {
+    const html = `<html><body><table class="infobox">
+      <tr><th>Nationalité</th><td><a rel="mw:WikiLink" href="./France">Française</a></td></tr>
+      <tr><th>Profession</th><td>Actrice</td></tr>
+    </table></body></html>`;
+    const box = parseInfobox(html);
+    const row = box?.rows.find((r) => r.label === "Nationalité");
+    expect(row?.value).toBe("Française");
+    expect(row?.valueRuns).toEqual([{ text: "Française", linkTargetId: "France" }]);
+  });
+
+  it("leaves a link-free value without valueRuns", () => {
+    const html = `<html><body><table class="infobox">
+      <tr><th>Nationalité</th><td>Française</td></tr>
+      <tr><th>Profession</th><td>Actrice</td></tr>
+    </table></body></html>`;
+    const box = parseInfobox(html);
+    expect(box?.rows.find((r) => r.label === "Profession")?.valueRuns).toBeUndefined();
+  });
+});
+
+describe("parseArticleSections — links in figure captions", () => {
+  it("keeps an internal link in a caption as captionRuns", () => {
+    const html = `<html><body>
+      <h2>Vie</h2>
+      <p>Texte.</p>
+      <figure typeof="mw:File"><img src="//upload.wikimedia.org/x.jpg" width="300" height="200"/><figcaption>Photo prise à <a rel="mw:WikiLink" href="./Paris">Paris</a></figcaption></figure>
+    </body></html>`;
+    const vie = parseArticleSections(html, "Résumé").find((s) => s.title === "Vie");
+    const img = vie?.images?.[0];
+    expect(img?.caption).toBe("Photo prise à Paris");
+    expect(img?.captionRuns?.some((r) => r.linkTargetId === "Paris")).toBe(true);
+  });
+});
+
 describe("parseArticleSections — wide tables", () => {
   it("keeps more than 6 columns (electoral results / year grids)", () => {
     const cols = Array.from({ length: 10 }, (_, i) => `<th>C${i + 1}</th>`).join("");

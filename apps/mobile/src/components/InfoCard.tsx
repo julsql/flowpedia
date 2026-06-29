@@ -28,6 +28,8 @@ interface InfoCardProps {
     caption?: string,
     marker?: { top: number; left: number; ratio: number },
   ) => void;
+  /** Open an internal link tapped inside an infobox value (the "bounce"). */
+  onLinkPress?: (targetId: string) => void;
 }
 
 /**
@@ -35,7 +37,7 @@ interface InfoCardProps {
  * image on the side (aspect ratio kept) + key facts. Falls back to the lead
  * image alone when the page has no infobox.
  */
-export function InfoCard({ article, colors, onImagePress }: InfoCardProps) {
+export function InfoCard({ article, colors, onImagePress, onLinkPress }: InfoCardProps) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useLocale();
   const { width: windowWidth } = useWindowDimensions();
@@ -213,7 +215,25 @@ export function InfoCard({ article, colors, onImagePress }: InfoCardProps) {
             ) : (
               <View key={i} style={styles.factRow}>
                 <Text style={styles.factLabel}>{row.label}</Text>
-                <Text style={styles.factValue}>{row.value}</Text>
+                <Text style={styles.factValue}>
+                  {row.valueRuns && onLinkPress
+                    ? row.valueRuns.map((run, ri) =>
+                        run.linkTargetId ? (
+                          <Text
+                            key={ri}
+                            style={styles.factLink}
+                            onPress={() => onLinkPress(run.linkTargetId!)}
+                            accessibilityRole="link"
+                            accessibilityLabel={run.text}
+                          >
+                            {run.text}
+                          </Text>
+                        ) : (
+                          run.text
+                        ),
+                      )
+                    : row.value}
+                </Text>
               </View>
             ),
           )}
@@ -354,6 +374,7 @@ const makeStyles = (colors: ThemeColors) =>
     factRow: { flexDirection: "row", gap: 10 },
     factLabel: { color: colors.muted, fontSize: 13, width: 120, lineHeight: 19 },
     factValue: { color: colors.textPrimary, fontSize: 14, flex: 1, lineHeight: 19 },
+    factLink: { color: colors.accent, fontWeight: "600" },
     toggle: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 2 },
     toggleText: { color: colors.accent, fontSize: 13, fontWeight: "600" },
   });

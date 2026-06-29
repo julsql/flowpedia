@@ -30,6 +30,12 @@ export interface SectionImage {
    * instead of bunching all images at the top of the section.
    */
   afterParagraph?: number;
+  /**
+   * The caption as rich runs when it contains internal links (kept tappable);
+   * `caption` stays as the plain-text fallback. Absent when the caption has no
+   * link.
+   */
+  captionRuns?: TextRun[];
 }
 
 /**
@@ -94,6 +100,11 @@ export interface InfoboxRow {
   /** Absent on heading rows. */
   label?: string;
   value: string;
+  /**
+   * The value as rich runs when it contains internal links (kept tappable);
+   * `value` stays as the plain-text fallback. Absent when the value has no link.
+   */
+  valueRuns?: TextRun[];
   /** True when this row is a section title rather than a label/value fact. */
   heading?: boolean;
 }

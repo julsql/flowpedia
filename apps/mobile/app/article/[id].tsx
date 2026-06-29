@@ -604,6 +604,7 @@ export default function ArticleScreen() {
             <InfoCard
               article={a}
               colors={colors}
+              onLinkPress={openLink}
               onImagePress={(url, caption, marker) =>
                 setLightbox({ url: largeImageUrl(url), caption, marker })
               }
@@ -1294,7 +1295,27 @@ function SectionBlock({
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       />
-      {img.caption ? <Text style={styles.figureCaption}>{img.caption}</Text> : null}
+      {img.captionRuns ? (
+        <Text style={styles.figureCaption}>
+          {img.captionRuns.map((run, ri) =>
+            run.linkTargetId ? (
+              <Text
+                key={ri}
+                style={styles.figureCaptionLink}
+                onPress={() => onLinkPress(run.linkTargetId as string)}
+                accessibilityRole="link"
+                accessibilityLabel={run.text}
+              >
+                {run.text}
+              </Text>
+            ) : (
+              run.text
+            ),
+          )}
+        </Text>
+      ) : img.caption ? (
+        <Text style={styles.figureCaption}>{img.caption}</Text>
+      ) : null}
     </Pressable>
   );
   const imagesBefore = (p: number) =>
@@ -1593,6 +1614,7 @@ const makeStyles = (colors: ThemeColors) =>
     marginTop: 6,
     textAlign: "center",
   },
+  figureCaptionLink: { color: colors.accent, fontWeight: "600" },
   // Full-size image lightbox.
   lightbox: {
     flex: 1,
