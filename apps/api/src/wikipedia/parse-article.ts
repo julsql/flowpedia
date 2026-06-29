@@ -411,6 +411,28 @@ function isInlineAnnotation(el: HTMLElement): boolean {
   );
 }
 
+// Unicode super/subscript glyphs for short ordinals (2ᵉ, 1ᵉʳ) and formulae
+// (H₂O). Characters with no script form are left unchanged.
+const SUPERSCRIPT: Record<string, string> = {
+  "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷",
+  "8": "⁸", "9": "⁹", "+": "⁺", "-": "⁻", "(": "⁽", ")": "⁾",
+  a: "ᵃ", b: "ᵇ", c: "ᶜ", d: "ᵈ", e: "ᵉ", f: "ᶠ", g: "ᵍ", h: "ʰ", i: "ⁱ", j: "ʲ",
+  k: "ᵏ", l: "ˡ", m: "ᵐ", n: "ⁿ", o: "ᵒ", p: "ᵖ", r: "ʳ", s: "ˢ", t: "ᵗ", u: "ᵘ",
+  v: "ᵛ", w: "ʷ", x: "ˣ", y: "ʸ", z: "ᶻ",
+};
+const SUBSCRIPT: Record<string, string> = {
+  "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇",
+  "8": "₈", "9": "₉", "+": "₊", "-": "₋", "(": "₍", ")": "₎",
+  a: "ₐ", e: "ₑ", h: "ₕ", i: "ᵢ", j: "ⱼ", k: "ₖ", l: "ₗ", m: "ₘ", n: "ₙ", o: "ₒ",
+  p: "ₚ", r: "ᵣ", s: "ₛ", t: "ₜ", u: "ᵤ", v: "ᵥ", x: "ₓ",
+};
+
+/** Convert short sup/sub text to Unicode super/subscript glyphs (best effort). */
+function toUnicodeScript(text: string, superscript: boolean): string {
+  const map = superscript ? SUPERSCRIPT : SUBSCRIPT;
+  return [...text].map((ch) => map[ch.toLowerCase()] ?? ch).join("");
+}
+
 function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
   const runs: TextRun[] = [];
 
@@ -441,14 +463,16 @@ function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
       if (isInlineAnnotation(el)) {
         continue;
       }
-      if (tag === "sup") {
+      if (tag === "sup" || tag === "sub") {
         // Drop citation markers ([1]) and any superscript holding a link, but
-        // keep short ordinal superscripts (1er, 2e, XIXe…).
+        // keep short ordinal superscripts (1er, 2e, XIXe…) / subscripts (H₂O) —
+        // rendered as Unicode super/subscript so they read as raised/lowered
+        // glyphs everywhere (RN <Text> can't truly offset them).
         if (el.querySelector("a") || /reference|mw-ref/i.test(el.getAttribute("class") ?? "")) {
           continue;
         }
         if (el.text.trim().length <= 4) {
-          walk(el);
+          pushText(runs, toUnicodeScript(el.text, tag === "sup"));
         }
         continue;
       }
@@ -884,6 +908,10 @@ function cleanCellText(el: HTMLElement): string {
       const tag = e.rawTagName?.toLowerCase();
       if (tag === "br") {
         parts.push("\n");
+        continue;
+      }
+      if ((tag === "sup" || tag === "sub") && e.text.trim().length <= 4 && !e.querySelector("a")) {
+        parts.push(toUnicodeScript(e.text, tag === "sup"));
         continue;
       }
       if (tag === "li") {

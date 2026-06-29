@@ -231,8 +231,8 @@ describe("parseArticleSections — inline annotations", () => {
     const t = parseArticleSections(html, "Résumé")[0]
       .paragraphs.flatMap((p) => p.runs.map((r) => r.text))
       .join("");
-    expect(t).toContain("1er");
-    expect(t).toContain("2e");
+    expect(t).toContain("1ᵉʳ");
+    expect(t).toContain("2ᵉ");
     expect(t).not.toContain("[1]");
   });
 
@@ -575,6 +575,17 @@ describe("parseArticleSections — editorial markers", () => {
     expect(text).not.toContain("Quand");
     expect(text).toContain("Le site est ancien");
     expect(text).toContain("de l'époque");
+  });
+});
+
+describe("parseArticleSections — ordinal super/subscripts", () => {
+  it("renders short <sup>/<sub> as unicode glyphs (16ᵉ, H₂O)", () => {
+    const html = `<html><body><section data-mw-section-id="0"><p>Le 16<sup>e</sup> arrondissement, formule H<sub>2</sub>O.</p></section></body></html>`;
+    const text = parseArticleSections(html, "Résumé")[0]
+      .paragraphs.flatMap((p) => p.runs.map((r) => r.text))
+      .join("");
+    expect(text).toContain("16ᵉ");
+    expect(text).toContain("H₂O");
   });
 });
 
