@@ -5,6 +5,7 @@ import type {
   ChangePasswordRequest,
   FeedResponse,
   FeedTab,
+  CreateStoryRequest,
   FollowResult,
   ForgotPasswordRequest,
   InteractionEvent,
@@ -16,6 +17,7 @@ import type {
   PublicUser,
   RegisterRequest,
   ResetPasswordRequest,
+  StoryGroup,
   UpdateProfileRequest,
 } from "@flowpedia/shared";
 import type { Locale } from "../i18n";
@@ -227,6 +229,16 @@ export function acceptFollowRequest(username: string): Promise<void> {
 
 export function rejectFollowRequest(username: string): Promise<void> {
   return requestJson<void>(`/follow-requests/${encodeURIComponent(username)}/reject`, "POST");
+}
+
+/** Reshare an article to your followers as a 24h story. */
+export function createStory(req: CreateStoryRequest): Promise<void> {
+  return requestJson<void>("/stories", "POST", req);
+}
+
+/** Active stories from people you follow (plus your own), grouped by author. */
+export function fetchStories(): Promise<StoryGroup[]> {
+  return requestJson<StoryGroup[]>("/stories", "GET");
 }
 
 export function fetchFeed(

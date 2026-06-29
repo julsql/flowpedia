@@ -13,6 +13,7 @@ import { ImagesModule } from "./images/images.module";
 import { InterestsModule } from "./interests/interests.module";
 import { LibraryModule } from "./library/library.module";
 import { SocialModule } from "./social/social.module";
+import { StoriesModule } from "./stories/stories.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -31,6 +32,7 @@ import { HealthController } from "./health/health.controller";
     InterestsModule,
     LibraryModule,
     SocialModule,
+    StoriesModule,
   ],
   controllers: [HealthController],
 })

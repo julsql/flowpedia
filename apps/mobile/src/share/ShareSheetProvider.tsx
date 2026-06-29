@@ -14,8 +14,9 @@ import type { Article } from "@flowpedia/shared";
 import { radii, spacing, useTheme, type ThemeColors } from "../theme";
 import { useLocale } from "../i18n";
 import { useLibrary } from "../library/LibraryProvider";
+import { useAuth } from "../auth/AuthProvider";
 import { shareExternal } from "./shareExternal";
-import { sendEvents } from "../api/client";
+import { createStory, sendEvents } from "../api/client";
 
 interface ShareSheetValue {
   openShare: (article: Article) => void;
@@ -38,15 +39,30 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { recordShare } = useLibrary();
+  const auth = useAuth();
   const [article, setArticle] = useState<Article | null>(null);
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [reshared, setReshared] = useState(false);
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
   const openShare = (next: Article) => {
     setArticle(next);
     setCopied(false);
+    setReshared(false);
     setVisible(true);
+  };
+
+  const reshareToFollowers = async () => {
+    if (article && auth.user) {
+      try {
+        await createStory({ articleId: article.id, title: article.title, image: article.image });
+        setReshared(true);
+        recordShare(article);
+      } catch {
+        // keep the sheet open; the user can retry or share another way
+      }
+    }
   };
 
   useEffect(() => {
@@ -108,6 +124,25 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
                 <Text style={styles.previewMeta}>{`${article.category} · Flowpedia`}</Text>
               </View>
             </View>
+          ) : null}
+
+          {auth.user ? (
+            <Pressable
+              style={styles.reshareBtn}
+              onPress={reshareToFollowers}
+              accessibilityRole="button"
+              accessibilityLabel={t("story.reshare")}
+              accessibilityState={{ selected: reshared }}
+            >
+              <MaterialIcons
+                name={reshared ? "check-circle" : "campaign"}
+                size={20}
+                color={colors.onAccent}
+              />
+              <Text style={styles.reshareLabel}>
+                {reshared ? t("story.reshared") : t("story.reshare")}
+              </Text>
+            </Pressable>
           ) : null}
 
           <Text style={styles.sectionLabel}>{t("share.sendTo")}</Text>
@@ -185,6 +220,17 @@ const makeStyles = (colors: ThemeColors) =>
   previewText: { flex: 1 },
   previewTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "600" },
   previewMeta: { color: colors.textTertiary, fontSize: 12, marginTop: 2 },
+  reshareBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.accent,
+    borderRadius: 14,
+    minHeight: 48,
+    marginBottom: 20,
+  },
+  reshareLabel: { color: colors.onAccent, fontSize: 15, fontWeight: "700" },
   sectionLabel: {
     color: colors.textSecondary,
     fontSize: 13,

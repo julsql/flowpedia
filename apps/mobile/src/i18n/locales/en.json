@@ -179,5 +179,11 @@
   "social.noFollowers": "No followers yet",
   "social.noFollowing": "Not following anyone yet",
   "social.noRequests": "No pending requests",
-  "a11y.openProfile": "Open profile of {{name}}"
+  "a11y.openProfile": "Open profile of {{name}}",
+  "story.reshare": "Share to followers",
+  "story.reshared": "Shared to followers",
+  "story.yours": "Your story",
+  "story.empty": "Nothing here.",
+  "a11y.openStory": "Open {{name}}'s story",
+  "a11y.openStoryArticle": "Open article: {{title}}"
 }

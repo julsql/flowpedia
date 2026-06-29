@@ -85,6 +85,28 @@ export interface FollowResult {
   state: FollowState;
 }
 
+/** A reshared article, visible to followers for 24h ("story"). */
+export interface CreateStoryRequest {
+  articleId: string;
+  title?: string;
+  image?: string;
+}
+
+export interface StoryItem {
+  id: string;
+  articleId: string;
+  title?: string;
+  image?: string;
+  /** ISO timestamp. */
+  createdAt: string;
+}
+
+/** One author's active stories (the unit behind a home-screen bubble). */
+export interface StoryGroup {
+  user: PublicUser;
+  items: StoryItem[];
+}
+
 /** A profile as seen by a viewer (privacy-aware). */
 export interface ProfileView {
   user: PublicUser;

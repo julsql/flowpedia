@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import type { Article, FeedTab } from "@flowpedia/shared";
 import { ArticleCard } from "../../src/components/ArticleCard";
 import { SkeletonList } from "../../src/components/SkeletonCard";
+import { StoriesBar } from "../../src/components/StoriesBar";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { fetchFeed } from "../../src/api/client";
 import { useShare } from "../../src/share/ShareSheetProvider";
@@ -282,6 +283,8 @@ export default function FeedScreen() {
           );
         })}
       </View>
+
+      <StoriesBar />
 
       <View style={styles.feedArea} {...panResponder.panHandlers}>
       {error ? (

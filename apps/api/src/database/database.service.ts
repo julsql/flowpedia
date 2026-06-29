@@ -5,10 +5,11 @@ import { Interaction } from "../events/interaction.entity";
 import { User } from "../auth/user.entity";
 import { LibraryItem } from "../library/library-item.entity";
 import { Follow } from "../social/follow.entity";
+import { Story } from "../stories/story.entity";
 
 // Every persisted entity is registered here so a single connection (and a single
 // `synchronize`) owns the schema. Add new entities to this list.
-const ENTITIES = [Interaction, User, LibraryItem, Follow];
+const ENTITIES = [Interaction, User, LibraryItem, Follow, Story];
 
 /**
  * One shared Postgres connection for the whole API. Mirrors the project's

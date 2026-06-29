@@ -177,5 +177,11 @@
   "social.noFollowers": "Aucun abonné pour l'instant",
   "social.noFollowing": "Aucun abonnement pour l'instant",
   "social.noRequests": "Aucune demande en attente",
-  "a11y.openProfile": "Ouvrir le profil de {{name}}"
+  "a11y.openProfile": "Ouvrir le profil de {{name}}",
+  "story.reshare": "Partager aux abonnés",
+  "story.reshared": "Partagé aux abonnés",
+  "story.yours": "Ta story",
+  "story.empty": "Rien ici.",
+  "a11y.openStory": "Ouvrir la story de {{name}}",
+  "a11y.openStoryArticle": "Ouvrir l'article : {{title}}"
 }
