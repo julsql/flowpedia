@@ -345,6 +345,9 @@ export function fetchFeed(
   seed?: number,
   exclude: string[] = [],
   savedSeeds: string[] = [],
+  // Home tabs opt in so the server's taste profile enriches the recall. A
+  // page-anchored "keep exploring" leaves this off, staying tied to the page.
+  personalize = false,
 ): Promise<FeedResponse> {
   const params = new URLSearchParams({ tab, lang: locale });
   if (cursor) {
@@ -362,6 +365,14 @@ export function fetchFeed(
   }
   if (exclude.length) {
     params.set("exclude", exclude.join(","));
+  }
+  // Attach the (anonymous) user id so the server can de-dup already-seen pages
+  // cross-device and, when asked, personalize from the interaction journal.
+  if (currentUserId) {
+    params.set("userId", currentUserId);
+  }
+  if (personalize) {
+    params.set("personalize", "1");
   }
   return getFeed(tab, locale, cursor, params);
 }

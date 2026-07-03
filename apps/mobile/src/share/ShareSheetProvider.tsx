@@ -143,6 +143,8 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
         ),
       );
       recordShare(article);
+      // Sending a page to someone is a share signal for the profile.
+      sendEvents([{ articleId: article.id, type: "share", ts: Date.now() }]);
       setSentDone(true);
       setTimeout(close, 700);
     } catch {
@@ -158,6 +160,8 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
         await createStory({ articleId: article.id, title: article.title, image: article.image });
         setReshared(true);
         recordShare(article);
+        // Resharing as a story is the strongest interest signal (weighted as a share).
+        sendEvents([{ articleId: article.id, type: "story", ts: Date.now() }]);
       } catch {
         // keep the sheet open; the user can retry or share another way
       }

@@ -109,6 +109,7 @@ export default function FeedScreen() {
           seedRef.current,
           excludeRef.current,
           seedsFor(nextTab).savedSeeds,
+          true, // personalize: home feed learns from the interaction journal
         );
         setArticles(res.items);
         setCursor(res.nextCursor);
@@ -227,6 +228,7 @@ export default function FeedScreen() {
         seedRef.current,
         excludeRef.current,
         seedsFor(tab).savedSeeds,
+        true, // personalize: home feed learns from the interaction journal
       );
       setArticles((prev) => [...prev, ...res.items]);
       setCursor(res.nextCursor);

@@ -207,7 +207,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         void AsyncStorage.setItem(LIKED_KEY, JSON.stringify(next));
         return next;
       });
-      sendEvents([{ articleId: article.id, type: "like", ts: Date.now() }]);
+      // Unliking emits a revocation so the taste profile recomputes without it.
+      sendEvents([{ articleId: article.id, type: wasLiked ? "remove" : "like", ts: Date.now() }]);
       if (wasLiked) {
         syncRemove(article.id, "like");
       } else {
@@ -227,7 +228,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         void AsyncStorage.setItem(SAVED_KEY, JSON.stringify(next));
         return next;
       });
-      sendEvents([{ articleId: article.id, type: "save", ts: Date.now() }]);
+      // Un-bookmarking emits a revocation so the profile recomputes without it.
+      sendEvents([{ articleId: article.id, type: wasSaved ? "remove" : "save", ts: Date.now() }]);
       if (wasSaved) {
         syncRemove(article.id, "save");
       } else {
@@ -257,6 +259,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         void AsyncStorage.setItem(READ_KEY, JSON.stringify(next));
         return next;
       });
+      sendEvents([{ articleId: article.id, type: "read", ts: Date.now() }]);
     };
 
     const removeRead = (id: string) => {
@@ -265,11 +268,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         void AsyncStorage.setItem(READ_KEY, JSON.stringify(next));
         return next;
       });
+      // Revoke this article's history contribution from the taste profile.
+      sendEvents([{ articleId: id, type: "remove", ts: Date.now() }]);
     };
 
     const clearRead = () => {
       setRead([]);
       void AsyncStorage.removeItem(READ_KEY);
+      // Wipe all reading-history contributions (library actions are kept).
+      sendEvents([{ articleId: "*", type: "clearHistory", ts: Date.now() }]);
     };
 
     const muteInterest = (category: string) => {

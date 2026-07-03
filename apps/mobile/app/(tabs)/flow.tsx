@@ -95,6 +95,7 @@ export default function FlowScreen() {
         seedRef.current,
         excludeRef.current,
         seedsRef.current.savedSeeds,
+        true, // personalize: the immersive Flow learns from the journal
       );
       setArticles(dedupe(res.items));
       setCursor(res.nextCursor);
@@ -134,6 +135,7 @@ export default function FlowScreen() {
         seedRef.current,
         excludeRef.current,
         seedsRef.current.savedSeeds,
+        true, // personalize: the immersive Flow learns from the journal
       );
       setArticles((prev) => [...prev, ...dedupe(res.items)]);
       setCursor(res.nextCursor);
