@@ -6,11 +6,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { StoryGroup } from "@flowpedia/shared";
 import { RemoteImage } from "../../src/components/RemoteImage";
-import { colorForText } from "../../src/components/LetterThumb";
+import { ArticleCover } from "../../src/components/ArticleCover";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
 import { fetchStories, fetchUserStories, largeImageUrl } from "../../src/api/client";
 import { useSeenStories } from "../../src/seen/SeenStoriesProvider";
 import { sortStoryGroups } from "../../src/stories/order";
+import { storyTimeAgo } from "../../src/stories/timeAgo";
 import { useLocale } from "../../src/i18n";
 import { useTheme, type ThemeColors } from "../../src/theme";
 
@@ -188,19 +189,12 @@ export default function StoryViewerScreen() {
                 noBackdrop
               />
             ) : (
-              <View
-                style={[
-                  StyleSheet.absoluteFill,
-                  styles.coloredBg,
-                  { backgroundColor: colorForText(current.title ?? current.articleId) },
-                ]}
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-              >
-                <Text style={styles.bgTitle} numberOfLines={6}>
-                  {current.title ?? current.articleId}
-                </Text>
-              </View>
+              <ArticleCover
+                title={current.title ?? current.articleId}
+                style={StyleSheet.absoluteFill}
+                fontSize={44}
+                numberOfLines={6}
+              />
             )}
             {/* Legibility scrims top & bottom. */}
             <LinearGradient
@@ -247,9 +241,16 @@ export default function StoryViewerScreen() {
                 ))}
               </View>
               <View style={styles.headerRow}>
-                <Text style={styles.author} numberOfLines={1}>
-                  {group?.user.displayName ?? `@${username}`}
-                </Text>
+                <View style={styles.authorGroup}>
+                  <Text style={styles.author} numberOfLines={1}>
+                    {group?.user.displayName ?? `@${username}`}
+                  </Text>
+                  {current.createdAt ? (
+                    <Text style={styles.postedAt} numberOfLines={1}>
+                      {storyTimeAgo(current.createdAt, t)}
+                    </Text>
+                  ) : null}
+                </View>
                 <Pressable
                   onPress={close}
                   hitSlop={12}
@@ -299,16 +300,6 @@ function makeStyles(colors: ThemeColors) {
       overflow: "hidden",
       backgroundColor: "#000",
     },
-    // No-image story: fill with a color derived from the title, with the title
-    // faded large in the background (the readable copy still sits in the footer).
-    coloredBg: { alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
-    bgTitle: {
-      color: "rgba(255,255,255,0.18)",
-      fontSize: 44,
-      fontWeight: "900",
-      textAlign: "center",
-      lineHeight: 50,
-    },
     emptyBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
     empty: { color: "#bbb", fontSize: 15 },
     closeText: { color: colors.accent, fontSize: 15, fontWeight: "700" },
@@ -330,7 +321,10 @@ function makeStyles(colors: ThemeColors) {
       justifyContent: "space-between",
       marginTop: 12,
     },
-    author: { flex: 1, color: "#fff", fontSize: 15, fontWeight: "700" },
+    authorGroup: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+    author: { color: "#fff", fontSize: 15, fontWeight: "700", flexShrink: 1 },
+    // Muted "posted X ago" next to the author. White 70% on the dark header ≥ 4.5:1.
+    postedAt: { color: "rgba(255,255,255,0.75)", fontSize: 13, fontWeight: "500" },
     footer: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 18, gap: 14 },
     title: { color: "#fff", fontSize: 22, fontWeight: "800", lineHeight: 28 },
     readBtn: {

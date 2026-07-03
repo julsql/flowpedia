@@ -220,5 +220,10 @@
   "story.readArticle": "Read article",
   "a11y.nextStory": "Next",
   "a11y.previousStory": "Previous",
-  "a11y.closeStories": "Close stories"
+  "a11y.closeStories": "Close stories",
+  "story.postedNow": "Just now",
+  "story.postedMinutes": "{{count}}m ago",
+  "story.postedHours": "{{count}}h ago",
+  "story.postedDays": "{{count}}d ago",
+  "story.postedWeeks": "{{count}}w ago"
 }

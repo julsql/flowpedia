@@ -218,5 +218,10 @@
   "story.readArticle": "Lire l'article",
   "a11y.nextStory": "Suivant",
   "a11y.previousStory": "Précédent",
-  "a11y.closeStories": "Fermer les stories"
+  "a11y.closeStories": "Fermer les stories",
+  "story.postedNow": "à l'instant",
+  "story.postedMinutes": "il y a {{count}} min",
+  "story.postedHours": "il y a {{count}} h",
+  "story.postedDays": "il y a {{count}} j",
+  "story.postedWeeks": "il y a {{count}} sem"
 }
