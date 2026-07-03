@@ -85,6 +85,8 @@
 13. **Signal révocable** : supprimer une page (historique / like / bookmark) **retire
     sa contribution** au profil, qui **recalcule sans elle** (journal append-only
     conservé, via event compensateur `remove`) — cf. §2.8.
+14. **Blocage thématique** : « ne plus me suggérer ce genre » → rejette **tout un
+    thème** (topic / catégorie / cluster), pas une seule page — cf. §2.9.
 
 ---
 
@@ -355,7 +357,10 @@ dé-dup robuste. Chaque point = un commit atomique (conventional commits, EN).
   - **injection sociale** : ≤ `SOCIAL_MAX_PER_PAGE` item de la source `social` (§2.6) ;
   - **exploration** : ≥1 slot/page hors-profil selon `EXPLORE_RATE` (§2.7) ;
   - diversité = MMR-lite par catégorie (remplace/complète `blendDiverse`) ;
-  - mutés = filtre **dur** + poids négatif.
+  - blocages thématiques (§2.9) = filtre **dur** (topic/catégorie) + poids négatif.
+- **Blocage thématique (§2.9)** : action UI « ça ne m'intéresse pas » (a11y : rôle
+  `button`, label explicite, ≥44×44) → choix du grain (topic / catégorie) ; persistance
+  serveur `user_blocked_topics` + fallback local ; étend `mutedInterests`.
 - Le `userId` doit remonter jusqu'au feed : ajouter `userId` en query (ou header)
   à `fetchFeed`/`FeedController` (aujourd'hui seul `sendEvents` l'attache).
 

@@ -252,5 +252,7 @@
   "account.confirmEmailTitle": "Confirming your email…",
   "account.emailConfirmed": "Your email address has been updated.",
   "account.emailConfirmError": "This confirmation link is invalid or has expired.",
-  "account.backToProfile": "Back to profile"
+  "account.backToProfile": "Back to profile",
+  "article.likedBy": "Liked by {{names}}",
+  "article.likedByMore": "Liked by {{names}} and {{count}} others"
 }

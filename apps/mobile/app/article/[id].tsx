@@ -28,15 +28,17 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
-import type { Article, ArticleSection, SectionImage } from "@flowpedia/shared";
+import type { Article, ArticleSection, PublicUser, SectionImage } from "@flowpedia/shared";
 import {
   fetchArticle,
+  fetchArticleLikers,
   fetchFeed,
   fetchSummaries,
   getCachedArticle,
   largeImageUrl,
   sendEvents,
 } from "../../src/api/client";
+import { LetterThumb } from "../../src/components/LetterThumb";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { Ancestry } from "../../src/components/Ancestry";
 import { ArticleCard } from "../../src/components/ArticleCard";
@@ -100,6 +102,8 @@ export default function ArticleScreen() {
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // People the viewer follows who liked this page (social proof, signed-in only).
+  const [likers, setLikers] = useState<PublicUser[]>([]);
   // Read the article aloud with the device's native TTS (no model/network).
   const {
     available: speechDeviceAvailable,
@@ -113,6 +117,31 @@ export default function ArticleScreen() {
   // The listen button also honours the account's "listen button" preference
   // (guests keep it on by default).
   const speechAvailable = speechDeviceAvailable && (auth.user?.ttsEnabled ?? true);
+
+  // Which people the viewer follows have liked this page (best-effort).
+  useEffect(() => {
+    if (!auth.user || !articleId) {
+      setLikers([]);
+      return;
+    }
+    let active = true;
+    fetchArticleLikers(articleId)
+      .then((list) => active && setLikers(list))
+      .catch(() => active && setLikers([]));
+    return () => {
+      active = false;
+    };
+  }, [auth.user, articleId]);
+
+  const likedByLabel = useMemo(() => {
+    if (likers.length === 0) {
+      return "";
+    }
+    const names = likers.slice(0, 2).map((u) => u.displayName);
+    return likers.length <= 2
+      ? t("article.likedBy", { names: names.join(", ") })
+      : t("article.likedByMore", { names: names.join(", "), count: likers.length - 2 });
+  }, [likers, t]);
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   // Tapped section image shown full-size in a lightbox (with its caption).
@@ -612,6 +641,23 @@ export default function ArticleScreen() {
           <View style={[centeredColumn, styles.blockPad]}>
             <Text style={styles.category}>{a.category.toUpperCase()}</Text>
             <Text style={styles.title}>{a.title}</Text>
+            {likers.length > 0 ? (
+              <View style={styles.likedByRow} accessibilityLabel={likedByLabel}>
+                <View style={styles.likedByAvatars} accessibilityElementsHidden>
+                  {likers.slice(0, 3).map((u, i) => (
+                    <LetterThumb
+                      key={u.id}
+                      text={u.displayName}
+                      style={[styles.likedByAvatar, i > 0 ? styles.likedByAvatarStacked : null]}
+                      fontSize={11}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.likedByText} numberOfLines={2}>
+                  {likedByLabel}
+                </Text>
+              </View>
+            ) : null}
             <InfoCard
               article={a}
               colors={colors}
@@ -1701,6 +1747,18 @@ const makeStyles = (colors: ThemeColors) =>
     lineHeight: 30,
     marginTop: 6,
   },
+  // "Liked by <people you follow>" social-proof row under the title.
+  likedByRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
+  likedByAvatars: { flexDirection: "row" },
+  likedByAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: colors.bg,
+  },
+  likedByAvatarStacked: { marginLeft: -8 },
+  likedByText: { flex: 1, color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
   section: { marginTop: 20 },
   // Sub-sections sit closer to the text above; the first one under its parent
   // section hugs it tighter still.

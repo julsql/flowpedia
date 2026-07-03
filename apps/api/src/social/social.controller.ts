@@ -23,6 +23,14 @@ export class SocialController {
     return this.follow.search(me.id, q ?? "");
   }
 
+  @Get("article-likers/:articleId")
+  articleLikers(
+    @CurrentUser() me: AuthPrincipal,
+    @Param("articleId") articleId: string,
+  ): Promise<PublicUser[]> {
+    return this.follow.likersAmongFollowing(me.id, decodeURIComponent(articleId));
+  }
+
   @Get("users/:username")
   profile(
     @CurrentUser() me: AuthPrincipal,

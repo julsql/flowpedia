@@ -223,6 +223,11 @@ export function searchUsers(q: string): Promise<PublicUser[]> {
   return requestJson<PublicUser[]>(`/users?q=${encodeURIComponent(q)}`, "GET");
 }
 
+/** People you follow who have liked a given article (social proof). */
+export function fetchArticleLikers(articleId: string): Promise<PublicUser[]> {
+  return requestJson<PublicUser[]>(`/article-likers/${encodeURIComponent(articleId)}`, "GET");
+}
+
 export function fetchProfile(username: string): Promise<ProfileView> {
   return requestJson<ProfileView>(userPath(username), "GET");
 }

@@ -1,6 +1,7 @@
 import { ConflictException } from "@nestjs/common";
 import { FollowService } from "./follow.service";
 import { User } from "../auth/user.entity";
+import { LibraryItem } from "../library/library-item.entity";
 import { Follow } from "./follow.entity";
 
 type Row = Record<string, unknown>;
@@ -41,6 +42,7 @@ function fakeRepo() {
 function makeService() {
   const userRepo = fakeRepo();
   const followRepo = fakeRepo();
+  const libraryRepo = fakeRepo();
   const addUser = (username: string, isPrivate = false) => {
     const u = {
       id: username,
@@ -53,12 +55,13 @@ function makeService() {
     return u;
   };
   const db = {
-    repo: (e: unknown) => (e === User ? userRepo : e === Follow ? followRepo : undefined),
+    repo: (e: unknown) =>
+      e === User ? userRepo : e === Follow ? followRepo : e === LibraryItem ? libraryRepo : undefined,
   };
   const notifications = { notify: jest.fn(async () => undefined) };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = new FollowService(db as any, notifications as any);
-  return { service, addUser, followRepo, notifications };
+  return { service, addUser, followRepo, libraryRepo, notifications };
 }
 
 describe("FollowService", () => {
@@ -128,5 +131,22 @@ describe("FollowService", () => {
     await service.rejectRequest("owner", "fan");
     expect(await service.requests("owner")).toEqual([]);
     expect((await service.profile("fan", "owner")).state).toBe("none");
+  });
+
+  it("lists only followed accounts who liked a given article", async () => {
+    const { service, addUser, libraryRepo } = makeService();
+    addUser("alice");
+    addUser("bob");
+    addUser("carol");
+    await service.follow("me", "alice"); // I follow alice
+    await service.follow("me", "bob"); //   and bob
+    // alice & carol liked "Paris"; bob liked "Lyon"; carol I don't follow.
+    await libraryRepo.insert({ userId: "alice", articleId: "Paris", kind: "like" });
+    await libraryRepo.insert({ userId: "carol", articleId: "Paris", kind: "like" });
+    await libraryRepo.insert({ userId: "bob", articleId: "Lyon", kind: "like" });
+
+    const likers = await service.likersAmongFollowing("me", "Paris");
+    expect(likers.map((u) => u.username)).toEqual(["alice"]); // followed + liked Paris only
+    expect(await service.likersAmongFollowing("me", "Nowhere")).toEqual([]);
   });
 });

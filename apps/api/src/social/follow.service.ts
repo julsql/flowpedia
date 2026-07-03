@@ -8,6 +8,7 @@ import { In, type Repository } from "typeorm";
 import type { FollowResult, FollowState, ProfileView, PublicUser } from "@flowpedia/shared";
 import { DatabaseService } from "../database/database.service";
 import { User } from "../auth/user.entity";
+import { LibraryItem } from "../library/library-item.entity";
 import { NotificationsService } from "../notifications/notifications.service";
 import { Follow } from "./follow.entity";
 
@@ -48,6 +49,44 @@ export class FollowService {
       throw new NotFoundException("Account not found.");
     }
     return user;
+  }
+
+  /** People the viewer follows (active) who have liked a given article, most
+   *  recently first — social proof shown on the article. */
+  async likersAmongFollowing(
+    viewerId: string,
+    articleId: string,
+    limit = 10,
+  ): Promise<PublicUser[]> {
+    if (!articleId) {
+      return [];
+    }
+    const following = await this.follows().find({
+      where: { followerId: viewerId, status: "active" },
+    });
+    const ids = following.map((f) => f.followingId);
+    if (!ids.length) {
+      return [];
+    }
+    const likeRepo = this.db.repo(LibraryItem);
+    if (!likeRepo) {
+      return [];
+    }
+    const likes = await likeRepo.find({
+      where: { userId: In(ids), articleId, kind: "like" },
+      order: { createdAt: "DESC" },
+      take: limit,
+    });
+    if (!likes.length) {
+      return [];
+    }
+    const users = await this.users().find({ where: { id: In(likes.map((l) => l.userId)) } });
+    const byId = new Map(users.map((u) => [u.id, u]));
+    // Preserve the like recency order.
+    return likes
+      .map((l) => byId.get(l.userId))
+      .filter((u): u is User => Boolean(u))
+      .map(toPublic);
   }
 
   async follow(viewerId: string, username: string): Promise<FollowResult> {
