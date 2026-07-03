@@ -252,5 +252,8 @@
   "account.emailConfirmError": "Ce lien de confirmation est invalide ou a expiré.",
   "account.backToProfile": "Retour au profil",
   "article.likedBy": "Aimé par {{names}}",
-  "article.likedByMore": "Aimé par {{names}} et {{count}} autres"
+  "article.likedByMore": "Aimé par {{names}} et {{count}} autres",
+  "menu.shareTo": "Partager à…",
+  "menu.notInterested": "Pas intéressé",
+  "a11y.moreOptions": "Plus d'options"
 }

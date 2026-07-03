@@ -16,12 +16,14 @@ import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Article } from "@flowpedia/shared";
 import { fetchFeed, largeImageUrl, sendEvents } from "../../src/api/client";
 import { buildFeedSeeds } from "../../src/library/seeds";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { ArticleCover } from "../../src/components/ArticleCover";
+import { MoreOptionsMenu } from "../../src/components/MoreOptionsMenu";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { useSeen } from "../../src/seen/SeenProvider";
@@ -275,6 +277,7 @@ export default function FlowScreen() {
 
 function FlowItem({ article, height }: { article: Article; height: number }) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { t } = useLocale();
   const { colors } = useTheme();
   const { isLiked, isSaved, toggleLike, toggleSave } = useLibrary();
@@ -328,6 +331,11 @@ function FlowItem({ article, height }: { article: Article; height: number }) {
         accessibilityRole="button"
         accessibilityLabel={t("a11y.openArticle", { title: article.title })}
       />
+
+      {/* More options (⋯), top-right, above the background tap layer. */}
+      <View style={[styles.moreTop, { top: insets.top + 10 }]}>
+        <MoreOptionsMenu article={article} color="#fff" />
+      </View>
 
       {/* Swipe-to-read affordance: chevron on the right, vertically centered. */}
       <View style={styles.readHint} pointerEvents="none">
@@ -407,6 +415,7 @@ const styles = StyleSheet.create({
   },
   title: { color: "#fff", fontSize: 26, fontWeight: "700", lineHeight: 31 },
   summary: { color: "rgba(255,255,255,0.9)", fontSize: 15, lineHeight: 22, marginTop: 10 },
+  moreTop: { position: "absolute", right: 14 },
   readHint: {
     position: "absolute",
     right: 6,

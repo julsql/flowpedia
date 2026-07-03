@@ -11,6 +11,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import type { Article } from "@flowpedia/shared";
 import { RemoteImage } from "./RemoteImage";
 import { ArticleCover } from "./ArticleCover";
+import { MoreOptionsMenu } from "./MoreOptionsMenu";
 import { radii, spacing, useTheme, type ThemeColors } from "../theme";
 import { useLocale } from "../i18n";
 import { useLibrary } from "../library/LibraryProvider";
@@ -45,12 +46,15 @@ export function ArticleCard({ article, onShare, onOpen }: ArticleCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.metaRow}>
-        <Text style={styles.category}>{article.category.toUpperCase()}</Text>
-        {article.readingMinutes ? (
-          <Text style={styles.meta}>
-            {"  ·  " + t("article.minRead", { count: article.readingMinutes })}
-          </Text>
-        ) : null}
+        <View style={styles.metaLeft}>
+          <Text style={styles.category}>{article.category.toUpperCase()}</Text>
+          {article.readingMinutes ? (
+            <Text style={styles.meta}>
+              {"  ·  " + t("article.minRead", { count: article.readingMinutes })}
+            </Text>
+          ) : null}
+        </View>
+        <MoreOptionsMenu article={article} />
       </View>
 
       <Pressable
@@ -155,7 +159,13 @@ const makeStyles = (colors: ThemeColors) =>
       paddingHorizontal: spacing.screenPadding,
       paddingVertical: 16,
     },
-    metaRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+    metaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 10,
+    },
+    metaLeft: { flexDirection: "row", alignItems: "center", flexShrink: 1 },
     category: {
       color: colors.accentDark,
       fontSize: 11,

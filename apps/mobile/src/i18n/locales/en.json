@@ -254,5 +254,8 @@
   "account.emailConfirmError": "This confirmation link is invalid or has expired.",
   "account.backToProfile": "Back to profile",
   "article.likedBy": "Liked by {{names}}",
-  "article.likedByMore": "Liked by {{names}} and {{count}} others"
+  "article.likedByMore": "Liked by {{names}} and {{count}} others",
+  "menu.shareTo": "Share to…",
+  "menu.notInterested": "Not interested",
+  "a11y.moreOptions": "More options"
 }
