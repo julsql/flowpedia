@@ -1,4 +1,4 @@
-import { FeedService, capRelatedByWeight, weaveSocial } from "./feed.service";
+import { FeedService, capRelatedByWeight, weaveEvery } from "./feed.service";
 import type { ProfileService } from "../reco/profile.service";
 import type { SeenService } from "../reco/seen.service";
 import type { SocialService } from "../reco/social.service";
@@ -211,6 +211,26 @@ describe("FeedService", () => {
     expect(social.getFollowedTitles).not.toHaveBeenCalled();
   });
 
+  it("weaves deliberate off-profile current events into the personalized feed", async () => {
+    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const wiki = makeWikipediaMock(getSummary);
+    const onProfile = Array.from({ length: 12 }, (_, i) => `Rel_${i}`);
+    const news = Array.from({ length: 12 }, (_, i) => `News_${i}`);
+    wiki.getRelatedTitles = jest.fn(async () => onProfile);
+    wiki.getPopularTitles = jest.fn(async () => onProfile); // keep the pool on-profile
+    wiki.getNewsTitles = jest.fn(async () => news);
+    const service = makeService(wiki);
+
+    const p1 = (await service.getFeed("forYou", "en", undefined, ["Seed"], 0, [], [], "u1", true)).items.map(
+      (a) => a.id,
+    );
+    const p2 = (await service.getFeed("forYou", "en", "5", ["Seed"], 0, [], [], "u1", true)).items.map(
+      (a) => a.id,
+    );
+
+    expect([...p1, ...p2].some((id) => id.startsWith("News_"))).toBe(true); // an off-profile escape
+  });
+
   it("reorders deterministically with a seed", async () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
     const service = makeService(makeWikipediaMock(getSummary));
@@ -224,23 +244,23 @@ describe("FeedService", () => {
   });
 });
 
-describe("weaveSocial", () => {
+describe("weaveEvery", () => {
   const pool = Array.from({ length: 10 }, (_, i) => `P${i}`);
 
   it("inserts one social pick per period at the given offset", () => {
-    const out = weaveSocial(pool, ["S0", "S1"], 5, 2);
+    const out = weaveEvery(pool, ["S0", "S1"], 5, 2);
     expect(out[2]).toBe("S0"); // 3rd slot of the first page
     expect(out[8]).toBe("S1"); // 3rd slot of the second page (shifted by one insert)
     expect(out[0]).toBe("P0"); // first slot untouched
   });
 
   it("skips social picks already present in the pool", () => {
-    const out = weaveSocial(["A", "B", "C"], ["B"], 5, 2);
+    const out = weaveEvery(["A", "B", "C"], ["B"], 5, 2);
     expect(out).toEqual(["A", "B", "C"]); // "B" already there → nothing woven
   });
 
   it("appends leftover picks when the pool is shorter than the cadence", () => {
-    expect(weaveSocial(["A"], ["S0"], 5, 2)).toEqual(["A", "S0"]);
+    expect(weaveEvery(["A"], ["S0"], 5, 2)).toEqual(["A", "S0"]);
   });
 });
 

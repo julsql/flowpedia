@@ -14,6 +14,11 @@ const SOCIAL_POOL = 20;
 const SOCIAL_PERIOD = PAGE_SIZE; // one per page
 const SOCIAL_OFFSET = 2; // 3rd slot of each page (never the first)
 
+// Exploration (§2.7): a deliberate off-profile item (current events) woven in at
+// a controlled rate to break the rabbit hole — distinct slot from the social one.
+const EXPLORE_PERIOD = 6; // ≈ one off-profile item every 6 slots (~17%)
+const EXPLORE_OFFSET = 4;
+
 // How often a "different subject" item is injected into a feed (every Nth slot),
 // so the user always has an escape door out of a rabbit hole.
 const FORYOU_DIVERSITY_PERIOD = 4;
@@ -61,17 +66,25 @@ export class FeedService {
     userId?: string,
     personalize = false,
   ): Promise<FeedResponse> {
-    const [built, serverSeen, socialTitles] = await Promise.all([
+    // Social + exploration are only for the profile-driven tabs, and never for a
+    // page-anchored "keep exploring".
+    const wantsInjection = personalize && (tab === "forYou" || tab === "discover");
+    const [built, serverSeen, socialTitles, exploreTitles] = await Promise.all([
       this.buildPool(tab, lang, seeds, seed, savedSeeds, userId, personalize),
       this.seen.getSeen(userId),
-      // A little "common ground" from followed accounts — only on the
-      // personalized home feed, never on a page-anchored exploration.
-      personalize ? this.social.getFollowedTitles(userId, SOCIAL_POOL) : Promise.resolve<string[]>([]),
+      // A little "common ground" from followed accounts.
+      wantsInjection ? this.social.getFollowedTitles(userId, SOCIAL_POOL) : Promise.resolve<string[]>([]),
+      // Deliberate off-profile current events, to escape the rabbit hole.
+      wantsInjection ? this.wikipedia.getNewsTitles(lang) : Promise.resolve<string[]>([]),
     ]);
-    // Weave in social picks at a strict cadence (≤1/page, never the first slot).
-    const pool = socialTitles.length
-      ? weaveSocial(built, socialTitles, SOCIAL_PERIOD, SOCIAL_OFFSET)
-      : built;
+    // Weave in social picks then exploration, each at its own strict cadence.
+    let pool = built;
+    if (socialTitles.length) {
+      pool = weaveEvery(pool, socialTitles, SOCIAL_PERIOD, SOCIAL_OFFSET);
+    }
+    if (exploreTitles.length) {
+      pool = weaveEvery(pool, exploreTitles, EXPLORE_PERIOD, EXPLORE_OFFSET);
+    }
     // Drop articles the user has already been shown recently (client snapshot +
     // server-authoritative seen), so the flow keeps moving forward.
     const excluded = new Set([...exclude, ...serverSeen]);
@@ -218,19 +231,20 @@ export function capRelatedByWeight(
 }
 
 /**
- * Insert social picks into the pool at one fixed slot per `period` window (at
+ * Insert extra titles into the pool at one fixed slot per `period` window (at
  * `offset` within it, so never the first slot of a page). New titles only —
- * anything already in the pool is skipped so a social pick can't duplicate.
- * Kept marginal by construction: at most one per window.
+ * anything already in the pool is skipped so an insert can't duplicate. Kept
+ * marginal by construction: at most one per window. Used for both the social
+ * dose (§2.6) and the exploration dose (§2.7), at their own cadences.
  */
-export function weaveSocial(
+export function weaveEvery(
   pool: string[],
-  social: string[],
+  extra: string[],
   period: number,
   offset: number,
 ): string[] {
   const inPool = new Set(pool);
-  const fresh = social.filter((t) => !inPool.has(t));
+  const fresh = extra.filter((t) => !inPool.has(t));
   if (!fresh.length) {
     return pool;
   }
