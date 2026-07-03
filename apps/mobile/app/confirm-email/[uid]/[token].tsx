@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -21,15 +21,21 @@ export default function ConfirmEmailScreen() {
 
   const [state, setState] = useState<"loading" | "done" | "error">("loading");
 
+  // Confirm exactly once: the token is single-use, so confirming updates the
+  // account, which changes the auth context (and thus confirmEmailChange's
+  // identity). Without this guard the effect would re-run and call confirm again
+  // with the now-consumed token — showing a false "invalid link" error.
+  const ran = useRef(false);
   useEffect(() => {
-    let active = true;
+    if (ran.current) {
+      return;
+    }
+    ran.current = true;
     confirmEmailChange(uid, token)
-      .then(() => active && setState("done"))
-      .catch(() => active && setState("error"));
-    return () => {
-      active = false;
-    };
-  }, [uid, token, confirmEmailChange]);
+      .then(() => setState("done"))
+      .catch(() => setState("error"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <AuthScaffold
