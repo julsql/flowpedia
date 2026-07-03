@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Animated, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
@@ -17,6 +17,8 @@ import { useLocale } from "../i18n";
 import { useLibrary } from "../library/LibraryProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { shareExternal } from "./shareExternal";
+import { RemoteImage } from "../components/RemoteImage";
+import { LetterThumb } from "../components/LetterThumb";
 import { createStory, fetchTopContacts, sendEvents, sendPage } from "../api/client";
 
 interface ShareSheetValue {
@@ -166,9 +168,9 @@ export function ShareSheetProvider({ children }: { children: ReactNode }) {
           {article ? (
             <View style={styles.preview}>
               {article.image ? (
-                <Image source={{ uri: article.image }} style={styles.previewThumb} />
+                <RemoteImage source={{ uri: article.image }} style={styles.previewThumb} />
               ) : (
-                <View style={[styles.previewThumb, styles.previewPlaceholder]} />
+                <LetterThumb text={article.title} style={styles.previewThumb} fontSize={18} />
               )}
               <View style={styles.previewText}>
                 <Text style={styles.previewTitle} numberOfLines={2}>
@@ -303,7 +305,6 @@ const makeStyles = (colors: ThemeColors) =>
   },
   preview: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 20 },
   previewThumb: { width: 44, height: 44, borderRadius: 10, backgroundColor: colors.field },
-  previewPlaceholder: { backgroundColor: colors.separatorThick },
   previewText: { flex: 1 },
   previewTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "600" },
   previewMeta: { color: colors.textTertiary, fontSize: 12, marginTop: 2 },

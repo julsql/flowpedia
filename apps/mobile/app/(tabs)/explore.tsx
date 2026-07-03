@@ -25,6 +25,7 @@ import {
   centeredColumn,
 } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
+import { ArticleCover } from "../../src/components/ArticleCover";
 import { SkeletonCell } from "../../src/components/SkeletonCard";
 import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
@@ -37,25 +38,6 @@ const GRID_GAP = 2;
 const GRID_FILL_TARGET = 24;
 // How many recent searches to show (up to 50 are kept in storage).
 const RECENT_SEARCHES_SHOWN = 12;
-// Backdrop colors for image-less tiles (so the title reads like a cover).
-const TILE_COLORS = [
-  "#8E6FB0",
-  "#5A7DAF",
-  "#4F9D8C",
-  "#C18B5A",
-  "#B0586E",
-  "#6B7FA0",
-  "#9A7B4F",
-  "#7E8B5A",
-];
-
-function tileColor(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i += 1) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  }
-  return TILE_COLORS[hash % TILE_COLORS.length];
-}
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
@@ -539,11 +521,11 @@ export default function ExploreScreen() {
                     // No image → a colored backdrop with the title shown big, and
                     // the same bottom title overlay as image tiles (uniform look).
                     <>
-                      <View style={[styles.cellImage, styles.cellFallback, { backgroundColor: tileColor(article.id) }]}>
-                        <Text style={styles.cellFallbackText} numberOfLines={4}>
-                          {article.title}
-                        </Text>
-                      </View>
+                      <ArticleCover
+                        title={article.title}
+                        style={styles.cellImage}
+                        fontSize={18}
+                      />
                       <LinearGradient
                         colors={["transparent", "rgba(0,0,0,0.75)"]}
                         style={styles.cellGradient}
@@ -624,13 +606,4 @@ const makeStyles = (colors: ThemeColors) =>
     // Title overlaid on the image (gradient for legibility).
     cellGradient: { position: "absolute", left: 0, right: 0, bottom: 0, height: "60%" },
     cellTitle: { color: "#fff", fontSize: 12, fontWeight: "600", padding: 8, lineHeight: 15 },
-    // Image-less tile: colored backdrop with the title centered, like a cover.
-    cellFallback: { alignItems: "center", justifyContent: "center", padding: 8 },
-    cellFallbackText: {
-      color: "#fff",
-      fontSize: 18,
-      lineHeight: 22,
-      fontWeight: "800",
-      textAlign: "center",
-    },
   });

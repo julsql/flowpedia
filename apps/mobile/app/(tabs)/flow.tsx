@@ -20,31 +20,12 @@ import type { Article } from "@flowpedia/shared";
 import { fetchFeed, largeImageUrl, sendEvents } from "../../src/api/client";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
+import { ArticleCover } from "../../src/components/ArticleCover";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useSeen } from "../../src/seen/SeenProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
 import { useTheme } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
-
-// Backdrop colors for image-less items (title shown big, like a cover).
-const COVER_COLORS = [
-  "#8E6FB0",
-  "#5A7DAF",
-  "#4F9D8C",
-  "#C18B5A",
-  "#B0586E",
-  "#6B7FA0",
-  "#9A7B4F",
-  "#7E8B5A",
-];
-
-function coverColor(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i += 1) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  }
-  return COVER_COLORS[hash % COVER_COLORS.length];
-}
 
 export default function FlowScreen() {
   const { locale } = useLocale();
@@ -330,11 +311,7 @@ function FlowItem({ article, height }: { article: Article; height: number }) {
         />
       ) : (
         // No image → a colored cover with the title shown big.
-        <View style={[styles.image, styles.cover, { backgroundColor: coverColor(article.id) }]}>
-          <Text style={styles.coverTitle} numberOfLines={5}>
-            {article.title}
-          </Text>
-        </View>
+        <ArticleCover title={article.title} style={styles.image} fontSize={34} numberOfLines={5} />
       )}
       <LinearGradient
         colors={["transparent", "rgba(0,0,0,0.85)"]}
@@ -414,14 +391,6 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   item: { width: "100%", justifyContent: "flex-end" },
   image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
-  cover: { alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
-  coverTitle: {
-    color: "#fff",
-    fontSize: 34,
-    fontWeight: "800",
-    textAlign: "center",
-    lineHeight: 40,
-  },
   gradient: { position: "absolute", left: 0, right: 0, bottom: 0, height: "60%" },
   actions: { position: "absolute", right: 14, bottom: 150, alignItems: "center", gap: 22 },
   action: { alignItems: "center" },

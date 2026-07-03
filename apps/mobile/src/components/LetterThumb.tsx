@@ -1,11 +1,22 @@
 import { useMemo } from "react";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
-// A small fixed palette (good contrast with white text in both themes).
-const COLORS = ["#c77d3a", "#3a7ec7", "#b54f8e", "#4a9d6b", "#9a6cc0", "#c0541c", "#2f8f87"];
+// The single app-wide cover palette (good contrast with white text in both
+// themes). Shared by LetterThumb (small letter fallback) and ArticleCover
+// (big-title fallback) so every image-less article looks the same everywhere.
+const COLORS = [
+  "#8E6FB0",
+  "#5A7DAF",
+  "#4F9D8C",
+  "#C18B5A",
+  "#B0586E",
+  "#6B7FA0",
+  "#9A7B4F",
+  "#7E8B5A",
+];
 
-/** Stable color derived from a title (same palette as the letter thumbnails).
- *  Shared so a no-image story can fill its whole background with it. */
+/** Stable color derived from a title (the app-wide cover palette).
+ *  Shared so a no-image story/cover can fill its whole background with it. */
 export function colorForText(text: string): string {
   let hash = 0;
   for (let i = 0; i < text.length; i += 1) {

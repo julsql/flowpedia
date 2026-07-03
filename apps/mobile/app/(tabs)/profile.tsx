@@ -7,6 +7,7 @@ import type { Interest, ProfileView, StoryGroup } from "@flowpedia/shared";
 import { radii, spacing, useTheme, type ThemeColors, type ThemeMode } from "../../src/theme";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
+import { LetterThumb } from "../../src/components/LetterThumb";
 import { fetchInterests, fetchProfile, fetchUserStories } from "../../src/api/client";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { useSeenStories } from "../../src/seen/SeenStoriesProvider";
@@ -319,7 +320,8 @@ export default function ProfileScreen() {
                         importantForAccessibility="no-hide-descendants"
                       />
                     ) : (
-                      <View style={[styles.savedImage, styles.savedPlaceholder]} />
+                      // No image → first letter on a colored backdrop (small viz).
+                      <LetterThumb text={article.title} style={styles.savedImage} fontSize={32} />
                     )}
                     {openList === "read" ? (
                       <Pressable
@@ -621,7 +623,6 @@ const makeStyles = (colors: ThemeColors) =>
       borderRadius: radii.profileThumb,
       backgroundColor: colors.field,
     },
-    savedPlaceholder: { backgroundColor: colors.separatorThick },
     savedCaption: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
     segment: {
       flexDirection: "row",
