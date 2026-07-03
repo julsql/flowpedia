@@ -358,9 +358,16 @@ dé-dup robuste. Chaque point = un commit atomique (conventional commits, EN).
   - **exploration** : ≥1 slot/page hors-profil selon `EXPLORE_RATE` (§2.7) ;
   - diversité = MMR-lite par catégorie (remplace/complète `blendDiverse`) ;
   - blocages thématiques (§2.9) = filtre **dur** (topic/catégorie) + poids négatif.
-- **Blocage thématique (§2.9)** : action UI « ça ne m'intéresse pas » (a11y : rôle
-  `button`, label explicite, ≥44×44) → choix du grain (topic / catégorie) ; persistance
-  serveur `user_blocked_topics` + fallback local ; étend `mutedInterests`.
+- **Blocage thématique (§2.9)** :
+  - ✅ **Fait** : action UI « Pas intéressé » dans le menu ⋯ des cartes
+    (`src/components/MoreOptionsMenu.tsx`, i18n `menu.notInterested` EN/FR, a11y OK).
+    Wirée sur `muteInterest(article.category)` → le feed `forYou` écarte déjà ces
+    seeds (`app/(tabs)/index.tsx:50-56`). Callback optionnel `onNotInterested(article)`
+    exposé (non-breaking) pour le retrait de carte.
+  - ⏳ **Reste** : (a) câbler `onNotInterested` dans le feed + le flow pour masquer
+    la carte façon Instagram ; (b) choix du grain (topic global / catégorie / cluster
+    Phase 2) ; (c) émettre un **event négatif serveur** (une fois le type ajouté à
+    `InteractionType`) + persistance `user_blocked_topics` ; fallback local (invités).
 - Le `userId` doit remonter jusqu'au feed : ajouter `userId` en query (ou header)
   à `fetchFeed`/`FeedController` (aujourd'hui seul `sendEvents` l'attache).
 

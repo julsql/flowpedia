@@ -15,24 +15,30 @@ import type { Article } from "@flowpedia/shared";
 import { radii, useTheme, type ThemeColors } from "../theme";
 import { useLocale } from "../i18n";
 import { useShare } from "../share/ShareSheetProvider";
+import { useLibrary } from "../library/LibraryProvider";
 import { sendEvents } from "../api/client";
 
 /** A "⋯" more-options button (top-right of a feed card) opening a small menu:
- *  copy link, and share to (opens the share sheet). Anchored under the button. */
+ *  copy link, share to (opens the share sheet), and "not interested" (steers the
+ *  feed away from this topic). Anchored under the button. */
 export function MoreOptionsMenu({
   article,
   color,
   style,
+  onNotInterested,
 }: {
   article: Article;
   /** Icon tint (e.g. white over the immersive flow). Defaults to the theme. */
   color?: string;
   style?: StyleProp<ViewStyle>;
+  /** Called after "not interested" so the parent can dismiss the card. */
+  onNotInterested?: (article: Article) => void;
 }) {
   const { t } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { openShare } = useShare();
+  const { muteInterest } = useLibrary();
   const btnRef = useRef<View>(null);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, right: 12 });
@@ -56,6 +62,16 @@ export function MoreOptionsMenu({
   const shareTo = () => {
     setOpen(false);
     openShare(article);
+  };
+
+  // "Not interested" → mute this article's topic so the feed steers away from it,
+  // then let the parent dismiss the card.
+  const notInterested = () => {
+    setOpen(false);
+    if (article.category) {
+      muteInterest(article.category);
+    }
+    onNotInterested?.(article);
   };
 
   return (
@@ -98,6 +114,16 @@ export function MoreOptionsMenu({
           >
             <MaterialIcons name="send" size={20} color={colors.textPrimary} />
             <Text style={styles.itemLabel}>{t("menu.shareTo")}</Text>
+          </Pressable>
+          <View style={styles.divider} />
+          <Pressable
+            style={styles.item}
+            onPress={notInterested}
+            accessibilityRole="button"
+            accessibilityLabel={t("menu.notInterested")}
+          >
+            <MaterialIcons name="not-interested" size={20} color={colors.textPrimary} />
+            <Text style={styles.itemLabel}>{t("menu.notInterested")}</Text>
           </Pressable>
         </View>
       </Modal>
