@@ -3,9 +3,16 @@ import type { Article, FeedResponse, FeedTab } from "@flowpedia/shared";
 import { WikipediaService } from "../wikipedia/wikipedia.service";
 import { ProfileService } from "../reco/profile.service";
 import { SeenService } from "../reco/seen.service";
+import { SocialService } from "../reco/social.service";
 import { LIKE_WEIGHT, SAVE_WEIGHT } from "./weights";
 
 const PAGE_SIZE = 5;
+
+// Social injection (§2.6): at most one "followed accounts liked this" item per
+// page, and never the first slot — common ground, kept marginal.
+const SOCIAL_POOL = 20;
+const SOCIAL_PERIOD = PAGE_SIZE; // one per page
+const SOCIAL_OFFSET = 2; // 3rd slot of each page (never the first)
 
 // How often a "different subject" item is injected into a feed (every Nth slot),
 // so the user always has an escape door out of a rabbit hole.
@@ -22,6 +29,7 @@ export class FeedService {
     private readonly wikipedia: WikipediaService,
     private readonly profile: ProfileService,
     private readonly seen: SeenService,
+    private readonly social: SocialService,
   ) {}
 
   /**
@@ -53,14 +61,21 @@ export class FeedService {
     userId?: string,
     personalize = false,
   ): Promise<FeedResponse> {
-    const [built, serverSeen] = await Promise.all([
+    const [built, serverSeen, socialTitles] = await Promise.all([
       this.buildPool(tab, lang, seeds, seed, savedSeeds, userId, personalize),
       this.seen.getSeen(userId),
+      // A little "common ground" from followed accounts — only on the
+      // personalized home feed, never on a page-anchored exploration.
+      personalize ? this.social.getFollowedTitles(userId, SOCIAL_POOL) : Promise.resolve<string[]>([]),
     ]);
+    // Weave in social picks at a strict cadence (≤1/page, never the first slot).
+    const pool = socialTitles.length
+      ? weaveSocial(built, socialTitles, SOCIAL_PERIOD, SOCIAL_OFFSET)
+      : built;
     // Drop articles the user has already been shown recently (client snapshot +
     // server-authoritative seen), so the flow keeps moving forward.
     const excluded = new Set([...exclude, ...serverSeen]);
-    const ordered = excluded.size ? built.filter((title) => !excluded.has(title)) : built;
+    const ordered = excluded.size ? pool.filter((title) => !excluded.has(title)) : pool;
     const offset = cursor ? Number(cursor) : 0;
 
     const slice =
@@ -200,6 +215,39 @@ export function capRelatedByWeight(
   }
   const cap = Math.max(1, Math.floor(likedRelated.length * (saveWeight / likeWeight)));
   return [...new Set([...likedRelated, ...savedRelated.slice(0, cap)])];
+}
+
+/**
+ * Insert social picks into the pool at one fixed slot per `period` window (at
+ * `offset` within it, so never the first slot of a page). New titles only —
+ * anything already in the pool is skipped so a social pick can't duplicate.
+ * Kept marginal by construction: at most one per window.
+ */
+export function weaveSocial(
+  pool: string[],
+  social: string[],
+  period: number,
+  offset: number,
+): string[] {
+  const inPool = new Set(pool);
+  const fresh = social.filter((t) => !inPool.has(t));
+  if (!fresh.length) {
+    return pool;
+  }
+  const out: string[] = [];
+  let si = 0;
+  for (let i = 0; i < pool.length; i += 1) {
+    if (i % period === offset && si < fresh.length) {
+      out.push(fresh[si]);
+      si += 1;
+    }
+    out.push(pool[i]);
+  }
+  // Any leftover social picks (short pool) go at the end rather than being lost.
+  for (; si < fresh.length; si += 1) {
+    out.push(fresh[si]);
+  }
+  return out;
 }
 
 /**

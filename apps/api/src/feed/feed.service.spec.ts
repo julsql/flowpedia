@@ -1,6 +1,7 @@
-import { FeedService, capRelatedByWeight } from "./feed.service";
+import { FeedService, capRelatedByWeight, weaveSocial } from "./feed.service";
 import type { ProfileService } from "../reco/profile.service";
 import type { SeenService } from "../reco/seen.service";
+import type { SocialService } from "../reco/social.service";
 import type { Article } from "@flowpedia/shared";
 
 // Reco stubs: empty by default so the existing (non-personalized) tests are
@@ -15,12 +16,16 @@ function emptyProfile(overrides: Partial<ProfileService> = {}): ProfileService {
 function emptySeen(seen: string[] = []): SeenService {
   return { getSeen: jest.fn(async () => new Set(seen)) } as unknown as SeenService;
 }
+function emptySocial(titles: string[] = []): SocialService {
+  return { getFollowedTitles: jest.fn(async () => titles) } as unknown as SocialService;
+}
 function makeService(
   wiki: unknown,
   profile: ProfileService = emptyProfile(),
   seen: SeenService = emptySeen(),
+  social: SocialService = emptySocial(),
 ): FeedService {
-  return new FeedService(wiki as never, profile, seen);
+  return new FeedService(wiki as never, profile, seen, social);
 }
 
 function fakeArticle(id: string): Article {
@@ -181,6 +186,31 @@ describe("FeedService", () => {
     expect(res.items.map((a) => a.id)).toEqual([TITLES[2], TITLES[3], TITLES[4], TITLES[5], TITLES[6]]);
   });
 
+  it("weaves a small dose of followed-accounts' picks into the personalized feed", async () => {
+    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const wiki = makeWikipediaMock(getSummary);
+    const social = emptySocial(["FollowedPick"]);
+    const service = makeService(wiki, emptyProfile(), emptySeen(), social);
+
+    const ids = (await service.getFeed("forYou", "en", undefined, ["Seed"], 0, [], [], "u1", true)).items.map(
+      (a) => a.id,
+    );
+
+    expect(social.getFollowedTitles).toHaveBeenCalledWith("u1", expect.any(Number));
+    expect(ids).toContain("FollowedPick");
+    expect(ids[0]).not.toBe("FollowedPick"); // never the first slot
+  });
+
+  it("does not pull social picks for a page-anchored feed", async () => {
+    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const social = emptySocial(["FollowedPick"]);
+    const service = makeService(makeWikipediaMock(getSummary), emptyProfile(), emptySeen(), social);
+
+    await service.getFeed("forYou", "en", undefined, ["Page"], 0, [], [], "u1", false);
+
+    expect(social.getFollowedTitles).not.toHaveBeenCalled();
+  });
+
   it("reorders deterministically with a seed", async () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
     const service = makeService(makeWikipediaMock(getSummary));
@@ -191,6 +221,26 @@ describe("FeedService", () => {
 
     expect(same).toEqual(first); // same seed → same order
     expect(other).not.toEqual(first); // different seed → different order
+  });
+});
+
+describe("weaveSocial", () => {
+  const pool = Array.from({ length: 10 }, (_, i) => `P${i}`);
+
+  it("inserts one social pick per period at the given offset", () => {
+    const out = weaveSocial(pool, ["S0", "S1"], 5, 2);
+    expect(out[2]).toBe("S0"); // 3rd slot of the first page
+    expect(out[8]).toBe("S1"); // 3rd slot of the second page (shifted by one insert)
+    expect(out[0]).toBe("P0"); // first slot untouched
+  });
+
+  it("skips social picks already present in the pool", () => {
+    const out = weaveSocial(["A", "B", "C"], ["B"], 5, 2);
+    expect(out).toEqual(["A", "B", "C"]); // "B" already there → nothing woven
+  });
+
+  it("appends leftover picks when the pool is shorter than the cadence", () => {
+    expect(weaveSocial(["A"], ["S0"], 5, 2)).toEqual(["A", "S0"]);
   });
 });
 

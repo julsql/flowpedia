@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { WikipediaModule } from "../wikipedia/wikipedia.module";
 import { ProfileService } from "./profile.service";
 import { SeenService } from "./seen.service";
+import { SocialService } from "./social.service";
 
 /**
  * The recommendation engine (§2 of the plan): derives a per-user taste profile
@@ -10,7 +11,7 @@ import { SeenService } from "./seen.service";
  */
 @Module({
   imports: [WikipediaModule],
-  providers: [ProfileService, SeenService],
-  exports: [ProfileService, SeenService],
+  providers: [ProfileService, SeenService, SocialService],
+  exports: [ProfileService, SeenService, SocialService],
 })
 export class RecoModule {}
