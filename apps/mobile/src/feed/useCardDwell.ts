@@ -24,6 +24,9 @@ export function useCardDwell() {
       }
       if (token.isViewable) {
         startedAt.set(id, now);
+        // Mark it shown even for a glance, so server-side de-dup covers cards
+        // scrolled past too fast to register a cardDwell.
+        sendEvents([{ articleId: id, type: "impression", ts: now }]);
       } else {
         const start = startedAt.get(id);
         if (start != null) {

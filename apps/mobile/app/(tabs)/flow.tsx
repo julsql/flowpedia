@@ -72,6 +72,9 @@ export default function FlowScreen() {
             sendEvents([{ articleId: prev.id, type: "cardDwell", value: dwell, ts: now }]);
           }
         }
+        if (id) {
+          sendEvents([{ articleId: id, type: "impression", ts: now }]);
+        }
         cardDwellRef.current = { id, since: now };
       }
     },

@@ -487,12 +487,52 @@ export async function fetchTrending(locale: Locale): Promise<Article[]> {
   return res.items;
 }
 
-/** Fire-and-forget signal ingestion; failures must never break the UI. */
-export function sendEvents(events: InteractionEvent[]): void {
-  const withUser = events.map((e) => ({ ...e, userId: currentUserId }));
+// Signals are batched so noisy sensors (cardDwell, impression, dwell) don't fire
+// a request each. Strong, low-frequency signals flush immediately; the rest ride
+// a short debounce or a size cap. Best-effort — a dropped batch never breaks UI.
+const EVENT_FLUSH_DEBOUNCE_MS = 4000;
+const EVENT_MAX_QUEUE = 20;
+const IMMEDIATE_EVENTS = new Set<InteractionEvent["type"]>([
+  "like",
+  "save",
+  "share",
+  "story",
+  "remove",
+  "clearHistory",
+  "openFull",
+]);
+
+let eventQueue: InteractionEvent[] = [];
+let eventFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushEvents(): void {
+  if (eventFlushTimer) {
+    clearTimeout(eventFlushTimer);
+    eventFlushTimer = null;
+  }
+  if (!eventQueue.length) {
+    return;
+  }
+  const batch = eventQueue.map((e) => ({ ...e, userId: currentUserId }));
+  eventQueue = [];
   void fetch(`${BASE_URL}/events`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ events: withUser }),
+    body: JSON.stringify({ events: batch }),
   }).catch(() => undefined);
+}
+
+/** Queue signals for ingestion; flushes immediately for strong signals. */
+export function sendEvents(events: InteractionEvent[]): void {
+  if (!events.length) {
+    return;
+  }
+  eventQueue.push(...events);
+  if (eventQueue.length >= EVENT_MAX_QUEUE || events.some((e) => IMMEDIATE_EVENTS.has(e.type))) {
+    flushEvents();
+    return;
+  }
+  if (!eventFlushTimer) {
+    eventFlushTimer = setTimeout(flushEvents, EVENT_FLUSH_DEBOUNCE_MS);
+  }
 }

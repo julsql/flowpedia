@@ -283,11 +283,22 @@ export default function ArticleScreen() {
     void load();
   }, [load]);
 
-  // Log dwell time when leaving the article.
+  // Deepest point reached in the article (0..1), for the scrollDepth signal.
+  const maxScrollDepthRef = useRef(0);
+
+  // Log dwell time and reading depth when leaving the article.
   useEffect(() => {
     const start = Date.now();
+    maxScrollDepthRef.current = 0;
     return () => {
-      sendEvents([{ articleId, type: "dwell", value: Date.now() - start, ts: Date.now() }]);
+      const now = Date.now();
+      const events: { articleId: string; type: "dwell" | "scrollDepth"; value: number; ts: number }[] = [
+        { articleId, type: "dwell", value: now - start, ts: now },
+      ];
+      if (maxScrollDepthRef.current > 0) {
+        events.push({ articleId, type: "scrollDepth", value: maxScrollDepthRef.current, ts: now });
+      }
+      sendEvents(events);
     };
   }, [articleId]);
 
@@ -402,8 +413,16 @@ export default function ArticleScreen() {
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const offsetY = e.nativeEvent.contentOffset.y;
+      const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+      const offsetY = contentOffset.y;
       setShowScrollTop(offsetY > SCROLL_TOP_THRESHOLD);
+      // Track how deep into the article the reader got (0..1).
+      if (contentSize.height > 0) {
+        const depth = Math.min(1, (offsetY + layoutMeasurement.height) / contentSize.height);
+        if (depth > maxScrollDepthRef.current) {
+          maxScrollDepthRef.current = depth;
+        }
+      }
       // Slide the title sub-header in on scroll-up (mid-page), out on scroll-down
       // or near the top (where the on-page title is already visible).
       const dy = offsetY - lastYRef.current;
