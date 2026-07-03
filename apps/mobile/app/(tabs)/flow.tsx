@@ -18,6 +18,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import type { Article } from "@flowpedia/shared";
 import { fetchFeed, largeImageUrl, sendEvents } from "../../src/api/client";
+import { buildFeedSeeds } from "../../src/library/seeds";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { ArticleCover } from "../../src/components/ArticleCover";
@@ -58,14 +59,11 @@ export default function FlowScreen() {
   ).current;
   const atTopRef = useRef(true);
   const refreshingRef = useRef(false);
-  const seedsRef = useRef<string[]>([]);
-  seedsRef.current = useMemo(() => {
-    const muted = new Set(mutedInterests);
-    const ids = [...liked, ...saved]
-      .filter((a) => !(a.category && muted.has(a.category)))
-      .map((a) => a.id);
-    return Array.from(new Set(ids)).slice(0, 6);
-  }, [liked, saved, mutedInterests]);
+  const seedsRef = useRef<{ seeds: string[]; savedSeeds: string[] }>({ seeds: [], savedSeeds: [] });
+  seedsRef.current = useMemo(
+    () => buildFeedSeeds(liked, saved, mutedInterests),
+    [liked, saved, mutedInterests],
+  );
   const excludeRef = useRef<string[]>([]);
   const seenIdsRef = useRef<string[]>([]);
   seenIdsRef.current = seenIds;
@@ -88,9 +86,10 @@ export default function FlowScreen() {
         "discover",
         locale,
         undefined,
-        seedsRef.current,
+        seedsRef.current.seeds,
         seedRef.current,
         excludeRef.current,
+        seedsRef.current.savedSeeds,
       );
       setArticles(dedupe(res.items));
       setCursor(res.nextCursor);
@@ -126,9 +125,10 @@ export default function FlowScreen() {
         "discover",
         locale,
         cursor,
-        seedsRef.current,
+        seedsRef.current.seeds,
         seedRef.current,
         excludeRef.current,
+        seedsRef.current.savedSeeds,
       );
       setArticles((prev) => [...prev, ...dedupe(res.items)]);
       setCursor(res.nextCursor);

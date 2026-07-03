@@ -16,13 +16,16 @@ export class FeedController {
     @Query("seeds") seeds?: string,
     @Query("seed") seed?: string,
     @Query("exclude") exclude?: string,
+    @Query("savedSeeds") savedSeeds?: string,
   ): Promise<FeedResponse> {
     const safeTab: FeedTab = VALID_TABS.includes(tab as FeedTab)
       ? (tab as FeedTab)
       : "popular";
+    // `seeds` = liked pages (strong signal), `savedSeeds` = bookmarked (weaker).
     const seedList = seeds ? seeds.split(",").filter(Boolean) : [];
+    const savedList = savedSeeds ? savedSeeds.split(",").filter(Boolean) : [];
     const seedNum = seed ? Number(seed) || 0 : 0;
     const excludeList = exclude ? exclude.split(",").filter(Boolean) : [];
-    return this.feed.getFeed(safeTab, lang, cursor, seedList, seedNum, excludeList);
+    return this.feed.getFeed(safeTab, lang, cursor, seedList, seedNum, excludeList, savedList);
   }
 }

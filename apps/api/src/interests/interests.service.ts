@@ -43,6 +43,19 @@ interface Coverage {
   level: number;
 }
 
+/** A kept article with the weight of the signal it came from (liked ≫ saved ≫
+ *  read). The weight steers the *ranking* of interests, not the recurrence gate:
+ *  a theme still needs ≥ MIN_COVERAGE distinct articles, but among the surviving
+ *  themes the one your strongest signals cluster on wins. */
+export interface WeightedTitle {
+  title: string;
+  weight: number;
+}
+
+function toWeighted(input: string[] | WeightedTitle[]): WeightedTitle[] {
+  return input.map((it) => (typeof it === "string" ? { title: it, weight: 1 } : it));
+}
+
 /**
  * Turns the titles a user kept (liked/read/saved) into adaptive interest chips.
  *
@@ -57,8 +70,20 @@ interface Coverage {
 export class InterestsService {
   constructor(private readonly wikipedia: WikipediaService) {}
 
-  async deriveInterests(titles: string[], lang?: string): Promise<Interest[]> {
-    const articles = [...new Set(titles.filter(Boolean))].slice(-MAX_INPUT_ARTICLES);
+  async deriveInterests(
+    input: string[] | WeightedTitle[],
+    lang?: string,
+  ): Promise<Interest[]> {
+    // Dedupe by title (keeping the strongest weight when a page was e.g. both
+    // liked and read), then keep the first N (highest-priority first).
+    const byTitle = new Map<string, number>();
+    for (const { title, weight } of toWeighted(input)) {
+      if (!title) continue;
+      byTitle.set(title, Math.max(byTitle.get(title) ?? 0, weight));
+    }
+    const kept = [...byTitle.entries()].slice(0, MAX_INPUT_ARTICLES);
+    const articles = kept.map(([title]) => title);
+    const weights = kept.map(([, weight]) => weight);
     if (articles.length < MIN_COVERAGE) {
       return [];
     }
@@ -102,7 +127,7 @@ export class InterestsService {
       frontier = [...next];
     }
 
-    return this.selectInterests(coverage, articles.length);
+    return this.selectInterests(coverage, articles.length, weights);
   }
 
   /**
@@ -111,11 +136,22 @@ export class InterestsService {
    * *different* cluster. Each pick prefers the most specific category that still
    * covers a large share of the remaining pool, only climbing when none does.
    */
-  private selectInterests(coverage: Map<string, Coverage>, total: number): Interest[] {
+  private selectInterests(
+    coverage: Map<string, Coverage>,
+    total: number,
+    weights: number[],
+  ): Interest[] {
     const remaining = new Set<number>(Array.from({ length: total }, (_, i) => i));
     const interests: Interest[] = [];
     const usedLabels = new Set<string>();
     const pool = new Map(coverage);
+    const weightOf = (arts: Iterable<number>, onlyRemaining: boolean) => {
+      let sum = 0;
+      for (const i of arts) {
+        if (!onlyRemaining || remaining.has(i)) sum += weights[i] ?? 1;
+      }
+      return sum;
+    };
 
     while (remaining.size >= MIN_COVERAGE && interests.length < MAX_INTERESTS) {
       const scored = [...pool.entries()]
@@ -123,21 +159,37 @@ export class InterestsService {
           cat,
           level: entry.level,
           total: entry.arts.size,
+          // Recurrence is still counted in *distinct articles* (structural gate),
+          // but ranking uses the *summed signal weight* so a cluster your likes
+          // and bookmarks land on outranks a bigger one built only from history.
           inPool: [...entry.arts].filter((i) => remaining.has(i)).length,
+          inWeight: weightOf(entry.arts, true),
         }))
         .filter((s) => s.inPool >= MIN_COVERAGE);
       if (!scored.length) {
         break;
       }
 
-      const need = Math.max(MIN_COVERAGE, Math.ceil(SPECIFIC_FRACTION * remaining.size));
-      const specific = scored.filter((s) => s.inPool >= need);
-      // Among broad-enough categories prefer the most specific (lowest level,
-      // then narrowest globally). If none is broad enough, fall back to the one
-      // covering the most of the pool so a niche leftover still surfaces.
+      // Breadth is measured in summed weight (not raw article count), so a theme
+      // your likes/bookmarks concentrate on counts as "broad enough" ahead of a
+      // larger cluster made only of lightly-weighted history. With uniform
+      // weights this is identical to the previous article-count behaviour.
+      const remainingWeight = weightOf(remaining, false);
+      const need = Math.max(MIN_COVERAGE, Math.ceil(SPECIFIC_FRACTION * remainingWeight));
+      const specific = scored.filter((s) => s.inWeight >= need);
+      // Among broad-enough categories prefer the most specific (lowest level),
+      // then the one your strongest signals cluster on (highest weight). If none
+      // is broad enough, fall back to the heaviest-weighted coverage so a niche
+      // but strongly-signalled leftover still surfaces.
       const pick =
-        bestBy(specific, (a, b) => a.level - b.level || a.total - b.total || b.inPool - a.inPool) ??
-        bestBy(scored, (a, b) => b.inPool - a.inPool || a.level - b.level || a.total - b.total);
+        bestBy(
+          specific,
+          (a, b) => a.level - b.level || b.inWeight - a.inWeight || a.total - b.total,
+        ) ??
+        bestBy(
+          scored,
+          (a, b) => b.inWeight - a.inWeight || b.inPool - a.inPool || a.level - b.level,
+        );
       if (!pick) {
         break;
       }

@@ -47,22 +47,46 @@ export default function ProfileScreen() {
   // Which list (history / liked / saved) is expanded under the stats, if any.
   const [openList, setOpenList] = useState<"read" | "liked" | "saved" | null>(null);
 
-  // Titles the user kept, deduped, most recent first — the input the API turns
-  // into adaptive interest chips (real Wikipedia categories at the right level).
-  const keptIds = useMemo(() => {
-    const ids = [...liked, ...saved, ...read].map((a) => a.id);
-    return Array.from(new Set(ids)).slice(0, MAX_INTEREST_SEEDS);
+  // Titles the user kept, grouped by signal so the API can weight them (liked ≫
+  // saved ≫ read) when deriving the interest chips. Deduped across groups with
+  // that same priority, capped, and recomputed whenever any list changes — so
+  // removing a page from history/likes/bookmarks re-derives the chips (and, via
+  // the seeds below, the feed) immediately.
+  const interestSeeds = useMemo(() => {
+    const seen = new Set<string>();
+    const ordered: { id: string; group: "liked" | "saved" | "read" }[] = [];
+    const push = (arr: typeof liked, group: "liked" | "saved" | "read") => {
+      for (const a of arr) {
+        if (!seen.has(a.id)) {
+          seen.add(a.id);
+          ordered.push({ id: a.id, group });
+        }
+      }
+    };
+    push(liked, "liked");
+    push(saved, "saved");
+    push(read, "read");
+    const top = ordered.slice(0, MAX_INTEREST_SEEDS);
+    return {
+      liked: top.filter((o) => o.group === "liked").map((o) => o.id),
+      saved: top.filter((o) => o.group === "saved").map((o) => o.id),
+      read: top.filter((o) => o.group === "read").map((o) => o.id),
+    };
   }, [liked, saved, read]);
-  const keptKey = keptIds.join(",");
+  const keptKey = [
+    interestSeeds.liked.join(","),
+    interestSeeds.saved.join(","),
+    interestSeeds.read.join(","),
+  ].join("|");
 
   const [interests, setInterests] = useState<Interest[]>([]);
   useEffect(() => {
-    if (!keptIds.length) {
+    if (!interestSeeds.liked.length && !interestSeeds.saved.length && !interestSeeds.read.length) {
       setInterests([]);
       return;
     }
     let active = true;
-    void fetchInterests(keptIds, locale).then((res) => {
+    void fetchInterests(interestSeeds, locale).then((res) => {
       if (active) {
         setInterests(res);
       }
@@ -70,7 +94,7 @@ export default function ProfileScreen() {
     return () => {
       active = false;
     };
-    // keptKey captures changes to keptIds; locale also re-derives (labels follow language).
+    // keptKey captures changes to the grouped seeds; locale re-derives labels.
   }, [keptKey, locale]);
 
   const visibleInterests = useMemo(() => {

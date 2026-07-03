@@ -1,4 +1,4 @@
-import { FeedService } from "./feed.service";
+import { FeedService, capRelatedByWeight } from "./feed.service";
 import type { Article } from "@flowpedia/shared";
 
 function fakeArticle(id: string): Article {
@@ -139,5 +139,29 @@ describe("FeedService", () => {
 
     expect(same).toEqual(first); // same seed → same order
     expect(other).not.toEqual(first); // different seed → different order
+  });
+});
+
+describe("capRelatedByWeight", () => {
+  const liked = Array.from({ length: 10 }, (_, i) => `L${i}`);
+  const saved = Array.from({ length: 10 }, (_, i) => `S${i}`);
+
+  it("caps saved-related to its 2:5 share of liked-related", () => {
+    const out = capRelatedByWeight(liked, saved, 5, 2);
+    // All 10 liked kept; saved capped at floor(10 * 2/5) = 4.
+    expect(out.filter((t) => t.startsWith("L"))).toHaveLength(10);
+    expect(out.filter((t) => t.startsWith("S"))).toHaveLength(4);
+  });
+
+  it("falls back to the available side when the other is empty", () => {
+    expect(capRelatedByWeight([], saved, 5, 2)).toEqual(saved);
+    expect(capRelatedByWeight(liked, [], 5, 2)).toEqual(liked);
+  });
+
+  it("dedupes with liked winning ties", () => {
+    // cap = floor(5 * 2/5) = 2 → saved contributes ["E", "F"]; "E" already in
+    // liked so it collapses (liked wins), "F" is appended.
+    const out = capRelatedByWeight(["A", "B", "C", "D", "E"], ["E", "F", "G"], 5, 2);
+    expect(out).toEqual(["A", "B", "C", "D", "E", "F"]);
   });
 });

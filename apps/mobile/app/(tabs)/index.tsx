@@ -21,6 +21,7 @@ import { StoriesBar } from "../../src/components/StoriesBar";
 import { NotificationBell } from "../../src/components/NotificationBell";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { fetchFeed } from "../../src/api/client";
+import { buildFeedSeeds } from "../../src/library/seeds";
 import { useShare } from "../../src/share/ShareSheetProvider";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useSeen } from "../../src/seen/SeenProvider";
@@ -46,15 +47,13 @@ export default function FeedScreen() {
   // Recommendation seeds for the "For you" tab — liked/saved articles, minus
   // any whose category the user muted (steers the algorithm away from it). Read
   // via ref to avoid reloads on unrelated tabs when the library changes.
-  const seedsRef = useRef<string[]>([]);
-  seedsRef.current = useMemo(() => {
-    const muted = new Set(mutedInterests);
-    const ids = [...liked, ...saved]
-      .filter((a) => !(a.category && muted.has(a.category)))
-      .map((a) => a.id);
-    return Array.from(new Set(ids)).slice(0, 6);
-  }, [liked, saved, mutedInterests]);
-  const seedsFor = (feedTab: FeedTab) => (feedTab === "forYou" ? seedsRef.current : []);
+  const seedsRef = useRef<{ seeds: string[]; savedSeeds: string[] }>({ seeds: [], savedSeeds: [] });
+  seedsRef.current = useMemo(
+    () => buildFeedSeeds(liked, saved, mutedInterests),
+    [liked, saved, mutedInterests],
+  );
+  const EMPTY_SEEDS = { seeds: [] as string[], savedSeeds: [] as string[] };
+  const seedsFor = (feedTab: FeedTab) => (feedTab === "forYou" ? seedsRef.current : EMPTY_SEEDS);
 
   // Snapshot of recently-seen ids, frozen per load so pagination stays stable.
   const excludeRef = useRef<string[]>([]);
@@ -102,9 +101,10 @@ export default function FeedScreen() {
           nextTab,
           locale,
           undefined,
-          seedsFor(nextTab),
+          seedsFor(nextTab).seeds,
           seedRef.current,
           excludeRef.current,
+          seedsFor(nextTab).savedSeeds,
         );
         setArticles(res.items);
         setCursor(res.nextCursor);
@@ -219,9 +219,10 @@ export default function FeedScreen() {
         tab,
         locale,
         cursor,
-        seedsFor(tab),
+        seedsFor(tab).seeds,
         seedRef.current,
         excludeRef.current,
+        seedsFor(tab).savedSeeds,
       );
       setArticles((prev) => [...prev, ...res.items]);
       setCursor(res.nextCursor);

@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { Article, FeedResponse, FeedTab } from "@flowpedia/shared";
 import { WikipediaService } from "../wikipedia/wikipedia.service";
+import { LIKE_WEIGHT, SAVE_WEIGHT } from "./weights";
 
 const PAGE_SIZE = 5;
 
@@ -33,8 +34,9 @@ export class FeedService {
     seeds: string[] = [],
     seed = 0,
     exclude: string[] = [],
+    savedSeeds: string[] = [],
   ): Promise<FeedResponse> {
-    const built = await this.buildPool(tab, lang, seeds, seed);
+    const built = await this.buildPool(tab, lang, seeds, seed, savedSeeds);
     // Drop articles the user has already been shown recently, so the flow keeps
     // moving forward instead of re-serving the same pages.
     const excluded = new Set(exclude);
@@ -66,10 +68,11 @@ export class FeedService {
     lang: string | undefined,
     seeds: string[],
     seed: number,
+    savedSeeds: string[] = [],
   ): Promise<string[]> {
     if (tab === "forYou") {
       const [related, popular] = await Promise.all([
-        this.wikipedia.getRelatedTitles(seeds, lang),
+        this.weightedRelated(seeds, savedSeeds, lang),
         this.wikipedia.getPopularTitles(lang),
       ]);
       if (!related.length) {
@@ -86,7 +89,7 @@ export class FeedService {
     if (tab === "news") {
       const [news, related] = await Promise.all([
         this.wikipedia.getNewsTitles(lang),
-        this.wikipedia.getRelatedTitles(seeds, lang),
+        this.weightedRelated(seeds, savedSeeds, lang),
       ]);
       if (!news.length) {
         return shuffleSeeded(related.length ? related : await this.wikipedia.getPopularTitles(lang), seed);
@@ -105,7 +108,7 @@ export class FeedService {
 
     if (tab === "discover") {
       const [related, popular] = await Promise.all([
-        this.wikipedia.getRelatedTitles(seeds, lang),
+        this.weightedRelated(seeds, savedSeeds, lang),
         this.wikipedia.getPopularTitles(lang),
       ]);
       if (!related.length) {
@@ -120,6 +123,47 @@ export class FeedService {
 
     return shuffleSeeded(await this.wikipedia.getPopularTitles(lang), seed);
   }
+
+  /**
+   * Related pool weighted toward the stronger signal: liked pages drive most of
+   * the "more like this" titles, bookmarked pages contribute a smaller share
+   * (LIKE_WEIGHT : SAVE_WEIGHT). `morelike` can't weight seeds within one query,
+   * so we fetch each group's related titles separately and cap the weaker group.
+   */
+  private async weightedRelated(
+    likedSeeds: string[],
+    savedSeeds: string[],
+    lang: string | undefined,
+  ): Promise<string[]> {
+    const [likedRelated, savedRelated] = await Promise.all([
+      this.wikipedia.getRelatedTitles(likedSeeds, lang),
+      savedSeeds.length
+        ? this.wikipedia.getRelatedTitles(savedSeeds, lang)
+        : Promise.resolve<string[]>([]),
+    ]);
+    return capRelatedByWeight(likedRelated, savedRelated, LIKE_WEIGHT, SAVE_WEIGHT);
+  }
+}
+
+/**
+ * Merge liked-related and saved-related titles so the pool is dominated by the
+ * liked side in the ratio likeWeight : saveWeight. Keeps all liked-related and
+ * caps saved-related to its proportional share, then dedupes (liked wins ties).
+ */
+export function capRelatedByWeight(
+  likedRelated: string[],
+  savedRelated: string[],
+  likeWeight: number,
+  saveWeight: number,
+): string[] {
+  if (!likedRelated.length) {
+    return [...new Set(savedRelated)];
+  }
+  if (!savedRelated.length) {
+    return [...new Set(likedRelated)];
+  }
+  const cap = Math.max(1, Math.floor(likedRelated.length * (saveWeight / likeWeight)));
+  return [...new Set([...likedRelated, ...savedRelated.slice(0, cap)])];
 }
 
 /**

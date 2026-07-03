@@ -79,4 +79,26 @@ describe("InterestsService.deriveInterests", () => {
     const interests = await serviceWithGraph({ "Solo": ["Cat:Anything"] }).deriveInterests(["Solo"]);
     expect(interests).toEqual([]);
   });
+
+  it("ranks a strongly-signalled cluster above a larger but weak one", async () => {
+    // 2 liked pages on "Cinéma" (weight 5) vs 3 merely-read pages on "Sport"
+    // (weight 1). The heavier signal must surface first even though it covers
+    // fewer articles.
+    const graph: Record<string, string[]> = {
+      "L1": ["Cat:Cinéma"],
+      "L2": ["Cat:Cinéma"],
+      "R1": ["Cat:Sport"],
+      "R2": ["Cat:Sport"],
+      "R3": ["Cat:Sport"],
+    };
+    const interests = await serviceWithGraph(graph).deriveInterests([
+      { title: "L1", weight: 5 },
+      { title: "L2", weight: 5 },
+      { title: "R1", weight: 1 },
+      { title: "R2", weight: 1 },
+      { title: "R3", weight: 1 },
+    ]);
+
+    expect(interests.map((i) => i.label)).toEqual(["Cinéma", "Sport"]);
+  });
 });

@@ -324,6 +324,7 @@ export function fetchFeed(
   seeds: string[] = [],
   seed?: number,
   exclude: string[] = [],
+  savedSeeds: string[] = [],
 ): Promise<FeedResponse> {
   const params = new URLSearchParams({ tab, lang: locale });
   if (cursor) {
@@ -331,6 +332,10 @@ export function fetchFeed(
   }
   if (seeds.length) {
     params.set("seeds", seeds.join(","));
+  }
+  // Bookmarked pages steer the feed too, but with a lighter weight than likes.
+  if (savedSeeds.length) {
+    params.set("savedSeeds", savedSeeds.join(","));
   }
   if (seed) {
     params.set("seed", String(seed));
@@ -410,11 +415,17 @@ export function fetchSummaries(ids: string[], locale: Locale): Promise<Article[]
  * climb to a shared ancestor. Best-effort — returns [] when offline/unreachable
  * so the profile simply hides the chips instead of erroring.
  */
-export async function fetchInterests(ids: string[], locale: Locale): Promise<Interest[]> {
-  if (!ids.length) {
+export async function fetchInterests(
+  groups: { liked?: string[]; saved?: string[]; read?: string[] },
+  locale: Locale,
+): Promise<Interest[]> {
+  const params = new URLSearchParams({ lang: locale });
+  if (groups.liked?.length) params.set("liked", groups.liked.join(","));
+  if (groups.saved?.length) params.set("saved", groups.saved.join(","));
+  if (groups.read?.length) params.set("read", groups.read.join(","));
+  if (!params.has("liked") && !params.has("saved") && !params.has("read")) {
     return [];
   }
-  const params = new URLSearchParams({ ids: ids.join(","), lang: locale });
   try {
     return await getJson<Interest[]>(`/interests?${params.toString()}`);
   } catch {
