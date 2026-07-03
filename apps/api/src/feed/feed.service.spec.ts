@@ -1,5 +1,27 @@
 import { FeedService, capRelatedByWeight } from "./feed.service";
+import type { ProfileService } from "../reco/profile.service";
+import type { SeenService } from "../reco/seen.service";
 import type { Article } from "@flowpedia/shared";
+
+// Reco stubs: empty by default so the existing (non-personalized) tests are
+// unaffected. Tests that exercise personalization/de-dup pass their own.
+function emptyProfile(overrides: Partial<ProfileService> = {}): ProfileService {
+  return {
+    getWeightedSeeds: jest.fn(async () => []),
+    getCategoryAffinity: jest.fn(async () => ({ entries: [] })),
+    ...overrides,
+  } as unknown as ProfileService;
+}
+function emptySeen(seen: string[] = []): SeenService {
+  return { getSeen: jest.fn(async () => new Set(seen)) } as unknown as SeenService;
+}
+function makeService(
+  wiki: unknown,
+  profile: ProfileService = emptyProfile(),
+  seen: SeenService = emptySeen(),
+): FeedService {
+  return new FeedService(wiki as never, profile, seen);
+}
 
 function fakeArticle(id: string): Article {
   return {
@@ -36,7 +58,7 @@ describe("FeedService", () => {
   it("returns a first page of 5 articles with a cursor (no shuffle when seed=0)", async () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
     const wiki = makeWikipediaMock(getSummary);
-    const service = new FeedService(wiki as never);
+    const service = makeService(wiki);
 
     const res = await service.getFeed("popular", "en");
 
@@ -48,7 +70,7 @@ describe("FeedService", () => {
   it("selects the pool by tab", async () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
     const wiki = makeWikipediaMock(getSummary);
-    const service = new FeedService(wiki as never);
+    const service = makeService(wiki);
 
     await service.getFeed("news", "en");
     expect(wiki.getNewsTitles).toHaveBeenCalled();
@@ -67,7 +89,7 @@ describe("FeedService", () => {
       if (t === TITLES[1]) throw new Error("404");
       return fakeArticle(t);
     });
-    const service = new FeedService(makeWikipediaMock(getSummary) as never);
+    const service = makeService(makeWikipediaMock(getSummary));
 
     const res = await service.getFeed("popular", "en");
 
@@ -77,7 +99,7 @@ describe("FeedService", () => {
   it("falls back to random articles past the end of the pool (infinite)", async () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
     const wiki = makeWikipediaMock(getSummary);
-    const service = new FeedService(wiki as never);
+    const service = makeService(wiki);
 
     const res = await service.getFeed("popular", "en", "20"); // beyond 12-item pool
 
@@ -93,7 +115,7 @@ describe("FeedService", () => {
     const popular = Array.from({ length: 12 }, (_, i) => `Popular_${i}`);
     wiki.getRelatedTitles = jest.fn(async () => related);
     wiki.getPopularTitles = jest.fn(async () => popular);
-    const service = new FeedService(wiki as never);
+    const service = makeService(wiki);
 
     // First two pages (10 items) should contain at least one popular item.
     const p1 = (await service.getFeed("forYou", "en", undefined, ["Seed"])).items.map((a) => a.id);
@@ -111,7 +133,7 @@ describe("FeedService", () => {
     const related = Array.from({ length: 12 }, (_, i) => `Interest_${i}`);
     wiki.getNewsTitles = jest.fn(async () => news);
     wiki.getRelatedTitles = jest.fn(async () => related);
-    const service = new FeedService(wiki as never);
+    const service = makeService(wiki);
 
     const ids = (await service.getFeed("news", "en", undefined, ["Seed"])).items.map((a) => a.id);
 
@@ -121,7 +143,7 @@ describe("FeedService", () => {
 
   it("excludes already-seen articles from the pool", async () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
-    const service = new FeedService(makeWikipediaMock(getSummary) as never);
+    const service = makeService(makeWikipediaMock(getSummary));
 
     const seen = [TITLES[0], TITLES[1], TITLES[2]];
     const res = await service.getFeed("popular", "en", undefined, [], 0, seen);
@@ -129,9 +151,39 @@ describe("FeedService", () => {
     expect(res.items.map((a) => a.id)).toEqual([TITLES[3], TITLES[4], TITLES[5], TITLES[6], TITLES[7]]);
   });
 
+  it("enriches recall with the taste profile only when personalize is on", async () => {
+    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const wiki = makeWikipediaMock(getSummary);
+    wiki.getRelatedTitles = jest.fn(async () => TITLES);
+    const profile = emptyProfile({ getWeightedSeeds: jest.fn(async () => ["ProfileSeed"]) });
+    const service = makeService(wiki, profile);
+
+    // Page-anchored (personalize off): the explicit page seed drives recall.
+    await service.getFeed("forYou", "en", undefined, ["Page"], 0, [], []);
+    expect(profile.getWeightedSeeds).not.toHaveBeenCalled();
+    expect(wiki.getRelatedTitles).toHaveBeenCalledWith(["Page"], "en");
+
+    // Home (personalize on): the journal-derived seed is folded into recall.
+    await service.getFeed("forYou", "en", undefined, ["Page"], 0, [], [], "u1", true);
+    expect(profile.getWeightedSeeds).toHaveBeenCalledWith("u1", expect.any(Number));
+    expect(wiki.getRelatedTitles).toHaveBeenCalledWith(
+      expect.arrayContaining(["ProfileSeed", "Page"]),
+      "en",
+    );
+  });
+
+  it("excludes server-side seen titles even when the client sends no exclude", async () => {
+    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const service = makeService(makeWikipediaMock(getSummary), emptyProfile(), emptySeen([TITLES[0], TITLES[1]]));
+
+    const res = await service.getFeed("popular", "en", undefined, [], 0, [], [], "u1");
+
+    expect(res.items.map((a) => a.id)).toEqual([TITLES[2], TITLES[3], TITLES[4], TITLES[5], TITLES[6]]);
+  });
+
   it("reorders deterministically with a seed", async () => {
     const getSummary = jest.fn(async (t: string) => fakeArticle(t));
-    const service = new FeedService(makeWikipediaMock(getSummary) as never);
+    const service = makeService(makeWikipediaMock(getSummary));
 
     const first = (await service.getFeed("popular", "en", undefined, [], 123)).items.map((a) => a.id);
     const same = (await service.getFeed("popular", "en", undefined, [], 123)).items.map((a) => a.id);

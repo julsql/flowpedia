@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { Article, FeedResponse, FeedTab } from "@flowpedia/shared";
 import { WikipediaService } from "../wikipedia/wikipedia.service";
+import { ProfileService } from "../reco/profile.service";
+import { SeenService } from "../reco/seen.service";
 import { LIKE_WEIGHT, SAVE_WEIGHT } from "./weights";
 
 const PAGE_SIZE = 5;
@@ -11,9 +13,16 @@ const FORYOU_DIVERSITY_PERIOD = 4;
 const DISCOVER_DIVERSITY_PERIOD = 3;
 const NEWS_INTEREST_PERIOD = 3;
 
+// How many journal-derived seeds feed the personalized "more like this" recall.
+const PROFILE_SEED_LIMIT = 6;
+
 @Injectable()
 export class FeedService {
-  constructor(private readonly wikipedia: WikipediaService) {}
+  constructor(
+    private readonly wikipedia: WikipediaService,
+    private readonly profile: ProfileService,
+    private readonly seen: SeenService,
+  ) {}
 
   /**
    * Infinite, always-varied feed. Each tab builds its own ordered candidate
@@ -26,6 +35,12 @@ export class FeedService {
    * - popular: global most-viewed
    * - news: current events + most-read, oriented toward the user's interests
    * - discover (Flow): related-to-you blended with popular
+   *
+   * `userId` enables server-authoritative de-dup (already-seen titles are
+   * excluded cross-device). `personalize` additionally lets the journal-derived
+   * taste profile enrich the "more like this" recall — the home tabs opt in,
+   * while a page-anchored "keep exploring" (explicit page seeds) does NOT, so it
+   * stays tied to the current page rather than the user's global taste.
    */
   async getFeed(
     tab: FeedTab,
@@ -35,11 +50,16 @@ export class FeedService {
     seed = 0,
     exclude: string[] = [],
     savedSeeds: string[] = [],
+    userId?: string,
+    personalize = false,
   ): Promise<FeedResponse> {
-    const built = await this.buildPool(tab, lang, seeds, seed, savedSeeds);
-    // Drop articles the user has already been shown recently, so the flow keeps
-    // moving forward instead of re-serving the same pages.
-    const excluded = new Set(exclude);
+    const [built, serverSeen] = await Promise.all([
+      this.buildPool(tab, lang, seeds, seed, savedSeeds, userId, personalize),
+      this.seen.getSeen(userId),
+    ]);
+    // Drop articles the user has already been shown recently (client snapshot +
+    // server-authoritative seen), so the flow keeps moving forward.
+    const excluded = new Set([...exclude, ...serverSeen]);
     const ordered = excluded.size ? built.filter((title) => !excluded.has(title)) : built;
     const offset = cursor ? Number(cursor) : 0;
 
@@ -69,10 +89,12 @@ export class FeedService {
     seeds: string[],
     seed: number,
     savedSeeds: string[] = [],
+    userId?: string,
+    personalize = false,
   ): Promise<string[]> {
     if (tab === "forYou") {
       const [related, popular] = await Promise.all([
-        this.weightedRelated(seeds, savedSeeds, lang),
+        this.weightedRelated(seeds, savedSeeds, lang, userId, personalize),
         this.wikipedia.getPopularTitles(lang),
       ]);
       if (!related.length) {
@@ -89,7 +111,7 @@ export class FeedService {
     if (tab === "news") {
       const [news, related] = await Promise.all([
         this.wikipedia.getNewsTitles(lang),
-        this.weightedRelated(seeds, savedSeeds, lang),
+        this.weightedRelated(seeds, savedSeeds, lang, userId, personalize),
       ]);
       if (!news.length) {
         return shuffleSeeded(related.length ? related : await this.wikipedia.getPopularTitles(lang), seed);
@@ -108,7 +130,7 @@ export class FeedService {
 
     if (tab === "discover") {
       const [related, popular] = await Promise.all([
-        this.weightedRelated(seeds, savedSeeds, lang),
+        this.weightedRelated(seeds, savedSeeds, lang, userId, personalize),
         this.wikipedia.getPopularTitles(lang),
       ]);
       if (!related.length) {
@@ -134,9 +156,23 @@ export class FeedService {
     likedSeeds: string[],
     savedSeeds: string[],
     lang: string | undefined,
+    userId?: string,
+    personalize = false,
   ): Promise<string[]> {
+    // On the personalized home feed, drive "more like this" from the journal-
+    // derived taste (likes/saves/shares/stories/dwell/read, recency-decayed and
+    // revocation-aware) rather than just the client's liked ids. A page-anchored
+    // feed keeps `personalize` false, so its explicit seeds stay the anchor.
+    let strongSeeds = likedSeeds;
+    if (personalize && userId) {
+      const profileSeeds = await this.profile.getWeightedSeeds(userId, PROFILE_SEED_LIMIT);
+      if (profileSeeds.length) {
+        strongSeeds = [...new Set([...profileSeeds, ...likedSeeds])];
+      }
+    }
+
     const [likedRelated, savedRelated] = await Promise.all([
-      this.wikipedia.getRelatedTitles(likedSeeds, lang),
+      this.wikipedia.getRelatedTitles(strongSeeds, lang),
       savedSeeds.length
         ? this.wikipedia.getRelatedTitles(savedSeeds, lang)
         : Promise.resolve<string[]>([]),

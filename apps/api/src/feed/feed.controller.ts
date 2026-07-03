@@ -17,6 +17,8 @@ export class FeedController {
     @Query("seed") seed?: string,
     @Query("exclude") exclude?: string,
     @Query("savedSeeds") savedSeeds?: string,
+    @Query("userId") userId?: string,
+    @Query("personalize") personalize?: string,
   ): Promise<FeedResponse> {
     const safeTab: FeedTab = VALID_TABS.includes(tab as FeedTab)
       ? (tab as FeedTab)
@@ -26,6 +28,19 @@ export class FeedController {
     const savedList = savedSeeds ? savedSeeds.split(",").filter(Boolean) : [];
     const seedNum = seed ? Number(seed) || 0 : 0;
     const excludeList = exclude ? exclude.split(",").filter(Boolean) : [];
-    return this.feed.getFeed(safeTab, lang, cursor, seedList, seedNum, excludeList, savedList);
+    // `personalize` (home tabs) lets the taste profile enrich the recall; a
+    // page-anchored "keep exploring" omits it so it stays tied to the page.
+    const usePersonalized = personalize === "1" || personalize === "true";
+    return this.feed.getFeed(
+      safeTab,
+      lang,
+      cursor,
+      seedList,
+      seedNum,
+      excludeList,
+      savedList,
+      userId || undefined,
+      usePersonalized,
+    );
   }
 }
