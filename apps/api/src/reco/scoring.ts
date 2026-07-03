@@ -67,7 +67,7 @@ export function saturateTime(ms: number, tauMs: number): number {
  * applied). Positive for engagement, negative for a mute or a fast skip, 0 for
  * types that don't feed the taste profile (revocation events, unknown types).
  */
-export function baseWeight(type: InteractionType | "mute", value?: number): number {
+export function baseWeight(type: InteractionType | "mute", value?: number | null): number {
   switch (type) {
     case "dwell":
       return EVENT_WEIGHTS.dwell! * saturateTime(value ?? 0, DWELL_TAU_MS);
@@ -87,7 +87,7 @@ export function baseWeight(type: InteractionType | "mute", value?: number): numb
 
 /** Full contribution of a signal at `now`: base weight decayed by recency. */
 export function signalScore(
-  event: { type: InteractionType | "mute"; value?: number; ts: number },
+  event: { type: InteractionType | "mute"; value?: number | null; ts: number },
   now: number,
 ): number {
   const base = baseWeight(event.type, event.value);
