@@ -241,5 +241,14 @@
   "settings.reading": "Lecture",
   "settings.listenButton": "Bouton d'écoute",
   "settings.listenButtonHint": "Affiche le bouton de synthèse vocale sur les articles.",
-  "settings.privacy": "Confidentialité"
+  "settings.privacy": "Confidentialité",
+  "account.email": "E-mail",
+  "account.currentEmail": "Actuel : {{email}}",
+  "account.newEmail": "Nouvel e-mail",
+  "account.changeEmail": "Envoyer le lien de confirmation",
+  "account.emailChangeSent": "Un lien de confirmation a été envoyé à votre nouvelle adresse. Le changement s'applique après avoir cliqué dessus.",
+  "account.confirmEmailTitle": "Confirmation de votre e-mail…",
+  "account.emailConfirmed": "Votre adresse e-mail a été mise à jour.",
+  "account.emailConfirmError": "Ce lien de confirmation est invalide ou a expiré.",
+  "account.backToProfile": "Retour au profil"
 }

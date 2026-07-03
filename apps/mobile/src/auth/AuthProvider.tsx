@@ -9,9 +9,11 @@ import type {
 } from "@flowpedia/shared";
 import {
   changePassword as apiChangePassword,
+  confirmEmailChange as apiConfirmEmailChange,
   deleteAccount as apiDeleteAccount,
   fetchMe,
   forgotPassword as apiForgot,
+  requestEmailChange as apiRequestEmailChange,
   loginAccount,
   registerAccount,
   resetPassword as apiReset,
@@ -40,6 +42,10 @@ interface AuthContextValue {
   resetPassword: (body: ResetPasswordRequest) => Promise<string>;
   updateProfile: (body: UpdateProfileRequest) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  /** Request an email change — sends a confirmation link to the new address. */
+  requestEmailChange: (newEmail: string) => Promise<string>;
+  /** Confirm a pending email change from the emailed link. */
+  confirmEmailChange: (uid: string, token: string) => Promise<void>;
   /** Clears the account's server-side data but keeps the account. */
   wipeData: () => Promise<string>;
   /** Deletes the account and all its data, then drops to guest. */
@@ -119,6 +125,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       changePassword: async (currentPassword, newPassword) => {
         await apiChangePassword({ currentPassword, newPassword });
+      },
+      requestEmailChange: async (newEmail) => (await apiRequestEmailChange(newEmail)).message,
+      confirmEmailChange: async (uid, token) => {
+        const updated = await apiConfirmEmailChange(uid, token);
+        // Reflect the new email in the current session (if this is that account).
+        setUser((prev) => (prev && prev.id === updated.id ? updated : prev));
       },
       wipeData: async () => (await apiWipeData()).message,
       deleteAccount: async () => {

@@ -46,6 +46,22 @@ export class MailService {
     await this.send(to, subject, html, `Lien de réinitialisation (valide 3 jours) : ${link}`);
   }
 
+  /** Email-change confirmation — sent to the new address (double opt-in). */
+  async sendEmailChange(to: string, displayName: string, link: string): Promise<void> {
+    const subject = "Confirmez votre nouvelle adresse e-mail Flowpedia";
+    const html = `
+      <p>Bonjour ${escapeHtml(displayName)},</p>
+      <p>Vous avez demandé à changer l'adresse e-mail de votre compte Flowpedia.
+         Cliquez sur le lien ci-dessous pour confirmer cette adresse :</p>
+      <p><a href="${link}">${link}</a></p>
+      <p>Ce lien est valide pendant 3 jours. Tant que vous n'avez pas confirmé,
+         votre adresse actuelle reste inchangée.</p>
+      <p>Si vous n'avez rien demandé, ignorez ce message.</p>
+      <p>Merci,<br/>L'équipe Flowpedia</p>
+    `;
+    await this.send(to, subject, html, `Lien de confirmation (valide 3 jours) : ${link}`);
+  }
+
   private async send(to: string, subject: string, html: string, devSummary: string): Promise<void> {
     if (!this.transporter) {
       this.logger.log(`[DEV email] To: ${to} — ${subject}\n${devSummary}`);

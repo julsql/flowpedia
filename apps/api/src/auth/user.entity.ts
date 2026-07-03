@@ -55,6 +55,17 @@ export class User {
   @Column({ type: "timestamptz", nullable: true })
   passwordResetExpires!: Date | null;
 
+  /** Pending email awaiting confirmation via a double opt-in link, or null. */
+  @Column({ type: "varchar", nullable: true })
+  pendingEmail!: string | null;
+
+  /** bcrypt hash of the current email-change token, or null when none is active. */
+  @Column({ type: "varchar", nullable: true })
+  emailChangeTokenHash!: string | null;
+
+  @Column({ type: "timestamptz", nullable: true })
+  emailChangeExpires!: Date | null;
+
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;
 

@@ -14,7 +14,9 @@ import type { Repository } from "typeorm";
 import type {
   AuthResponse,
   AuthUser,
+  ChangeEmailRequest,
   ChangePasswordRequest,
+  ConfirmEmailRequest,
   LoginRequest,
   RegisterRequest,
   ResetPasswordRequest,
@@ -161,6 +163,68 @@ export class AuthService {
     user.passwordResetExpires = null;
     await repo.save(user);
     return { message: "Password updated. You can now sign in." };
+  }
+
+  /** Start a double opt-in email change: validate the new address, store it as
+   *  pending, and email a confirmation link to it (never applied until clicked). */
+  async requestEmailChange(userId: string, body: ChangeEmailRequest): Promise<{ message: string }> {
+    const repo = this.users();
+    const user = await repo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("Account not found.");
+    }
+    const email = normalizeEmail(body?.newEmail ?? "");
+    assertValidEmail(email);
+    if (email === user.email) {
+      throw new ConflictException("That is already your email address.");
+    }
+    const existing = await repo.findOne({ where: { email } });
+    if (existing && existing.id !== userId) {
+      throw new ConflictException("Email already in use.");
+    }
+
+    const token = randomBytes(32).toString("hex");
+    user.pendingEmail = email;
+    user.emailChangeTokenHash = await bcrypt.hash(token, BCRYPT_ROUNDS);
+    user.emailChangeExpires = new Date(Date.now() + RESET_TTL_MS);
+    await repo.save(user);
+
+    const uid = Buffer.from(user.id).toString("base64url");
+    const base = this.config.get<string>("APP_URL", "http://localhost:3000");
+    // The confirmation link is sent to the NEW address, proving the user owns it.
+    await this.mail.sendEmailChange(email, user.displayName, `${base}/confirm-email/${uid}/${token}`);
+    return { message: "A confirmation link has been sent to your new email address." };
+  }
+
+  /** Confirm a pending email change from the emailed link. */
+  async confirmEmailChange(body: ConfirmEmailRequest): Promise<AuthUser> {
+    const repo = this.users();
+    let userId: string;
+    try {
+      userId = Buffer.from(body.uid ?? "", "base64url").toString("utf8");
+    } catch {
+      throw new BadRequestException("Invalid or expired confirmation link.");
+    }
+    const user = userId ? await repo.findOne({ where: { id: userId } }) : null;
+    const expires = user?.emailChangeExpires?.getTime() ?? 0;
+    if (!user || !user.emailChangeTokenHash || !user.pendingEmail || expires < Date.now()) {
+      throw new BadRequestException("Invalid or expired confirmation link.");
+    }
+    if (!(await bcrypt.compare(body.token ?? "", user.emailChangeTokenHash))) {
+      throw new BadRequestException("Invalid or expired confirmation link.");
+    }
+    // Re-check uniqueness at confirmation time (someone may have taken it since).
+    const taken = await repo.findOne({ where: { email: user.pendingEmail } });
+    if (taken && taken.id !== user.id) {
+      throw new ConflictException("Email already in use.");
+    }
+
+    user.email = user.pendingEmail;
+    user.pendingEmail = null;
+    user.emailChangeTokenHash = null;
+    user.emailChangeExpires = null;
+    await repo.save(user);
+    return toAuthUser(user);
   }
 
   async updateProfile(userId: string, body: UpdateProfileRequest): Promise<AuthUser> {

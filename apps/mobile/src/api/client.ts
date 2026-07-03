@@ -186,6 +186,16 @@ export function changePassword(body: ChangePasswordRequest): Promise<{ message: 
   return requestJson<{ message: string }>("/auth/change-password", "POST", body);
 }
 
+/** Request a change of email — a confirmation link is sent to the new address. */
+export function requestEmailChange(newEmail: string): Promise<{ message: string }> {
+  return requestJson<{ message: string }>("/auth/email/change", "POST", { newEmail });
+}
+
+/** Confirm a pending email change from the emailed link. */
+export function confirmEmailChange(uid: string, token: string): Promise<AuthUser> {
+  return requestJson<AuthUser>("/auth/email/confirm", "POST", { uid, token });
+}
+
 export function deleteAccount(): Promise<{ message: string }> {
   return requestJson<{ message: string }>("/auth/me", "DELETE");
 }

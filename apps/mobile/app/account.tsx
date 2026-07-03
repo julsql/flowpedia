@@ -15,12 +15,18 @@ export default function AccountScreen() {
   const { t } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { user, status, updateProfile, changePassword, wipeData, deleteAccount } = useAuth();
+  const { user, status, updateProfile, changePassword, wipeData, deleteAccount, requestEmailChange } =
+    useAuth();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [username, setUsername] = useState(user?.username ?? "");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | undefined>();
+
+  const [newEmail, setNewEmail] = useState("");
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [emailError, setEmailError] = useState<string | undefined>();
+  const [emailSent, setEmailSent] = useState(false);
 
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -56,6 +62,26 @@ export default function AccountScreen() {
       setProfileError(e instanceof ApiError ? e.message : t("auth.genericError"));
     } finally {
       setSavingProfile(false);
+    }
+  }
+
+  async function submitEmailChange() {
+    const email = newEmail.trim();
+    if (!email) {
+      setEmailError(t("auth.fillAllFields"));
+      return;
+    }
+    setSavingEmail(true);
+    setEmailError(undefined);
+    setEmailSent(false);
+    try {
+      await requestEmailChange(email);
+      setEmailSent(true);
+      setNewEmail("");
+    } catch (e) {
+      setEmailError(e instanceof ApiError ? e.message : t("auth.genericError"));
+    } finally {
+      setSavingEmail(false);
     }
   }
 
@@ -118,6 +144,30 @@ export default function AccountScreen() {
         error={profileError}
       />
       <PrimaryButton label={t("account.save")} onPress={saveProfile} loading={savingProfile} />
+
+      <Text style={styles.sectionLabel}>{t("account.email")}</Text>
+      <Text style={styles.currentEmail}>{t("account.currentEmail", { email: user.email })}</Text>
+      <FormField
+        label={t("account.newEmail")}
+        value={newEmail}
+        onChangeText={setNewEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        autoComplete="email"
+        textContentType="emailAddress"
+        error={emailError}
+      />
+      {emailSent ? (
+        <View style={styles.successRow} accessibilityLiveRegion="polite">
+          <MaterialIcons name="mark-email-read" size={16} color={colors.accent} />
+          <Text style={styles.successText}>{t("account.emailChangeSent")}</Text>
+        </View>
+      ) : null}
+      <PrimaryButton
+        label={t("account.changeEmail")}
+        onPress={submitEmailChange}
+        loading={savingEmail}
+      />
 
       <Pressable
         style={styles.navRow}
@@ -227,6 +277,7 @@ function makeStyles(colors: ThemeColors) {
       marginTop: 12,
     },
     dangerLabel: { color: colors.danger },
+    currentEmail: { color: colors.textSecondary, fontSize: 14, marginBottom: 4 },
     navRow: { flexDirection: "row", alignItems: "center", gap: 14, minHeight: 56, paddingVertical: 8 },
     toggleText: { flex: 1 },
     rowTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: "600" },

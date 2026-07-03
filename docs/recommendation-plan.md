@@ -82,8 +82,9 @@
     **stockage borné** (un seul serveur pour l'instant) — cf. §7 scalabilité.
 12. **Sérendipité anti-rabbit-hole** : de temps en temps, injecter **volontairement**
     du hors-profil (actualité / populaire) pour casser la bulle — cf. §2.7.
-13. **Signal révocable** : supprimer une page de l'historique / des likes / bookmarks
-    doit **retirer sa contribution** au profil, qui **recalcule sans elle** — cf. §2.8.
+13. **Signal révocable** : supprimer une page (historique / like / bookmark) **retire
+    sa contribution** au profil, qui **recalcule sans elle** (journal append-only
+    conservé, via event compensateur `remove`) — cf. §2.8.
 
 ---
 
@@ -214,31 +215,50 @@ Distinct du MMR de diversité (qui varie **à l'intérieur** du profil). Ici on 
 
 ### 2.8 Signal révocable (suppression prise en compte)
 
-**Principe clé** : le profil est **dérivé de sources de vérité révocables**, pas d'un
-accumulateur additif immuable. Supprimer un signal doit **retirer sa contribution** et
-déclencher un **recalcul sans lui** (une EMA additive ne sait pas « soustraire » ⇒ on
-recompute depuis l'état courant, pas depuis le journal figé).
+**On garde le journal `interactions` append-only comme source du profil** (meilleur
+pour l'entraînement futur : embeddings, bandit, éval offline, replay). La révocation
+suit le pattern **event-sourcing** : on ne mute rien, on **append un event compensateur**.
 
-- **Like / save / share retirés** : déjà mutés dans `library_items` (serveur) via
-  `removeLibraryItem`. Si le profil **lit `library_items` comme source de vérité**
-  (et non le journal `interactions` append-only pour ces types), la révocation est
-  **automatique** au prochain recompute.
-- **Mise en story expirée / supprimée** : lire la table `stories` (déjà autoritative)
-  plutôt qu'un event figé → contribution disparaît d'elle-même.
-- **Historique de lecture** (`removeRead` / `clearRead`, aujourd'hui **local only**) :
-  émettre un **event tombstone** (`removeSignal`, `articleId` visé, ou `clearHistory`)
-  pour que la dérivation **filtre** ces articles ; `dwell`/`scrollDepth`/`cardDwell`/`read`
-  liés à cet article sont exclus du recompute.
-- **Mécanique de recompute** : toute révocation ⇒ **invalider le profil caché**
-  (`categoryAffinity` + `user_taste`) ⇒ recompute **lazy** au prochain build de feed
-  (ou incrémental). Pas besoin de recompute synchrone bloquant.
-- **Dé-dup vs oubli** — choix à trancher : supprimer une page de l'historique doit-il
-  la rendre **re-proposable** (purger son entrée `seen`) ? Reco : **oui pour l'historique
-  de lecture** (l'user veut repartir de zéro sur ce sujet), **non** juste pour un unlike
-  (il l'a quand même vue). Rendre ce comportement explicite.
+- **Event compensateur `remove`** : supprimer une page (historique / unlike / unsave)
+  ⇒ on ajoute au journal un `remove(articleId)`. La dérivation du profil construit un
+  **`revokedSet`** (articles ayant un `remove` postérieur à leur dernier signal positif)
+  et **filtre** ces articles. Un type d'event + une étape de filtrage — léger, le journal
+  reste 100 % append-only.
+- **Coût recompute** : toute révocation ⇒ **invalide le profil caché** (`categoryAffinity`
+  + `user_taste`) ⇒ recompute **lazy** au prochain build de feed. Pas de recompute bloquant.
+- **Non-répétition** : pas de set dédié. Une page supprimée reste dans `seen` (§3) —
+  on ne la **purge pas** de `seen` à la suppression → elle reste exclue via le cooldown
+  normal. (Effet de bord assumé : au-delà du cooldown elle *peut* re-remonter ; si un
+  jour on veut un « jamais » strict, ce sera une exclusion supplémentaire, pas maintenant.)
 - **Cohérence client↔serveur** : `removeRead`/`clearRead`/unlike/unsave côté mobile
-  doivent **émettre l'event de révocation** en plus de muter l'état local (cf. §4.1).
-- **RGPD** : `wipe-data` = cas extrême de révocation → purge profil + seen + events.
+  émettent l'event `remove` (+ `clearHistory` pour un wipe global) en plus de muter
+  l'état local (cf. §4.1).
+- **RGPD** : `wipe-data` = cas extrême → purge profil + seen + events.
+
+### 2.9 Blocage thématique (« ne plus me suggérer ce genre »)
+
+Distinct de la suppression d'**une** page (§2.8) : ici on bloque **un type de contenu**
+— le « Not interested » d'Instagram/TikTok. Rejette **tout un thème**, pas un article.
+
+- **Base existante** : `mutedInterests` (`LibraryProvider`) + poids `mute` (-4.0) +
+  filtre dur des catégories mutées (§4.3). On **formalise** et on **étend**.
+- **Action UI** : sur une carte / une page, un geste « ça ne m'intéresse pas » qui
+  ouvre le choix du **grain** de blocage (comme les grosses apps) :
+  - le(s) **topic(s)** global(aux) de l'article (`classifyTopics` — sport, histoire…) ;
+  - et/ou une **catégorie Wikipedia** topicale (`getTopicalCategories`) ;
+  - et/ou (Phase 2) le **cluster sémantique** : les pages proches en embedding de
+    celle-ci sont down-rankées (« ce genre » au sens vectoriel, pas juste le label).
+- **Effet** :
+  - **filtre dur** au recall : aucune page portant un topic/catégorie bloqué ne passe ;
+  - **contribution négative** au profil (`mute` -4.0) pour éloigner le `tasteVector` ;
+  - persister la liste des blocages thématiques serveur (`user_blocked_topics`,
+    lignes mutables — c'est un état, pas un signal de reco) + fallback local (invités).
+- **Portée** : permanent jusqu'à ce que l'user le retire (réversible dans le profil,
+  comme les interests mutés aujourd'hui). Rien à voir avec le cooldown de `seen`.
+- **Distinction claire à garder en tête** :
+  - `seen` → anti-répétition d'**une page** (auto, cooldown) ;
+  - suppression (§2.8) → **une page** cesse d'influencer le profil ;
+  - blocage thématique (§2.9) → **tout un genre** exclu + éloigné.
 
 ---
 

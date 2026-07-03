@@ -243,5 +243,14 @@
   "settings.reading": "Reading",
   "settings.listenButton": "Listen button",
   "settings.listenButtonHint": "Show the text-to-speech button on articles.",
-  "settings.privacy": "Privacy"
+  "settings.privacy": "Privacy",
+  "account.email": "Email",
+  "account.currentEmail": "Current: {{email}}",
+  "account.newEmail": "New email",
+  "account.changeEmail": "Send confirmation link",
+  "account.emailChangeSent": "A confirmation link has been sent to your new address. It applies once you click it.",
+  "account.confirmEmailTitle": "Confirming your email…",
+  "account.emailConfirmed": "Your email address has been updated.",
+  "account.emailConfirmError": "This confirmation link is invalid or has expired.",
+  "account.backToProfile": "Back to profile"
 }

@@ -2,7 +2,9 @@ import { Body, Controller, Delete, Get, HttpCode, Patch, Post, UseGuards } from 
 import type {
   AuthResponse,
   AuthUser,
+  ChangeEmailRequest,
   ChangePasswordRequest,
+  ConfirmEmailRequest,
   ForgotPasswordRequest,
   LoginRequest,
   RegisterRequest,
@@ -77,5 +79,21 @@ export class AuthController {
   @HttpCode(200)
   resetPassword(@Body() body: ResetPasswordRequest): Promise<{ message: string }> {
     return this.auth.resetPassword(body);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("email/change")
+  @HttpCode(200)
+  requestEmailChange(
+    @CurrentUser() principal: AuthPrincipal,
+    @Body() body: ChangeEmailRequest,
+  ): Promise<{ message: string }> {
+    return this.auth.requestEmailChange(principal.id, body);
+  }
+
+  @Post("email/confirm")
+  @HttpCode(200)
+  confirmEmailChange(@Body() body: ConfirmEmailRequest): Promise<AuthUser> {
+    return this.auth.confirmEmailChange(body);
   }
 }

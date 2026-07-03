@@ -66,6 +66,18 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
+/** Request a change of email — a confirmation link is sent to the new address. */
+export interface ChangeEmailRequest {
+  newEmail: string;
+}
+
+/** Confirm a pending email change from the emailed link. */
+export interface ConfirmEmailRequest {
+  /** Base64url-encoded user id from the confirmation link. */
+  uid: string;
+  token: string;
+}
+
 /** Kinds of saved library entry, persisted per account. */
 export type LibraryKind = "like" | "save" | "share";
 

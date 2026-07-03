@@ -51,6 +51,9 @@ function makeService() {
     sendPasswordReset: jest.fn((_to: string, _name: string, _link: string) =>
       Promise.resolve<undefined>(undefined),
     ),
+    sendEmailChange: jest.fn((_to: string, _name: string, _link: string) =>
+      Promise.resolve<undefined>(undefined),
+    ),
   };
   // Route by entity: User → the user repo, anything else → the interactions stub.
   const db = { repo: (entity: unknown) => (entity === User ? repo : interactions), isReady: true };
@@ -150,6 +153,32 @@ describe("AuthService", () => {
     await expect(
       service.resetPassword({ uid, token, newPassword: "anotherpw12" }),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it("changes email via double opt-in and rejects a duplicate / reused link", async () => {
+    const { service, mail } = makeService();
+    const { user } = await service.register(VALID);
+    // Another account owns "taken@example.com".
+    await service.register({ email: "taken@example.com", username: "other", password: "s3cretpw!" });
+
+    // Can't request an address already in use.
+    await expect(
+      service.requestEmailChange(user.id, { newEmail: "taken@example.com" }),
+    ).rejects.toThrow(ConflictException);
+
+    // Request a valid change → confirmation link sent to the NEW address.
+    const res = await service.requestEmailChange(user.id, { newEmail: "New@Example.com" });
+    expect(res.message).toEqual(expect.any(String));
+    expect(mail.sendEmailChange).toHaveBeenCalledTimes(1);
+    expect(mail.sendEmailChange.mock.calls[0][0]).toBe("new@example.com"); // normalized recipient
+    const link = mail.sendEmailChange.mock.calls[0][2];
+    const [, uid, token] = link.match(/\/confirm-email\/([^/]+)\/([a-f0-9]{64})$/)!;
+
+    // Not applied until confirmed.
+    const confirmed = await service.confirmEmailChange({ uid, token });
+    expect(confirmed.email).toBe("new@example.com");
+    // Single-use link.
+    await expect(service.confirmEmailChange({ uid, token })).rejects.toThrow(BadRequestException);
   });
 
   it("updates profile fields and enforces username uniqueness + privacy", async () => {
