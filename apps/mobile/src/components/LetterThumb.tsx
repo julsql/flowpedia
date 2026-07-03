@@ -44,7 +44,8 @@ export function LetterThumb({
   const bg = useMemo(() => colorForText(text), [text]);
   return (
     <View
-      style={[styles.box, { backgroundColor: bg }, style]}
+      // Derived color last so a passed `style` backgroundColor can't override it.
+      style={[styles.box, style, { backgroundColor: bg }]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >

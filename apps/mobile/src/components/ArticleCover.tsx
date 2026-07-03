@@ -22,7 +22,9 @@ export function ArticleCover({
   const bg = useMemo(() => colorForText(title), [title]);
   return (
     <View
-      style={[styles.cover, { backgroundColor: bg }, style]}
+      // The derived color goes last so a passed `style` (e.g. a card's neutral
+      // backgroundColor) can't override the whole point of the cover.
+      style={[styles.cover, style, { backgroundColor: bg }]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >

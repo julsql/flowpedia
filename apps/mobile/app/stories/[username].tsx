@@ -8,7 +8,7 @@ import type { StoryGroup } from "@flowpedia/shared";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { ArticleCover } from "../../src/components/ArticleCover";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
-import { fetchStories, fetchUserStories, largeImageUrl } from "../../src/api/client";
+import { fetchStories, fetchUserStories } from "../../src/api/client";
 import { useSeenStories } from "../../src/seen/SeenStoriesProvider";
 import { sortStoryGroups } from "../../src/stories/order";
 import { storyTimeAgo } from "../../src/stories/timeAgo";
@@ -183,11 +183,7 @@ export default function StoryViewerScreen() {
         ) : (
           <>
             {current.image ? (
-              <RemoteImage
-                source={{ uri: largeImageUrl(current.image, 1280) }}
-                style={StyleSheet.absoluteFill}
-                noBackdrop
-              />
+              <RemoteImage source={{ uri: current.image }} style={StyleSheet.absoluteFill} noBackdrop />
             ) : (
               <ArticleCover
                 title={current.title ?? current.articleId}

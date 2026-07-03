@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Interest, ProfileView, StoryGroup } from "@flowpedia/shared";
-import { radii, spacing, useTheme, type ThemeColors, type ThemeMode } from "../../src/theme";
+import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { ScreenContainer, centeredColumn } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { LetterThumb } from "../../src/components/LetterThumb";
@@ -14,13 +14,7 @@ import { useSeenStories } from "../../src/seen/SeenStoriesProvider";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { TextLink } from "../../src/components/TextLink";
 import { useLibrary } from "../../src/library/LibraryProvider";
-import { LOCALE_LABELS, SUPPORTED_LOCALES, useLocale, type TranslationKey } from "../../src/i18n";
-
-const THEME_OPTIONS: { mode: ThemeMode; label: TranslationKey }[] = [
-  { mode: "system", label: "theme.system" },
-  { mode: "light", label: "theme.light" },
-  { mode: "dark", label: "theme.dark" },
-];
+import { useLocale } from "../../src/i18n";
 
 function initials(name: string): string {
   return name
@@ -37,9 +31,9 @@ const MAX_INTEREST_SEEDS = 40;
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors, mode, setMode, contrast, setContrast } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { t, locale, setLocale } = useLocale();
+  const { t, locale } = useLocale();
   const auth = useAuth();
   const { hasUnseen } = useSeenStories();
   const { read, liked, saved, mutedInterests, muteInterest, removeRead, clearRead } = useLibrary();
@@ -253,6 +247,16 @@ export default function ProfileScreen() {
               <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
             </Pressable>
             <Pressable
+              onPress={() => router.push("/advanced-settings")}
+              style={styles.accountRow}
+              accessibilityRole="button"
+              accessibilityLabel={t("settings.advanced")}
+            >
+              <MaterialIcons name="tune" size={20} color={colors.textSecondary} />
+              <Text style={styles.accountRowText}>{t("settings.advanced")}</Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+            </Pressable>
+            <Pressable
               onPress={() => void auth.logout()}
               style={styles.signOutBtn}
               hitSlop={8}
@@ -273,6 +277,16 @@ export default function ProfileScreen() {
               label={t("auth.createAccount")}
               onPress={() => router.push("/auth/register")}
             />
+            <Pressable
+              onPress={() => router.push("/advanced-settings")}
+              style={styles.accountRow}
+              accessibilityRole="button"
+              accessibilityLabel={t("settings.advanced")}
+            >
+              <MaterialIcons name="tune" size={20} color={colors.textSecondary} />
+              <Text style={styles.accountRowText}>{t("settings.advanced")}</Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+            </Pressable>
           </View>
         ) : null}
 
@@ -408,67 +422,8 @@ export default function ProfileScreen() {
           </>
         ) : null}
 
-        {/* Settings — compact */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t("settings.theme")}</Text>
-          <View style={styles.segment}>
-            {THEME_OPTIONS.map(({ mode: optionMode, label }) => {
-              const active = optionMode === mode;
-              return (
-                <Pressable
-                  key={optionMode}
-                  onPress={() => setMode(optionMode)}
-                  style={[styles.segmentItem, active && styles.segmentItemActive]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={t(label)}
-                >
-                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
-                    {t(label)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <View style={styles.toggleRow}>
-            <Text style={styles.toggleLabel}>{t("settings.contrast")}</Text>
-            <Switch
-              value={contrast}
-              onValueChange={setContrast}
-              accessibilityRole="switch"
-              accessibilityLabel={t("settings.contrast")}
-              accessibilityState={{ checked: contrast }}
-              trackColor={{ true: colors.accent, false: colors.separator }}
-            />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t("settings.language")}</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.langRow}
-          >
-            {SUPPORTED_LOCALES.map((code) => {
-              const active = code === locale;
-              return (
-                <Pressable
-                  key={code}
-                  onPress={() => setLocale(code)}
-                  style={[styles.langChip, active && styles.langChipActive]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={LOCALE_LABELS[code]}
-                >
-                  <Text style={[styles.langChipText, active && styles.langChipTextActive]}>
-                    {LOCALE_LABELS[code]}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
+        {/* Appearance, notifications and other options now live in the dedicated
+            Advanced settings screen (linked from the account list above / below). */}
       </ScrollView>
     </ScreenContainer>
   );

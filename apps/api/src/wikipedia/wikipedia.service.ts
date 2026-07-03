@@ -214,7 +214,10 @@ export class WikipediaService {
       title,
     )}`;
     // Full-article HTML is large; a slow/dropped fetch must not silently fall
-    // back to the bare summary. Time-box each attempt and retry once.
+    // back to the bare summary. Time-box each attempt and retry once — but ONLY
+    // on network/timeout or server (5xx) errors. Never retry a client error
+    // (404, or a 429 rate-limit): retrying a throttled request only makes the
+    // rate-limiting worse.
     let lastErr: unknown;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const controller = new AbortController();
@@ -224,12 +227,15 @@ export class WikipediaService {
           headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
           signal: controller.signal,
         });
-        if (!res.ok) {
-          throw new Error(`Wikipedia HTML ${res.status} for ${title}`);
+        if (res.ok) {
+          return await res.text();
         }
-        return await res.text();
+        lastErr = new Error(`Wikipedia HTML ${res.status} for ${title}`);
+        if (res.status >= 400 && res.status < 500) {
+          break; // client error (incl. 429) — don't hammer with a retry
+        }
       } catch (err) {
-        lastErr = err;
+        lastErr = err; // network/timeout — worth one retry
       } finally {
         clearTimeout(timer);
       }

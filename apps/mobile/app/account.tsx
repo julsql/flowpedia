@@ -169,20 +169,6 @@ export default function AccountScreen() {
         loading={savingEmail}
       />
 
-      <Pressable
-        style={styles.navRow}
-        onPress={() => router.push("/advanced-settings")}
-        accessibilityRole="link"
-        accessibilityLabel={t("settings.advanced")}
-      >
-        <MaterialIcons name="tune" size={22} color={colors.textPrimary} />
-        <View style={styles.toggleText}>
-          <Text style={styles.rowTitle}>{t("settings.advanced")}</Text>
-          <Text style={styles.rowHint}>{t("settings.advancedHint")}</Text>
-        </View>
-        <MaterialIcons name="chevron-right" size={22} color={colors.textTertiary} />
-      </Pressable>
-
       <Text style={styles.sectionLabel}>{t("account.changePassword")}</Text>
       <FormField
         label={t("account.currentPassword")}
