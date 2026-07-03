@@ -26,6 +26,7 @@ import { useAuth } from "../../src/auth/AuthProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useSeen } from "../../src/seen/SeenProvider";
+import { useCardDwell } from "../../src/feed/useCardDwell";
 import { spacing, typography, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale, type TranslationKey } from "../../src/i18n";
 
@@ -42,6 +43,8 @@ export default function FeedScreen() {
   const { liked, saved, mutedInterests } = useLibrary();
   const auth = useAuth();
   const { seenIds, markSeen } = useSeen();
+  // Emits a cardDwell signal (time on the card) as items enter/leave the viewport.
+  const { onViewableItemsChanged, viewabilityConfig } = useCardDwell();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useLocale();
@@ -339,6 +342,8 @@ export default function FeedScreen() {
           )}
           onEndReached={loadMore}
           onEndReachedThreshold={0.6}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

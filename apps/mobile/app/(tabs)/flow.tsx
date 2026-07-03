@@ -53,11 +53,26 @@ export default function FlowScreen() {
   const lengthRef = useRef(0);
   lengthRef.current = articles.length;
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+  // Time the current immersive card has been on screen → a cardDwell signal when
+  // the user swipes to the next one (attention on a full-screen card in the Flow).
+  const cardDwellRef = useRef<{ id: string | null; since: number }>({ id: null, since: 0 });
   const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: { index: number | null }[] }) => {
+    ({ viewableItems }: { viewableItems: { index: number | null; item?: Article }[] }) => {
       const first = viewableItems[0];
       if (first?.index != null) {
         currentIndexRef.current = first.index;
+      }
+      const id = first?.item?.id ?? null;
+      const prev = cardDwellRef.current;
+      if (id !== prev.id) {
+        const now = Date.now();
+        if (prev.id && prev.since) {
+          const dwell = now - prev.since;
+          if (dwell >= 300) {
+            sendEvents([{ articleId: prev.id, type: "cardDwell", value: dwell, ts: now }]);
+          }
+        }
+        cardDwellRef.current = { id, since: now };
       }
     },
   ).current;
