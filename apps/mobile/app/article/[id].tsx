@@ -1463,13 +1463,18 @@ function SectionBlock({
                           ) : run.linkTargetId ? (
                             <Text
                               key={runIndex}
-                              style={styles.link}
+                              style={[styles.link, run.italic && styles.italic, run.bold && styles.bold]}
                               onPress={() => onLinkPress(run.linkTargetId as string)}
                             >
                               {run.text}
                             </Text>
                           ) : (
-                            <Text key={runIndex}>{run.text}</Text>
+                            <Text
+                              key={runIndex}
+                              style={[run.italic && styles.italic, run.bold && styles.bold]}
+                            >
+                              {run.text}
+                            </Text>
                           ),
                         )}
                       </Text>
@@ -1515,13 +1520,13 @@ function SectionBlock({
               ) : run.linkTargetId ? (
                 <Text
                   key={rIndex}
-                  style={styles.link}
+                  style={[styles.link, run.italic && styles.italic, run.bold && styles.bold]}
                   onPress={() => onLinkPress(run.linkTargetId as string)}
                 >
                   {highlightedText(run.text, query, matchCounter, matchOffset, activeMatch, styles)}
                 </Text>
               ) : (
-                <Text key={rIndex}>
+                <Text key={rIndex} style={[run.italic && styles.italic, run.bold && styles.bold]}>
                   {highlightedText(run.text, query, matchCounter, matchOffset, activeMatch, styles)}
                 </Text>
               ),
@@ -1757,6 +1762,9 @@ const makeStyles = (colors: ThemeColors) =>
     textDecorationLine: "underline",
     textDecorationColor: colors.accentLinkUnderline,
   },
+  // Inline emphasis carried over from the article's <i>/<em> and <b>/<strong>.
+  italic: { fontStyle: "italic" as const },
+  bold: { fontWeight: "700" as const },
   // Inline colour key (results-grid legend): a small filled square. The spaces
   // give it width; the colour is applied inline from the run's `swatch`.
   legendSwatch: { fontSize: 13, borderRadius: 3, color: "transparent" },

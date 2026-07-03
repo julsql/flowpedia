@@ -434,13 +434,21 @@ function toUnicodeScript(text: string, superscript: boolean): string {
   return [...text].map((ch) => map[ch.toLowerCase()] ?? ch).join("");
 }
 
+/** Inline emphasis carried down the tree so italic/bold survives flattening. */
+interface Emphasis {
+  italic: boolean;
+  bold: boolean;
+}
+
+const NO_EMPHASIS: Emphasis = { italic: false, bold: false };
+
 function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
   const runs: TextRun[] = [];
 
-  const walk = (node: Node): void => {
+  const walk = (node: Node, emph: Emphasis): void => {
     for (const child of node.childNodes) {
       if (child.nodeType === TEXT_NODE) {
-        pushText(runs, child.text);
+        pushText(runs, child.text, emph);
         continue;
       }
       const el = child as HTMLElement;
@@ -457,13 +465,13 @@ function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
       // its "dates", or several notable films) — keep it as a newline instead of
       // gluing the parts together.
       if (tag === "br") {
-        pushText(runs, "\n");
+        pushText(runs, "\n", NO_EMPHASIS);
         continue;
       }
       // A nested list item inside a value/cell: one entry per line, links kept.
       if (tag === "li") {
-        pushText(runs, "\n");
-        walk(el);
+        pushText(runs, "\n", NO_EMPHASIS);
+        walk(el, emph);
         continue;
       }
       // Drop small page chrome (pronunciation "Écouter ⓘ" widget, edit links…).
@@ -479,7 +487,7 @@ function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
           continue;
         }
         if (el.text.trim().length <= 4) {
-          pushText(runs, toUnicodeScript(el.text, tag === "sup"));
+          pushText(runs, toUnicodeScript(el.text, tag === "sup"), emph);
         }
         continue;
       }
@@ -493,31 +501,44 @@ function buildRuns(paragraph: HTMLElement, isListItem: boolean): TextRun[] {
           // Other namespaces (Category:/Portal:…) stay clickable: the app opens
           // them on Wikipedia.
           if (!text.trim() || MEDIA_NAMESPACE.test(target)) {
-            pushText(runs, text);
+            pushText(runs, text, emph);
           } else {
-            runs.push({ text, linkTargetId: target });
+            runs.push(withEmphasis({ text, linkTargetId: target }, emph));
           }
         } else {
-          pushText(runs, text); // external/other link → plain text
+          pushText(runs, text, emph); // external/other link → plain text
         }
       } else {
         const swatch = swatchColor(el);
         if (swatch) {
           runs.push({ text: "", swatch }); // legend colour key → coloured square
         } else {
-          walk(el); // i, b, span, etc. → flatten to text/links
+          // i/em → italic, b/strong → bold; keep the emphasis when flattening the
+          // element's text/links into runs.
+          const next: Emphasis = {
+            italic: emph.italic || tag === "i" || tag === "em",
+            bold: emph.bold || tag === "b" || tag === "strong",
+          };
+          walk(el, next);
         }
       }
     }
   };
 
-  walk(paragraph);
+  walk(paragraph, NO_EMPHASIS);
   return runs;
 }
 
-function pushText(runs: TextRun[], text: string): void {
+/** Attach italic/bold flags to a run (only when set, to keep the DTO lean). */
+function withEmphasis(run: TextRun, emph: Emphasis): TextRun {
+  if (emph.italic) run.italic = true;
+  if (emph.bold) run.bold = true;
+  return run;
+}
+
+function pushText(runs: TextRun[], text: string, emph: Emphasis): void {
   if (text) {
-    runs.push({ text });
+    runs.push(withEmphasis({ text }, emph));
   }
 }
 
@@ -563,10 +584,24 @@ function normalizeRuns(runs: TextRun[]): TextRun[] {
     const last = merged[merged.length - 1];
     // Don't merge into/through a swatch run, or its label ("Gagnant") would be
     // absorbed and then hidden (the swatch renders as a square, ignoring text).
-    if (last && !last.linkTargetId && !last.swatch && !run.linkTargetId) {
+    // Only merge runs that share the same emphasis, so italic/bold spans stay
+    // separate from the surrounding plain text.
+    if (
+      last &&
+      !last.linkTargetId &&
+      !last.swatch &&
+      !run.linkTargetId &&
+      !!last.italic === !!run.italic &&
+      !!last.bold === !!run.bold
+    ) {
       last.text += text;
     } else {
-      merged.push({ text, ...(run.linkTargetId ? { linkTargetId: run.linkTargetId } : {}) });
+      merged.push({
+        text,
+        ...(run.linkTargetId ? { linkTargetId: run.linkTargetId } : {}),
+        ...(run.italic ? { italic: true } : {}),
+        ...(run.bold ? { bold: true } : {}),
+      });
     }
   }
   // Tidy whitespace left by stripped markers/dropped chrome: a removed

@@ -6,6 +6,10 @@
 export interface TextRun {
   text: string;
   linkTargetId?: string;
+  /** Rendered in italic when set (from `<i>`/`<em>` in the source). */
+  italic?: boolean;
+  /** Rendered in bold when set (from `<b>`/`<strong>` in the source). */
+  bold?: boolean;
   /**
    * A colour key/swatch (e.g. a results-grid legend entry): renders as a small
    * filled square. When set, `text` is empty — the label follows in the next run.

@@ -622,6 +622,31 @@ describe("parseArticleSections — legend colour swatches", () => {
   });
 });
 
+describe("parseArticleSections — inline emphasis (italic/bold)", () => {
+  it("keeps <i>/<em> as italic and <b>/<strong> as bold runs", () => {
+    const html = `<html><body><section data-mw-section-id="0"><p>Plain <i>italic</i> and <b>bold</b> and <em>emph</em> and <strong>strong</strong>.</p></section></body></html>`;
+    const runs = parseArticleSections(html, "Résumé")[0].paragraphs[0].runs;
+    const find = (t: string) => runs.find((r) => r.text.includes(t));
+    expect(find("italic")?.italic).toBe(true);
+    expect(find("emph")?.italic).toBe(true);
+    expect(find("bold")?.bold).toBe(true);
+    expect(find("strong")?.bold).toBe(true);
+    // Plain text carries neither flag.
+    expect(find("Plain")?.italic).toBeUndefined();
+    expect(find("Plain")?.bold).toBeUndefined();
+  });
+
+  it("keeps emphasis on a wiki-link and combines nested italic+bold", () => {
+    const html = `<html><body><section data-mw-section-id="0"><p><i>An <a rel="mw:WikiLink" href="./Foo">italic link</a> and <b>bold italic</b></i>.</p></section></body></html>`;
+    const runs = parseArticleSections(html, "Résumé")[0].paragraphs[0].runs;
+    const link = runs.find((r) => r.linkTargetId === "Foo");
+    expect(link?.italic).toBe(true);
+    const bi = runs.find((r) => r.text.includes("bold italic"));
+    expect(bi?.italic).toBe(true);
+    expect(bi?.bold).toBe(true);
+  });
+});
+
 describe("parseArticleSections — line breaks in cells", () => {
   it("keeps a <br> in a table cell as a newline (name + dates)", () => {
     const html = `<html><body><section data-mw-section-id="0"><table class="wikitable"><tr><th>Nom</th><th>Règne</th></tr><tr><td>Louis XIV<br/>1643-1715</td><td>72 ans</td></tr></table></section></body></html>`;
