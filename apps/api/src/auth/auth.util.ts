@@ -41,6 +41,10 @@ export function toAuthUser(user: User): AuthUser {
     username: user.username,
     displayName: user.displayName,
     isPrivate: user.isPrivate,
+    notifyFollows: user.notifyFollows ?? true,
+    notifyMessages: user.notifyMessages ?? true,
+    notifyStories: user.notifyStories ?? true,
+    ttsEnabled: user.ttsEnabled ?? true,
     createdAt: user.createdAt.toISOString(),
   };
 }

@@ -230,5 +230,18 @@
   "conversation.send": "Send",
   "a11y.sendMessage": "Send message",
   "a11y.messageInput": "Message",
-  "inbox.openConversation": "Open conversation"
+  "inbox.openConversation": "Open conversation",
+  "settings.advanced": "Advanced settings",
+  "settings.advancedHint": "Notifications, privacy and reading options",
+  "settings.notifications": "Notifications",
+  "settings.notifyFollows": "Follows & requests",
+  "settings.notifyFollowsHint": "When someone follows you or asks to.",
+  "settings.notifyMessages": "Messages",
+  "settings.notifyMessagesHint": "When someone sends you a page or message.",
+  "settings.notifyStories": "Stories",
+  "settings.notifyStoriesHint": "Stories from people you follow.",
+  "settings.reading": "Reading",
+  "settings.listenButton": "Listen button",
+  "settings.listenButtonHint": "Show the text-to-speech button on articles.",
+  "settings.privacy": "Privacy"
 }

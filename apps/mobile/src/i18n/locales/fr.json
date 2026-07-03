@@ -228,5 +228,18 @@
   "conversation.send": "Envoyer",
   "a11y.sendMessage": "Envoyer le message",
   "a11y.messageInput": "Message",
-  "inbox.openConversation": "Ouvrir la conversation"
+  "inbox.openConversation": "Ouvrir la conversation",
+  "settings.advanced": "Paramètres avancés",
+  "settings.advancedHint": "Notifications, confidentialité et options de lecture",
+  "settings.notifications": "Notifications",
+  "settings.notifyFollows": "Abonnements & demandes",
+  "settings.notifyFollowsHint": "Quand quelqu'un s'abonne ou en fait la demande.",
+  "settings.notifyMessages": "Messages",
+  "settings.notifyMessagesHint": "Quand on vous envoie une page ou un message.",
+  "settings.notifyStories": "Stories",
+  "settings.notifyStoriesHint": "Les stories des personnes que vous suivez.",
+  "settings.reading": "Lecture",
+  "settings.listenButton": "Bouton d'écoute",
+  "settings.listenButtonHint": "Affiche le bouton de synthèse vocale sur les articles.",
+  "settings.privacy": "Confidentialité"
 }

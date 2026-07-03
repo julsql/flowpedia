@@ -34,6 +34,20 @@ export class User {
   @Column({ default: false })
   isPrivate!: boolean;
 
+  /** Notification preferences (opt-out; all on by default). */
+  @Column({ default: true })
+  notifyFollows!: boolean;
+
+  @Column({ default: true })
+  notifyMessages!: boolean;
+
+  @Column({ default: true })
+  notifyStories!: boolean;
+
+  /** Show the article "listen" (text-to-speech) button. */
+  @Column({ default: true })
+  ttsEnabled!: boolean;
+
   /** bcrypt hash of the current password-reset token, or null when none is active. */
   @Column({ type: "varchar", nullable: true })
   passwordResetTokenHash!: string | null;

@@ -190,6 +190,18 @@ export class AuthService {
     if (body.isPrivate !== undefined) {
       user.isPrivate = Boolean(body.isPrivate);
     }
+    if (body.notifyFollows !== undefined) {
+      user.notifyFollows = Boolean(body.notifyFollows);
+    }
+    if (body.notifyMessages !== undefined) {
+      user.notifyMessages = Boolean(body.notifyMessages);
+    }
+    if (body.notifyStories !== undefined) {
+      user.notifyStories = Boolean(body.notifyStories);
+    }
+    if (body.ttsEnabled !== undefined) {
+      user.ttsEnabled = Boolean(body.ttsEnabled);
+    }
 
     await repo.save(user);
     return toAuthUser(user);

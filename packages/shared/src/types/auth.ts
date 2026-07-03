@@ -8,6 +8,14 @@ export interface AuthUser {
   displayName: string;
   /** Private accounts hide their profile/stories from non-followers. */
   isPrivate: boolean;
+  /** Notify me when someone follows / requests to follow me. */
+  notifyFollows: boolean;
+  /** Notify me when I receive a message / shared page. */
+  notifyMessages: boolean;
+  /** Notify me about stories from people I follow. */
+  notifyStories: boolean;
+  /** Show the "listen" (text-to-speech) button on articles. */
+  ttsEnabled: boolean;
   /** ISO timestamp. */
   createdAt: string;
 }
@@ -47,6 +55,10 @@ export interface UpdateProfileRequest {
   displayName?: string;
   username?: string;
   isPrivate?: boolean;
+  notifyFollows?: boolean;
+  notifyMessages?: boolean;
+  notifyStories?: boolean;
+  ttsEnabled?: boolean;
 }
 
 export interface ChangePasswordRequest {

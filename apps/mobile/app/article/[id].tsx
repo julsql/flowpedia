@@ -44,6 +44,7 @@ import { InfoCard } from "../../src/components/InfoCard";
 import { PieChartCard } from "../../src/components/PieChart";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { useLibrary } from "../../src/library/LibraryProvider";
+import { useAuth } from "../../src/auth/AuthProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
 import { useArticleSpeech } from "../../src/speech/useArticleSpeech";
 import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
@@ -81,6 +82,7 @@ export default function ArticleScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useLocale();
   const { isSaved, toggleSave, isLiked, toggleLike, markRead } = useLibrary();
+  const auth = useAuth();
   const { openShare } = useShare();
   // "Keep exploring" — an infinite feed of related articles (related-to-this +
   // popular), so the reader keeps bouncing instead of hitting a dead end.
@@ -100,7 +102,7 @@ export default function ArticleScreen() {
   const [error, setError] = useState(false);
   // Read the article aloud with the device's native TTS (no model/network).
   const {
-    available: speechAvailable,
+    available: speechDeviceAvailable,
     speaking,
     paused,
     currentSectionId,
@@ -108,6 +110,9 @@ export default function ArticleScreen() {
     stop: stopSpeech,
     readFromSection,
   } = useArticleSpeech(article, locale);
+  // The listen button also honours the account's "listen button" preference
+  // (guests keep it on by default).
+  const speechAvailable = speechDeviceAvailable && (auth.user?.ttsEnabled ?? true);
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   // Tapped section image shown full-size in a lightbox (with its caption).

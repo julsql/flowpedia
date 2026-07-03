@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { AuthScaffold } from "../src/components/AuthScaffold";
@@ -19,7 +19,6 @@ export default function AccountScreen() {
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [username, setUsername] = useState(user?.username ?? "");
-  const [isPrivate, setIsPrivate] = useState(Boolean(user?.isPrivate));
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | undefined>();
 
@@ -41,7 +40,6 @@ export default function AccountScreen() {
     if (user) {
       setDisplayName(user.displayName);
       setUsername(user.username);
-      setIsPrivate(user.isPrivate);
     }
   }, [user]);
 
@@ -58,15 +56,6 @@ export default function AccountScreen() {
       setProfileError(e instanceof ApiError ? e.message : t("auth.genericError"));
     } finally {
       setSavingProfile(false);
-    }
-  }
-
-  async function togglePrivacy(next: boolean) {
-    setIsPrivate(next);
-    try {
-      await updateProfile({ isPrivate: next });
-    } catch {
-      setIsPrivate(!next); // revert on failure
     }
   }
 
@@ -130,20 +119,19 @@ export default function AccountScreen() {
       />
       <PrimaryButton label={t("account.save")} onPress={saveProfile} loading={savingProfile} />
 
-      <View style={styles.toggleRow}>
+      <Pressable
+        style={styles.navRow}
+        onPress={() => router.push("/advanced-settings")}
+        accessibilityRole="link"
+        accessibilityLabel={t("settings.advanced")}
+      >
+        <MaterialIcons name="tune" size={22} color={colors.textPrimary} />
         <View style={styles.toggleText}>
-          <Text style={styles.rowTitle}>{t("account.privateAccount")}</Text>
-          <Text style={styles.rowHint}>{t("account.privateHint")}</Text>
+          <Text style={styles.rowTitle}>{t("settings.advanced")}</Text>
+          <Text style={styles.rowHint}>{t("settings.advancedHint")}</Text>
         </View>
-        <Switch
-          value={isPrivate}
-          onValueChange={togglePrivacy}
-          accessibilityLabel={t("account.privateAccount")}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: isPrivate }}
-          trackColor={{ true: colors.accent, false: colors.separator }}
-        />
-      </View>
+        <MaterialIcons name="chevron-right" size={22} color={colors.textTertiary} />
+      </Pressable>
 
       <Text style={styles.sectionLabel}>{t("account.changePassword")}</Text>
       <FormField
@@ -239,7 +227,7 @@ function makeStyles(colors: ThemeColors) {
       marginTop: 12,
     },
     dangerLabel: { color: colors.danger },
-    toggleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+    navRow: { flexDirection: "row", alignItems: "center", gap: 14, minHeight: 56, paddingVertical: 8 },
     toggleText: { flex: 1 },
     rowTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: "600" },
     rowHint: { color: colors.textSecondary, fontSize: 13, lineHeight: 18, marginTop: 2 },

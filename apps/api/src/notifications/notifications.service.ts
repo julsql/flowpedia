@@ -25,6 +25,21 @@ function toPublic(u: User): PublicUser {
   return { id: u.id, username: u.username, displayName: u.displayName, isPrivate: u.isPrivate };
 }
 
+/** Whether the recipient's preferences allow a notification of this type. */
+function allowsNotification(user: User, type: NotificationType): boolean {
+  switch (type) {
+    case "follow_request":
+    case "follow_accepted":
+    case "follower":
+      return user.notifyFollows ?? true;
+    case "page_received":
+      return user.notifyMessages ?? true;
+    default:
+      // Story (and any future) notifications fall under the stories preference.
+      return user.notifyStories ?? true;
+  }
+}
+
 /** In-app notifications: creation (called by social/messages services), listing,
  *  read-state, and Expo push-token registration. */
 @Injectable()
@@ -54,6 +69,14 @@ export class NotificationsService {
     if (input.recipientId === input.actorId) {
       return;
     }
+    // Respect the recipient's notification preferences (opt-out per category).
+    const userRepo = this.db.repo(User);
+    const recipient = userRepo
+      ? await userRepo.findOne({ where: { id: input.recipientId } })
+      : null;
+    if (recipient && !allowsNotification(recipient, input.type)) {
+      return;
+    }
     if (opts?.persist !== false) {
       const repo = this.db.repo(Notification);
       if (repo) {
@@ -66,7 +89,6 @@ export class NotificationsService {
         });
       }
     }
-    const userRepo = this.db.repo(User);
     const actor = userRepo ? await userRepo.findOne({ where: { id: input.actorId } }) : null;
     const name = actor?.displayName || actor?.username || "Someone";
     // One localized push per device (each token carries its own locale).
