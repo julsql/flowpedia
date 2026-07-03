@@ -9,6 +9,7 @@ import {
   removeLibraryItem,
   sendEvents,
 } from "../api/client";
+import { useRouter } from "expo-router";
 import { useAuth } from "../auth/AuthProvider";
 import { useLocale } from "../i18n";
 
@@ -75,6 +76,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [mutedInterests, setMutedInterests] = useState<string[]>([]);
   const { locale } = useLocale();
   const auth = useAuth();
+  const router = useRouter();
 
   // Pre-warm the offline cache with the full content of saved articles, so they
   // stay readable without network (liked articles are not pre-cached on purpose).
@@ -180,7 +182,23 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // Liking, bookmarking and building a reading history require an account:
+    // guests are invited to sign in instead of mutating a throwaway local
+    // library. Returns true when the caller may proceed.
+    const requireAccount = (): boolean => {
+      if (auth.user) {
+        return true;
+      }
+      if (auth.status === "guest") {
+        router.push("/auth/login");
+      }
+      return false;
+    };
+
     const toggleLike = (article: Article) => {
+      if (!requireAccount()) {
+        return;
+      }
       const wasLiked = liked.some((a) => a.id === article.id);
       setLiked((prev) => {
         const next = prev.some((a) => a.id === article.id)
@@ -198,6 +216,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     };
 
     const toggleSave = (article: Article) => {
+      if (!requireAccount()) {
+        return;
+      }
       const wasSaved = saved.some((a) => a.id === article.id);
       setSaved((prev) => {
         const next = prev.some((a) => a.id === article.id)
@@ -224,6 +245,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     };
 
     const markRead = (article: Article) => {
+      // No reading history for guests (silently — opening articles must stay
+      // frictionless; the invite to sign in only fires on like/bookmark).
+      if (!auth.user) {
+        return;
+      }
       setRead((prev) => {
         // Move to the front on re-open so the list reads as a recency-ordered
         // history (most recently opened first). Capped so it can't grow forever.

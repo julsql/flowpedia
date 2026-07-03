@@ -23,6 +23,7 @@ import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { ArticleCover } from "../../src/components/ArticleCover";
 import { useLibrary } from "../../src/library/LibraryProvider";
+import { useAuth } from "../../src/auth/AuthProvider";
 import { useSeen } from "../../src/seen/SeenProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
 import { useTheme } from "../../src/theme";
@@ -32,6 +33,7 @@ export default function FlowScreen() {
   const { locale } = useLocale();
   const { colors } = useTheme();
   const { liked, saved, mutedInterests } = useLibrary();
+  const auth = useAuth();
   const { seenIds, markSeen } = useSeen();
   const [articles, setArticles] = useState<Article[]>([]);
   const [cursor, setCursor] = useState<string | undefined>();
@@ -60,9 +62,10 @@ export default function FlowScreen() {
   const atTopRef = useRef(true);
   const refreshingRef = useRef(false);
   const seedsRef = useRef<{ seeds: string[]; savedSeeds: string[] }>({ seeds: [], savedSeeds: [] });
+  // Personalised only for signed-in users — guests get no algorithm.
   seedsRef.current = useMemo(
-    () => buildFeedSeeds(liked, saved, mutedInterests),
-    [liked, saved, mutedInterests],
+    () => (auth.user ? buildFeedSeeds(liked, saved, mutedInterests) : { seeds: [], savedSeeds: [] }),
+    [liked, saved, mutedInterests, auth.user],
   );
   const excludeRef = useRef<string[]>([]);
   const seenIdsRef = useRef<string[]>([]);

@@ -276,6 +276,11 @@ export default function ProfileScreen() {
           </View>
         ) : null}
 
+        {/* Library stats, the history/liked/saved lists and the interest chips
+            are signed-in only: guests can't like, bookmark or build a history,
+            and get no personalised algorithm. */}
+        {auth.status === "authenticated" ? (
+          <>
         {/* Stats — Liked / Saved are tappable to reveal their pages. */}
         <View style={styles.stats}>
           <Stat
@@ -399,6 +404,8 @@ export default function ProfileScreen() {
               ))}
             </View>
           </View>
+        ) : null}
+          </>
         ) : null}
 
         {/* Settings — compact */}
