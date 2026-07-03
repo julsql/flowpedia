@@ -10,6 +10,32 @@
 
 ---
 
+## Statut d'implémentation (MAJ 2026-07-04)
+
+**Phase 1 — livrée & testée** (module `apps/api/src/reco/`, 175 tests API verts) :
+- ✅ **Scoring** (`reco/scoring.ts`) : poids par capteur (story=share>save>like>read…),
+  saturation dwell/scrollDepth/cardDwell, pénalité skip rapide, décroissance 14 j.
+- ✅ **Profil** (`reco/profile.ts` + `profile.service.ts`) : seeds pondérés + affinité
+  catégorielle dérivés du **journal append-only**, révocation `remove`/`clearHistory`.
+- ✅ **Dé-dup serveur** (`reco/seen.ts` + `seen.service.ts`) : cooldown par type, cross-device.
+- ✅ **Recall social** (`reco/social.service.ts`) : pages likées/storied des abonnés, dose ≤1/page.
+- ✅ **Intégration feed** : `userId` + `personalize` (respecte l'ancre page), enrichissement
+  du recall par le profil, injection sociale + **exploration** hors-profil (anti-rabbit-hole).
+- ✅ **Capteurs mobiles** : `cardDwell` (temps sur la carte, home + flow), `read`, `share`
+  in-app, `story`, révocations `remove`/`clearHistory`, `userId`+`personalize` au feed.
+- ✅ **UI** : option « Pas intéressé » (menu ⋯) → `muteInterest`.
+
+**Reste Phase 1 (mineur / non bloquant)** :
+- ⏳ Capteurs `scrollDepth` (déclaré, toujours pas émis) + `impression` ; batch de `sendEvents`.
+- ⏳ Blocage thématique **serveur** (`user_blocked_topics`) + signal négatif — aujourd'hui
+  `mute` reste client-side (filtre les seeds client) ; `onNotInterested` (retrait de carte).
+- ⏳ Ranking MMR-lite (le `blendDiverse` heuristique tient lieu de diversité pour l'instant).
+
+**Phase 2 — non démarrée** : embeddings multilingues locaux + pgvector + `tasteVector`
+en ligne + ANN/MMR (§5). Gros chantier séparé.
+
+---
+
 ## 0. Contexte & état actuel (ne pas re-explorer, c'est déjà fait)
 
 ### Ce qui existe
