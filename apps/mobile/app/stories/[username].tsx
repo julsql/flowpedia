@@ -8,7 +8,7 @@ import type { StoryGroup } from "@flowpedia/shared";
 import { RemoteImage } from "../../src/components/RemoteImage";
 import { colorForText } from "../../src/components/LetterThumb";
 import { CONTENT_MAX_WIDTH } from "../../src/components/ScreenContainer";
-import { fetchStories, fetchUserStories } from "../../src/api/client";
+import { fetchStories, fetchUserStories, largeImageUrl } from "../../src/api/client";
 import { useSeenStories } from "../../src/seen/SeenStoriesProvider";
 import { sortStoryGroups } from "../../src/stories/order";
 import { useLocale } from "../../src/i18n";
@@ -182,7 +182,11 @@ export default function StoryViewerScreen() {
         ) : (
           <>
             {current.image ? (
-              <RemoteImage source={{ uri: current.image }} style={StyleSheet.absoluteFill} noBackdrop />
+              <RemoteImage
+                source={{ uri: largeImageUrl(current.image, 1280) }}
+                style={StyleSheet.absoluteFill}
+                noBackdrop
+              />
             ) : (
               <View
                 style={[

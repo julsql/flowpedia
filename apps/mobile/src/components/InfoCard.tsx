@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from
 import { MaterialIcons } from "@expo/vector-icons";
 import type { Article } from "@flowpedia/shared";
 import { RemoteImage } from "./RemoteImage";
+import { largeImageUrl } from "../api/client";
 import { useLocale } from "../i18n";
 import { radii, type ThemeColors } from "../theme";
 
@@ -101,7 +102,7 @@ export function InfoCard({ article, colors, onImagePress, onLinkPress }: InfoCar
       >
         <View style={[styles.mapImageWrap, { aspectRatio: mapRatio }]}>
           <RemoteImage
-            source={{ uri: selectedMap.image }}
+            source={{ uri: largeImageUrl(selectedMap.image, 640) }}
             style={styles.mapImageFill}
             resizeMode="contain"
           />
@@ -162,7 +163,7 @@ export function InfoCard({ article, colors, onImagePress, onLinkPress }: InfoCar
           }
         >
           <RemoteImage
-            source={{ uri: image }}
+            source={{ uri: image ? largeImageUrl(image, 1280) : undefined }}
             style={[styles.soloImage, { aspectRatio: ratioSolo }]}
             resizeMode="cover"
             accessibilityElementsHidden
@@ -197,7 +198,7 @@ export function InfoCard({ article, colors, onImagePress, onLinkPress }: InfoCar
           }
         >
           <RemoteImage
-            source={{ uri: image }}
+            source={{ uri: largeImageUrl(image, 640) }}
             style={imageStyle}
             resizeMode="cover"
             accessibilityElementsHidden

@@ -1292,7 +1292,9 @@ function SectionBlock({
       accessibilityLabel={img.caption ? `${img.caption}, ${viewImageLabel}` : viewImageLabel}
     >
       <RemoteImage
-        source={{ uri: img.url }}
+        // Request a large render (not Parsoid's tiny inline thumbnail, which
+        // would pixelate on retina); the layout still caps its display size.
+        source={{ uri: largeImageUrl(img.url, 640) }}
         style={[
           styles.figureImage,
           img.width && img.height ? { aspectRatio: img.width / img.height } : null,
@@ -1438,7 +1440,7 @@ function SectionBlock({
                   >
                     {cell.image ? (
                       <RemoteImage
-                        source={{ uri: cell.image }}
+                        source={{ uri: largeImageUrl(cell.image, 320) }}
                         style={styles.tableCellImage}
                         resizeMode="cover"
                       />
@@ -1602,8 +1604,9 @@ const makeStyles = (colors: ThemeColors) =>
   listContent: { paddingBottom: 48 },
   blockPad: { paddingHorizontal: spacing.screenPadding },
   relatedItem: { marginBottom: spacing.cardGap },
-  // Section illustrations — kept small (so the thumbnail isn't upscaled) and
-  // tappable to view full-size.
+  // Section illustrations — display size capped for layout, but the source is a
+  // large render (see renderFigure) so it stays crisp on retina; tappable to
+  // view full-size.
   figure: { marginTop: 4, marginBottom: 14, alignItems: "center" },
   figureImage: {
     width: "100%",
