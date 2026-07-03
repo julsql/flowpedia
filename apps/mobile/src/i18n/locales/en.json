@@ -225,5 +225,10 @@
   "story.postedMinutes": "{{count}}m ago",
   "story.postedHours": "{{count}}h ago",
   "story.postedDays": "{{count}}d ago",
-  "story.postedWeeks": "{{count}}w ago"
+  "story.postedWeeks": "{{count}}w ago",
+  "conversation.messagePlaceholder": "Write a message…",
+  "conversation.send": "Send",
+  "a11y.sendMessage": "Send message",
+  "a11y.messageInput": "Message",
+  "inbox.openConversation": "Open conversation"
 }

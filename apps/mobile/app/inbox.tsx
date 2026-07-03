@@ -27,12 +27,15 @@ export default function InboxScreen() {
     };
   }, []);
 
+  // Tapping a received item opens the conversation with the sender (the shared
+  // page appears there as a tappable card) — so you can always reach the thread,
+  // even with someone you've never messaged before.
   function open(item: SentPageItem) {
     if (!item.read) {
       setItems((prev) => prev.map((p) => (p.id === item.id ? { ...p, read: true } : p)));
       void markPageRead(item.id).catch(() => undefined);
     }
-    router.push({ pathname: "/article/[id]", params: { id: encodeURIComponent(item.articleId) } });
+    router.push({ pathname: "/conversation/[username]", params: { username: item.from.username } });
   }
 
   return (
@@ -49,7 +52,7 @@ export default function InboxScreen() {
               onPress={() => open(item)}
               style={[styles.row, !item.read && styles.unreadRow]}
               accessibilityRole="button"
-              accessibilityLabel={`${item.title ?? item.articleId} — ${t("inbox.from", {
+              accessibilityLabel={`${t("inbox.openConversation")} — ${t("inbox.from", {
                 name: item.from.displayName,
               })}`}
             >
@@ -61,11 +64,14 @@ export default function InboxScreen() {
                   importantForAccessibility="no-hide-descendants"
                 />
               ) : (
-                <LetterThumb text={item.title ?? item.articleId} style={styles.thumb} />
+                <LetterThumb
+                  text={item.title ?? item.text ?? item.from.displayName}
+                  style={styles.thumb}
+                />
               )}
               <View style={styles.body}>
                 <Text style={styles.title} numberOfLines={2}>
-                  {item.title ?? item.articleId}
+                  {item.title ?? item.text ?? item.articleId ?? item.from.displayName}
                 </Text>
                 <Text style={styles.from}>{t("inbox.from", { name: item.from.displayName })}</Text>
                 {item.note ? (

@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 
-/** A page (article) sent directly from one account to another (lightweight DM). */
+/** A direct message from one account to another: either a shared page (article)
+ *  with an optional note, or a plain text message (no article). */
 @Entity("page_messages")
 export class PageMessage {
   @PrimaryGeneratedColumn("uuid")
@@ -14,8 +15,9 @@ export class PageMessage {
   @Column()
   toUserId!: string;
 
-  @Column()
-  articleId!: string;
+  /** The shared article, or null for a plain text message. */
+  @Column({ type: "varchar", nullable: true })
+  articleId!: string | null;
 
   @Column({ type: "varchar", nullable: true })
   title!: string | null;

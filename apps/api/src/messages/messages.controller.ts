@@ -13,6 +13,7 @@ import type {
   ConversationMessage,
   ConversationSummary,
   PublicUser,
+  SendMessageRequest,
   SendPageRequest,
   SentPageItem,
   UnreadCount,
@@ -62,6 +63,12 @@ export class MessagesController {
   @HttpCode(204)
   send(@CurrentUser() me: AuthPrincipal, @Body() body: SendPageRequest): Promise<void> {
     return this.messages.send(me.id, body);
+  }
+
+  @Post("text")
+  @HttpCode(204)
+  sendText(@CurrentUser() me: AuthPrincipal, @Body() body: SendMessageRequest): Promise<void> {
+    return this.messages.sendText(me.id, body);
   }
 
   @Post(":id/read")

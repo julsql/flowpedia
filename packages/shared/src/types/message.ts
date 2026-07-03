@@ -11,6 +11,13 @@ export interface SendPageRequest {
   note?: string;
 }
 
+/** Send a plain text message (no article) inside a conversation. */
+export interface SendMessageRequest {
+  /** Recipient handle (lowercased). */
+  toUsername: string;
+  text: string;
+}
+
 /** One conversation summary (the other participant + last exchanged page). */
 export interface ConversationSummary {
   user: PublicUser;
@@ -25,15 +32,19 @@ export interface ConversationSummary {
   unread: number;
 }
 
-/** One page inside a conversation thread (sent or received). */
+/** One message inside a conversation thread (sent or received). A message is
+ *  either a shared page (`articleId` set) or a plain text message (`text` set). */
 export interface ConversationMessage {
   id: string;
   /** True = I sent it; false = I received it. */
   mine: boolean;
-  articleId: string;
+  /** The shared article, or undefined for a plain text message. */
+  articleId?: string;
   title?: string;
   image?: string;
   note?: string;
+  /** Body of a plain text message (undefined for a shared page). */
+  text?: string;
   read: boolean;
   /** ISO timestamp. */
   createdAt: string;
@@ -43,10 +54,11 @@ export interface ConversationMessage {
 export interface SentPageItem {
   id: string;
   from: PublicUser;
-  articleId: string;
+  articleId?: string;
   title?: string;
   image?: string;
   note?: string;
+  text?: string;
   read: boolean;
   /** ISO timestamp. */
   createdAt: string;

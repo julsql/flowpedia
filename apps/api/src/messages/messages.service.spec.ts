@@ -123,4 +123,22 @@ describe("MessagesService", () => {
     // received page now read → bob's unread drops to 0
     expect(await service.unreadCount("bob")).toBe(0);
   });
+
+  it("sends a plain text message (no article) and shows it in the thread", async () => {
+    const { service } = makeService();
+    await service.sendText("alice", { toUsername: "bob", text: "  hey there  " });
+    const thread = await service.thread("bob", "alice");
+    expect(thread).toHaveLength(1);
+    expect(thread[0].text).toBe("hey there"); // trimmed
+    expect(thread[0].articleId).toBeUndefined();
+    expect(thread[0].mine).toBe(false); // from alice, viewed by bob
+    const inbox = await service.inbox("bob");
+    expect(inbox[0].text).toBe("hey there");
+    expect(inbox[0].articleId).toBeUndefined();
+  });
+
+  it("rejects an empty text message", async () => {
+    const { service } = makeService();
+    await expect(service.sendText("alice", { toUsername: "bob", text: "   " })).rejects.toThrow();
+  });
 });

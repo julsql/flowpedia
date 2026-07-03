@@ -10,6 +10,7 @@ import type {
   ConversationMessage,
   ConversationSummary,
   PublicUser,
+  SendMessageRequest,
   SendPageRequest,
   SentPageItem,
 } from "@flowpedia/shared";
@@ -20,6 +21,26 @@ import { PageMessage } from "./page-message.entity";
 
 function toPublic(u: User): PublicUser {
   return { id: u.id, username: u.username, displayName: u.displayName, isPrivate: u.isPrivate };
+}
+
+/** Shape a stored row as either a shared page or a plain text message (a text
+ *  message has no articleId and keeps its body in the `note` column). */
+function pageOrText(r: PageMessage): {
+  articleId?: string;
+  title?: string;
+  image?: string;
+  note?: string;
+  text?: string;
+} {
+  if (r.articleId == null) {
+    return { text: r.note ?? undefined };
+  }
+  return {
+    articleId: r.articleId,
+    title: r.title ?? undefined,
+    image: r.image ?? undefined,
+    note: r.note ?? undefined,
+  };
 }
 
 /** Direct page-sending: a user pushes one article to another account's inbox. */
@@ -81,6 +102,42 @@ export class MessagesService {
     );
   }
 
+  /** Send a plain text message (no article) inside a conversation. */
+  async sendText(fromUserId: string, body: SendMessageRequest): Promise<void> {
+    const text = body?.text?.trim();
+    if (!text || !body?.toUsername) {
+      throw new BadRequestException("A recipient and a message are required.");
+    }
+    const recipient = await this.users().findOne({
+      where: { username: body.toUsername.trim().toLowerCase() },
+    });
+    if (!recipient) {
+      throw new NotFoundException("Account not found.");
+    }
+    if (recipient.id === fromUserId) {
+      throw new ConflictException("You can't message yourself.");
+    }
+    // Text messages reuse the `note` column with a null articleId.
+    await this.messages().insert({
+      fromUserId,
+      toUserId: recipient.id,
+      articleId: null,
+      title: null,
+      image: null,
+      note: text,
+    });
+    await this.notifications.notify(
+      {
+        recipientId: recipient.id,
+        actorId: fromUserId,
+        type: "page_received",
+        articleId: null,
+        title: text.slice(0, 120),
+      },
+      { persist: false, event: "message" },
+    );
+  }
+
   /** The account's received pages, most recent first. */
   async inbox(userId: string): Promise<SentPageItem[]> {
     const rows = await this.messages().find({
@@ -99,10 +156,7 @@ export class MessagesService {
       .map((r) => ({
         id: r.id,
         from: toPublic(byId.get(r.fromUserId)!),
-        articleId: r.articleId,
-        title: r.title ?? undefined,
-        image: r.image ?? undefined,
-        note: r.note ?? undefined,
+        ...pageOrText(r),
         read: r.read,
         createdAt: r.createdAt.toISOString(),
       }));
@@ -128,7 +182,7 @@ export class MessagesService {
           otherId,
           // user filled in below once hydrated
           user: { id: otherId, username: "", displayName: "", isPrivate: false },
-          lastArticleId: row.articleId,
+          lastArticleId: row.articleId ?? "",
           lastTitle: row.title ?? undefined,
           lastNote: row.note ?? undefined,
           lastAt: row.createdAt.toISOString(),
@@ -169,10 +223,7 @@ export class MessagesService {
     return rows.map((r) => ({
       id: r.id,
       mine: r.fromUserId === userId,
-      articleId: r.articleId,
-      title: r.title ?? undefined,
-      image: r.image ?? undefined,
-      note: r.note ?? undefined,
+      ...pageOrText(r),
       read: r.read,
       createdAt: r.createdAt.toISOString(),
     }));

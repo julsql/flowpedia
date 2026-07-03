@@ -288,6 +288,11 @@ export function sendPage(body: SendPageRequest): Promise<void> {
   return requestJson<void>("/messages", "POST", body);
 }
 
+/** Send a plain text message (no article) inside a conversation. */
+export function sendMessageText(toUsername: string, text: string): Promise<void> {
+  return requestJson<void>("/messages/text", "POST", { toUsername, text });
+}
+
 /** Pages received from other accounts, most recent first. */
 export function fetchInbox(): Promise<SentPageItem[]> {
   return requestJson<SentPageItem[]>("/messages", "GET");

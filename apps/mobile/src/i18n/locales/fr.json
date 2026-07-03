@@ -223,5 +223,10 @@
   "story.postedMinutes": "il y a {{count}} min",
   "story.postedHours": "il y a {{count}} h",
   "story.postedDays": "il y a {{count}} j",
-  "story.postedWeeks": "il y a {{count}} sem"
+  "story.postedWeeks": "il y a {{count}} sem",
+  "conversation.messagePlaceholder": "Écrivez un message…",
+  "conversation.send": "Envoyer",
+  "a11y.sendMessage": "Envoyer le message",
+  "a11y.messageInput": "Message",
+  "inbox.openConversation": "Ouvrir la conversation"
 }

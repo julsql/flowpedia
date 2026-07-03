@@ -80,6 +80,10 @@
 10. **Mise en story** = signal fort, compte **autant que `share`** (poids 5.0).
 11. **Standard « apps modernes »** (Instagram/TikTok/Facebook/Snapchat) mais
     **stockage borné** (un seul serveur pour l'instant) — cf. §7 scalabilité.
+12. **Sérendipité anti-rabbit-hole** : de temps en temps, injecter **volontairement**
+    du hors-profil (actualité / populaire) pour casser la bulle — cf. §2.7.
+13. **Signal révocable** : supprimer une page de l'historique / des likes / bookmarks
+    doit **retirer sa contribution** au profil, qui **recalcule sans elle** — cf. §2.8.
 
 ---
 
@@ -144,7 +148,9 @@ Deux vecteurs par user, dérivés des events (lecture serveur, **enfin** la bouc
 4. **Diversité (MMR)** : re-rank Maximal Marginal Relevance sur les embeddings
    (ou sur les catégories en Phase 1) → remplace le `blendDiverse` heuristique,
    garantit une vraie « porte de sortie » sémantiquement distincte.
-5. **Pagination** : garder le `seed`/curseur déterministe pour la stabilité.
+5. **Exploration** : réserver ≥1 slot/page à un item hors-profil délibéré selon
+   `EXPLORE_RATE` (§2.7) — anti-rabbit-hole.
+6. **Pagination** : garder le `seed`/curseur déterministe pour la stabilité.
 
 ### 2.5 Apprentissage continu
 
@@ -182,6 +188,57 @@ Data déjà en base : `follows (followerId, followingId, status="active")` +
 - **Vie privée** : ne **jamais** afficher *qui* a liké dans le feed reco (juste la
   page). L'attribution sociale (« aimé par X ») reste hors scope reco.
 - Sans DB / user invité → source `social` vide (dégradation gracieuse).
+- **Dose** : « un peu plus proposées », pas plus — le quota `SOCIAL_MAX_PER_PAGE`
+  et le plafond de `socialProof` garantissent que ça reste marginal.
+
+### 2.7 Exploration / sérendipité contrôlée (anti-rabbit-hole)
+
+Distinct du MMR de diversité (qui varie **à l'intérieur** du profil). Ici on sort
+**volontairement** du profil pour crever la bulle, comme le font TikTok/Instagram
+(part d'« exploration » assumée dans le feed).
+
+- **ε-exploration** : avec une probabilité `EXPLORE_RATE` (~15–20 %), **au moins un
+  slot par page** est réservé à un item **hors-profil délibéré**, tiré de :
+  `news` (actualité) / `popular` (populaire global) / `random` (sérendipité pure),
+  **en ignorant** `tasteVector` et `categoryAffinity` (mais **pas** la dé-dup §3 ni les mutés).
+- **Placement** : jamais le tout premier slot ; réparti pour offrir une « porte de
+  sortie » régulière (reprend l'esprit de `blendDiverse`, mais piloté par un taux
+  d'exploration explicite plutôt que par une période fixe).
+- **Marquer la provenance** : taguer ces items `source: "explore"` en interne, pour
+  (a) ne pas les laisser polluer le profil au même poids, (b) mesurer leur
+  engagement → **alimenter le bandit** plus tard (si l'user accroche sur l'explore,
+  augmenter son `EXPLORE_RATE` / élargir ses centres d'intérêt).
+- **Fraîcheur** : privilégier `news` récent pour que « hors-scope » rime souvent avec
+  « actualité », comme demandé.
+- Rendre `EXPLORE_RATE` configurable (env / constante) pour tuning.
+
+### 2.8 Signal révocable (suppression prise en compte)
+
+**Principe clé** : le profil est **dérivé de sources de vérité révocables**, pas d'un
+accumulateur additif immuable. Supprimer un signal doit **retirer sa contribution** et
+déclencher un **recalcul sans lui** (une EMA additive ne sait pas « soustraire » ⇒ on
+recompute depuis l'état courant, pas depuis le journal figé).
+
+- **Like / save / share retirés** : déjà mutés dans `library_items` (serveur) via
+  `removeLibraryItem`. Si le profil **lit `library_items` comme source de vérité**
+  (et non le journal `interactions` append-only pour ces types), la révocation est
+  **automatique** au prochain recompute.
+- **Mise en story expirée / supprimée** : lire la table `stories` (déjà autoritative)
+  plutôt qu'un event figé → contribution disparaît d'elle-même.
+- **Historique de lecture** (`removeRead` / `clearRead`, aujourd'hui **local only**) :
+  émettre un **event tombstone** (`removeSignal`, `articleId` visé, ou `clearHistory`)
+  pour que la dérivation **filtre** ces articles ; `dwell`/`scrollDepth`/`cardDwell`/`read`
+  liés à cet article sont exclus du recompute.
+- **Mécanique de recompute** : toute révocation ⇒ **invalider le profil caché**
+  (`categoryAffinity` + `user_taste`) ⇒ recompute **lazy** au prochain build de feed
+  (ou incrémental). Pas besoin de recompute synchrone bloquant.
+- **Dé-dup vs oubli** — choix à trancher : supprimer une page de l'historique doit-il
+  la rendre **re-proposable** (purger son entrée `seen`) ? Reco : **oui pour l'historique
+  de lecture** (l'user veut repartir de zéro sur ce sujet), **non** juste pour un unlike
+  (il l'a quand même vue). Rendre ce comportement explicite.
+- **Cohérence client↔serveur** : `removeRead`/`clearRead`/unlike/unsave côté mobile
+  doivent **émettre l'event de révocation** en plus de muter l'état local (cf. §4.1).
+- **RGPD** : `wipe-data` = cas extrême de révocation → purge profil + seen + events.
 
 ---
 
@@ -252,6 +309,9 @@ dé-dup robuste. Chaque point = un commit atomique (conventional commits, EN).
   `StoriesService.create` peut aussi logger directement l'`Interaction` (la table
   `stories` est déjà autoritative — préférer lire la table au build du profil).
 - Émettre un event `read` sur `markRead` (aujourd'hui local only).
+- **Événements de révocation** (§2.8) : émettre un tombstone sur `removeRead`,
+  `clearRead`, unlike, unsave (ex. type `removeSignal` + `articleId`, ou `clearHistory`).
+  Ajouter les types correspondants à `InteractionType`.
 - **Batcher** `sendEvents` (débounce + flush) pour ne pas spammer sur le `cardDwell`.
 
 ### 4.2 Fermer la boucle : profil serveur (catégoriel)
@@ -262,6 +322,10 @@ dé-dup robuste. Chaque point = un commit atomique (conventional commits, EN).
     `InterestsService` (réutilise la logique de remontée d'ancêtres). Cache Redis court.
   - `ProfileService.getWeightedSeeds(userId)` : top-K articles pondérés-décroissants
     (remplace le cap brut de 6 seeds côté client).
+  - **Sources révocables** (§2.8) : lire `library_items` / `stories` comme vérité
+    courante pour like/save/share/story ; filtrer les articles tombstonés
+    (`removeSignal`/`clearHistory`) pour les signaux de type journal (read/dwell/…).
+    Toute révocation invalide le profil caché → recompute lazy.
 - `EVENT_WEIGHTS`, `saturate`, `recency` dans un `reco/scoring.ts` **testé unitairement**.
 
 ### 4.3 Recall & ranking Phase 1 (sans vecteurs)
@@ -269,6 +333,7 @@ dé-dup robuste. Chaque point = un commit atomique (conventional commits, EN).
   - recall = `morelike(weightedSeeds)` ∪ `categorymembers(topAffinityCats)` ∪ `popular`/`news` ∪ `random` ;
   - ranking = `categoryAffinity + popularityPrior + freshness − seenPenalty + noise` ;
   - **injection sociale** : ≤ `SOCIAL_MAX_PER_PAGE` item de la source `social` (§2.6) ;
+  - **exploration** : ≥1 slot/page hors-profil selon `EXPLORE_RATE` (§2.7) ;
   - diversité = MMR-lite par catégorie (remplace/complète `blendDiverse`) ;
   - mutés = filtre **dur** + poids négatif.
 - Le `userId` doit remonter jusqu'au feed : ajouter `userId` en query (ou header)
@@ -288,6 +353,8 @@ dé-dup robuste. Chaque point = un commit atomique (conventional commits, EN).
 - `seen.service.spec.ts` (cooldown par type, re-surfacing).
 - `feed.service.spec.ts` étendu (recall multi-source, MMR, mutés exclus).
 - `social` recall (quota respecté, comptes privés exclus, dé-dup vs déjà vu).
+- exploration (`EXPLORE_RATE` → ≥1 slot hors-profil, jamais slot 0, dé-dup respectée).
+- révocation (unlike/removeRead/clearHistory → profil recalculé sans l'élément).
 
 ---
 
