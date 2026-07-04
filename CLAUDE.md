@@ -30,7 +30,8 @@ The mobile/shared `test` scripts are stubs (`exit 0`) — there are no RN tests 
 The API must be running before the app: the app reads its feed from it. On a
 physical device, point `EXPO_PUBLIC_API_URL` at the machine's LAN IP (the API
 prints it on boot) or use `adb reverse`. Before first API run:
-`cp apps/api/.env.example apps/api/.env` and set a valid `WIKIPEDIA_USER_AGENT`.
+`cp .env.example .env` (single env at the repo root) and set a valid
+`WIKIPEDIA_USER_AGENT`.
 
 ## Architecture
 

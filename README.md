@@ -29,7 +29,7 @@ design/     # design handoff (Direction A)
 
 ```bash
 pnpm install
-cp apps/api/.env.example apps/api/.env   # set a valid WIKIPEDIA_USER_AGENT
+cp .env.example .env                     # single root .env; set a valid WIKIPEDIA_USER_AGENT
 pnpm infra:up                            # optional: Postgres + Redis (later steps)
 
 pnpm api                                 # API on http://localhost:3000/api

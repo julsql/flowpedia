@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { DatabaseModule } from "./database/database.module";
@@ -22,7 +23,12 @@ import { HealthController } from "./health/health.controller";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // Single .env at the repo root (nest starts from apps/api → ../../.env).
+    // In prod, docker-compose injects the same vars as real env (file absent → ignored).
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: [resolve(process.cwd(), "../../.env"), resolve(process.cwd(), ".env")],
+    }),
     DatabaseModule,
     MailModule,
     AuthModule,
