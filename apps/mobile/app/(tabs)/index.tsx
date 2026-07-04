@@ -332,7 +332,12 @@ export default function FeedScreen() {
           }
           renderItem={({ item }) => (
             <View style={centeredColumn}>
-              <ArticleCard article={item} onOpen={openArticle} onShare={openShare} />
+              <ArticleCard
+                article={item}
+                onOpen={openArticle}
+                onShare={openShare}
+                onNotInterested={(a) => setArticles((prev) => prev.filter((x) => x.id !== a.id))}
+              />
             </View>
           )}
           ItemSeparatorComponent={() => (

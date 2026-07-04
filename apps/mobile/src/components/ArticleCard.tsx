@@ -22,10 +22,12 @@ interface ArticleCardProps {
   article: Article;
   onShare?: (article: Article) => void;
   onOpen?: (article: Article) => void;
+  /** Called after "not interested" so the feed can dismiss the card. */
+  onNotInterested?: (article: Article) => void;
 }
 
 /** Feed card — handoff screen 1. Like/save state comes from the local library. */
-export function ArticleCard({ article, onShare, onOpen }: ArticleCardProps) {
+export function ArticleCard({ article, onShare, onOpen, onNotInterested }: ArticleCardProps) {
   const { t } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -54,7 +56,7 @@ export function ArticleCard({ article, onShare, onOpen }: ArticleCardProps) {
             </Text>
           ) : null}
         </View>
-        <MoreOptionsMenu article={article} />
+        <MoreOptionsMenu article={article} onNotInterested={onNotInterested} />
       </View>
 
       <Pressable

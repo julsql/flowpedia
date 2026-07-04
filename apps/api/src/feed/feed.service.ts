@@ -4,6 +4,7 @@ import { WikipediaService } from "../wikipedia/wikipedia.service";
 import { ProfileService } from "../reco/profile.service";
 import { SeenService } from "../reco/seen.service";
 import { SocialService } from "../reco/social.service";
+import { BlockService } from "../reco/block.service";
 import { LIKE_WEIGHT, SAVE_WEIGHT } from "./weights";
 
 const PAGE_SIZE = 5;
@@ -35,6 +36,7 @@ export class FeedService {
     private readonly profile: ProfileService,
     private readonly seen: SeenService,
     private readonly social: SocialService,
+    private readonly block: BlockService,
   ) {}
 
   /**
@@ -69,13 +71,15 @@ export class FeedService {
     // Social + exploration are only for the profile-driven tabs, and never for a
     // page-anchored "keep exploring".
     const wantsInjection = personalize && (tab === "forYou" || tab === "discover");
-    const [built, serverSeen, socialTitles, exploreTitles] = await Promise.all([
+    const [built, serverSeen, socialTitles, exploreTitles, blockedTopics] = await Promise.all([
       this.buildPool(tab, lang, seeds, seed, savedSeeds, userId, personalize),
       this.seen.getSeen(userId),
       // A little "common ground" from followed accounts.
       wantsInjection ? this.social.getFollowedTitles(userId, SOCIAL_POOL) : Promise.resolve<string[]>([]),
       // Deliberate off-profile current events, to escape the rabbit hole.
       wantsInjection ? this.wikipedia.getNewsTitles(lang) : Promise.resolve<string[]>([]),
+      // Topics the user said "not interested" in — hard-filtered below (§2.9).
+      this.block.getBlocked(userId),
     ]);
     // Weave in social picks then exploration, each at its own strict cadence.
     let pool = built;
@@ -99,9 +103,18 @@ export class FeedService {
     const settled = await Promise.allSettled(
       slice.map((title) => this.wikipedia.getSummary(title, lang)),
     );
-    const items: Article[] = settled
+    let items: Article[] = settled
       .filter((r): r is PromiseFulfilledResult<Article> => r.status === "fulfilled")
       .map((r) => r.value);
+
+    // Hard-filter "not interested" genres (§2.9): drop anything whose category or
+    // a topic the user blocked. Titles carry no category, so this is applied once
+    // hydrated; the (already muted) client seeds keep such items rare upstream.
+    if (blockedTopics.size) {
+      items = items.filter(
+        (a) => !blockedTopics.has(a.category) && !(a.topics ?? []).some((t) => blockedTopics.has(t)),
+      );
+    }
 
     // Always return a cursor → the feed is infinite (random fallback beyond the pool).
     return { items, nextCursor: String(offset + PAGE_SIZE) };

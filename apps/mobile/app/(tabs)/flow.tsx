@@ -273,7 +273,13 @@ export default function FlowScreen() {
             pagingEnabled
             decelerationRate="fast"
             showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => <FlowItem article={item} height={height} />}
+            renderItem={({ item }) => (
+              <FlowItem
+                article={item}
+                height={height}
+                onNotInterested={(a) => setArticles((prev) => prev.filter((x) => x.id !== a.id))}
+              />
+            )}
             onScroll={onScroll}
             scrollEventThrottle={64}
             onViewableItemsChanged={onViewableItemsChanged}
@@ -295,7 +301,15 @@ export default function FlowScreen() {
   );
 }
 
-function FlowItem({ article, height }: { article: Article; height: number }) {
+function FlowItem({
+  article,
+  height,
+  onNotInterested,
+}: {
+  article: Article;
+  height: number;
+  onNotInterested?: (article: Article) => void;
+}) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t } = useLocale();
@@ -354,7 +368,7 @@ function FlowItem({ article, height }: { article: Article; height: number }) {
 
       {/* More options (⋯), top-right, above the background tap layer. */}
       <View style={[styles.moreTop, { top: insets.top + 10 }]}>
-        <MoreOptionsMenu article={article} color="#fff" />
+        <MoreOptionsMenu article={article} color="#fff" onNotInterested={onNotInterested} />
       </View>
 
       {/* Swipe-to-read affordance: chevron on the right, vertically centered. */}

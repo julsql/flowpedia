@@ -17,6 +17,7 @@ import { StoriesModule } from "./stories/stories.module";
 import { RealtimeModule } from "./realtime/realtime.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { MessagesModule } from "./messages/messages.module";
+import { RecoModule } from "./reco/reco.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -39,6 +40,7 @@ import { HealthController } from "./health/health.controller";
     RealtimeModule,
     NotificationsModule,
     MessagesModule,
+    RecoModule,
   ],
   controllers: [HealthController],
 })

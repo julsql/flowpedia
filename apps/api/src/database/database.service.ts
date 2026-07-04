@@ -9,6 +9,7 @@ import { Story } from "../stories/story.entity";
 import { Notification } from "../notifications/notification.entity";
 import { PushToken } from "../notifications/push-token.entity";
 import { PageMessage } from "../messages/page-message.entity";
+import { BlockedTopic } from "../reco/blocked-topic.entity";
 
 // Every persisted entity is registered here so a single connection (and a single
 // `synchronize`) owns the schema. Add new entities to this list.
@@ -21,6 +22,7 @@ const ENTITIES = [
   Notification,
   PushToken,
   PageMessage,
+  BlockedTopic,
 ];
 
 /**

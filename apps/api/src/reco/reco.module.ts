@@ -3,6 +3,8 @@ import { WikipediaModule } from "../wikipedia/wikipedia.module";
 import { ProfileService } from "./profile.service";
 import { SeenService } from "./seen.service";
 import { SocialService } from "./social.service";
+import { BlockService } from "./block.service";
+import { RecoController } from "./reco.controller";
 
 /**
  * The recommendation engine (§2 of the plan): derives a per-user taste profile
@@ -11,7 +13,8 @@ import { SocialService } from "./social.service";
  */
 @Module({
   imports: [WikipediaModule],
-  providers: [ProfileService, SeenService, SocialService],
-  exports: [ProfileService, SeenService, SocialService],
+  controllers: [RecoController],
+  providers: [ProfileService, SeenService, SocialService, BlockService],
+  exports: [ProfileService, SeenService, SocialService, BlockService],
 })
 export class RecoModule {}

@@ -2,6 +2,7 @@ import { FeedService, capRelatedByWeight, weaveEvery } from "./feed.service";
 import type { ProfileService } from "../reco/profile.service";
 import type { SeenService } from "../reco/seen.service";
 import type { SocialService } from "../reco/social.service";
+import type { BlockService } from "../reco/block.service";
 import type { Article } from "@flowpedia/shared";
 
 // Reco stubs: empty by default so the existing (non-personalized) tests are
@@ -19,13 +20,17 @@ function emptySeen(seen: string[] = []): SeenService {
 function emptySocial(titles: string[] = []): SocialService {
   return { getFollowedTitles: jest.fn(async () => titles) } as unknown as SocialService;
 }
+function emptyBlock(topics: string[] = []): BlockService {
+  return { getBlocked: jest.fn(async () => new Set(topics)) } as unknown as BlockService;
+}
 function makeService(
   wiki: unknown,
   profile: ProfileService = emptyProfile(),
   seen: SeenService = emptySeen(),
   social: SocialService = emptySocial(),
+  block: BlockService = emptyBlock(),
 ): FeedService {
-  return new FeedService(wiki as never, profile, seen, social);
+  return new FeedService(wiki as never, profile, seen, social, block);
 }
 
 function fakeArticle(id: string): Article {
@@ -229,6 +234,24 @@ describe("FeedService", () => {
     );
 
     expect([...p1, ...p2].some((id) => id.startsWith("News_"))).toBe(true); // an off-profile escape
+  });
+
+  it("hard-filters a blocked topic from the hydrated page", async () => {
+    const getSummary = jest.fn(async (t: string) => ({
+      ...fakeArticle(t),
+      category: t === TITLES[0] ? "Blocked" : "Keep",
+    }));
+    const service = makeService(
+      makeWikipediaMock(getSummary),
+      emptyProfile(),
+      emptySeen(),
+      emptySocial(),
+      emptyBlock(["Blocked"]),
+    );
+
+    const res = await service.getFeed("popular", "en", undefined, [], 0, [], [], "u1");
+
+    expect(res.items.map((a) => a.id)).not.toContain(TITLES[0]);
   });
 
   it("reorders deterministically with a seed", async () => {

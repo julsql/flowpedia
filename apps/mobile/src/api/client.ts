@@ -522,6 +522,18 @@ function flushEvents(): void {
   }).catch(() => undefined);
 }
 
+/** Block a topic ("not interested in this genre") server-side, cross-device. */
+export function blockTopic(topic: string): void {
+  if (!currentUserId || !topic) {
+    return;
+  }
+  void fetch(`${BASE_URL}/reco/blocked`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: currentUserId, topic }),
+  }).catch(() => undefined);
+}
+
 /** Queue signals for ingestion; flushes immediately for strong signals. */
 export function sendEvents(events: InteractionEvent[]): void {
   if (!events.length) {

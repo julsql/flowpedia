@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Article, LibraryKind } from "@flowpedia/shared";
 import {
   addLibraryItem,
+  blockTopic,
   fetchLibrary,
   fetchSummaries,
   prefetchArticle,
@@ -280,6 +281,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     };
 
     const muteInterest = (category: string) => {
+      // Persist the block server-side too (cross-device "not interested").
+      blockTopic(category);
       setMutedInterests((prev) => {
         if (prev.includes(category)) {
           return prev;
