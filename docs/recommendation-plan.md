@@ -12,7 +12,10 @@
 
 ## Statut d'implémentation (MAJ 2026-07-04)
 
-**Phase 1 — livrée & testée** (module `apps/api/src/reco/`, 175 tests API verts) :
+> **Phases 1 & 2 livrées & testées** (module `apps/api/src/reco/`, 201 tests API
+> verts, mobile typecheck OK). Détail ci-dessous.
+
+**Phase 1 — livrée & testée** (module `apps/api/src/reco/`) :
 - ✅ **Scoring** (`reco/scoring.ts`) : poids par capteur (story=share>save>like>read…),
   saturation dwell/scrollDepth/cardDwell, pénalité skip rapide, décroissance 14 j.
 - ✅ **Profil** (`reco/profile.ts` + `profile.service.ts`) : seeds pondérés + affinité
@@ -25,14 +28,33 @@
   in-app, `story`, révocations `remove`/`clearHistory`, `userId`+`personalize` au feed.
 - ✅ **UI** : option « Pas intéressé » (menu ⋯) → `muteInterest`.
 
-**Reste Phase 1 (mineur / non bloquant)** :
-- ⏳ Capteurs `scrollDepth` (déclaré, toujours pas émis) + `impression` ; batch de `sendEvents`.
-- ⏳ Blocage thématique **serveur** (`user_blocked_topics`) + signal négatif — aujourd'hui
-  `mute` reste client-side (filtre les seeds client) ; `onNotInterested` (retrait de carte).
-- ⏳ Ranking MMR-lite (le `blendDiverse` heuristique tient lieu de diversité pour l'instant).
+**Phase 1 — complétée depuis** :
+- ✅ Capteurs `scrollDepth` (article) + `impression` (entrée de carte) ; **batch** de
+  `sendEvents` (forts immédiats, bruyants groupés).
+- ✅ **Blocage thématique serveur** : entité `BlockedTopic` + endpoints `/reco/blocked`,
+  `muteInterest` persiste cross-device, feed **hard-filtre** par catégorie/topic, et
+  « Pas intéressé » **retire la carte** (accueil + flow) via `onNotInterested`.
+- ✅ **MMR-lite** : re-rank diversité par catégorie sur la page (`diversifyByCategory`).
 
-**Phase 2 — non démarrée** : embeddings multilingues locaux + pgvector + `tasteVector`
-en ligne + ANN/MMR (§5). Gros chantier séparé.
+**Phase 2 — livrée** (activation opt-in) :
+- ✅ **Maths vectorielles** (`reco/vector.ts`) : cosinus, moyenne pondérée, MMR — testées.
+- ✅ **Embeddings** (`reco/embedding.service.ts` + entité `ArticleEmbedding`) : cache JSON
+  portable (pas besoin de pgvector), modèle multilingue local `@huggingface/transformers`
+  **chargé en lazy**, **OFF par défaut** (flag `RECO_EMBEDDINGS=1` + dep optionnelle + DB).
+- ✅ **Vecteur de goût** (`reco/taste.service.ts`) : moyenne pondérée-décroissante des
+  embeddings des articles engagés.
+- ✅ **Re-rank feed par embeddings + MMR** (`FeedService.rerankPage`) quand activé, sinon
+  fallback MMR-lite Phase 1. Entièrement gardé (dégrade sans flag/modèle/DB).
+
+**Notes / écarts assumés vs plan initial** :
+- Pas de **pgvector / ANN plein-corpus** : on n'a pas tout Wikipedia embeddé, donc l'ANN
+  n'aurait rien à indexer. Les embeddings servent au **re-ranking** des candidats déjà
+  rappelés (morelike/popular/…), stockés en JSON. Un ANN de découverte nécessiterait un
+  index plein-corpus (infra dédiée) — hors périmètre mono-serveur.
+- **`tasteVector`** recalculé **à la volée** (caché via embeddings) plutôt qu'en EMA en
+  ligne persistée — plus simple, même effet ; l'optimisation online reste possible.
+- **À valider en réel** : activer `RECO_EMBEDDINGS=1` + installer la dep + Postgres pour
+  vérifier l'inférence du modèle bout-en-bout (non exécutable en CI/sandbox).
 
 ---
 
