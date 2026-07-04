@@ -68,7 +68,8 @@ export default function RegisterScreen() {
         value={username}
         onChangeText={setUsername}
         autoCapitalize="none"
-        autoComplete="username-new"
+        autoComplete="username"
+        textContentType="username"
         hint={t("auth.usernameHint")}
         returnKeyType="next"
       />
@@ -84,7 +85,7 @@ export default function RegisterScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        autoComplete="password-new"
+        autoComplete="new-password"
         textContentType="newPassword"
         returnKeyType="go"
         onSubmitEditing={submit}
