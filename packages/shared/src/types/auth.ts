@@ -79,10 +79,20 @@ export interface ConfirmEmailRequest {
 }
 
 /** Kinds of saved library entry, persisted per account. */
-export type LibraryKind = "like" | "save" | "share";
+export type LibraryKind = "like" | "save" | "share" | "read";
 
 export interface LibraryItemRequest {
   articleId: string;
+  kind: LibraryKind;
+}
+
+/** Bulk add (used to reconcile a device's local library on sign-in). */
+export interface BulkLibraryRequest {
+  items: LibraryItemRequest[];
+}
+
+/** Clear a whole kind at once (e.g. "clear reading history"). */
+export interface ClearLibraryRequest {
   kind: LibraryKind;
 }
 
@@ -91,6 +101,7 @@ export interface LibrarySnapshot {
   liked: string[];
   saved: string[];
   shared: string[];
+  read: string[];
 }
 
 /** Minimal, safe-to-expose user shape for social lists/cards. */

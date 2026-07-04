@@ -217,6 +217,19 @@ export function removeLibraryItem(articleId: string, kind: LibraryKind): Promise
   return requestJson<void>("/library", "DELETE", { articleId, kind });
 }
 
+/** Bulk add (reconcile a device's local library on sign-in) — one request. */
+export function addLibraryItems(items: { articleId: string; kind: LibraryKind }[]): Promise<void> {
+  if (!items.length) {
+    return Promise.resolve();
+  }
+  return requestJson<void>("/library/bulk", "POST", { items });
+}
+
+/** Clear a whole kind server-side (e.g. wipe reading history cross-device). */
+export function clearLibraryKind(kind: LibraryKind): Promise<void> {
+  return requestJson<void>("/library/kind", "DELETE", { kind });
+}
+
 const userPath = (username: string) => `/users/${encodeURIComponent(username)}`;
 
 export function searchUsers(q: string): Promise<PublicUser[]> {

@@ -3,7 +3,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Article, LibraryKind } from "@flowpedia/shared";
 import {
   addLibraryItem,
+  addLibraryItems,
   blockTopic,
+  clearLibraryKind,
   fetchLibrary,
   fetchSummaries,
   prefetchArticle,
@@ -124,23 +126,25 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         if (!active) {
           return;
         }
-        const pushLocalOnly = (arts: Article[], serverIds: string[], kind: LibraryKind) => {
+        // Tolerate an older server that doesn't return `read` yet.
+        const serverRead = snap.read ?? [];
+        const localOnly = (arts: Article[], serverIds: string[], kind: LibraryKind) => {
           const known = new Set(serverIds);
-          for (const a of arts) {
-            if (!known.has(a.id)) {
-              void addLibraryItem(a.id, kind).catch(() => undefined);
-            }
-          }
+          return arts.filter((a) => !known.has(a.id)).map((a) => ({ articleId: a.id, kind }));
         };
-        pushLocalOnly(liked, snap.liked, "like");
-        pushLocalOnly(saved, snap.saved, "save");
-        pushLocalOnly(shared, snap.shared, "share");
+        // Push every device-local entry the account doesn't have yet, in one call.
+        void addLibraryItems([
+          ...localOnly(liked, snap.liked, "like"),
+          ...localOnly(saved, snap.saved, "save"),
+          ...localOnly(shared, snap.shared, "share"),
+          ...localOnly(read, serverRead, "read"),
+        ]).catch(() => undefined);
 
         const byId = new Map<string, Article>();
         for (const a of [...liked, ...saved, ...shared, ...read]) {
           byId.set(a.id, a);
         }
-        const wanted = [...new Set([...snap.liked, ...snap.saved, ...snap.shared])];
+        const wanted = [...new Set([...snap.liked, ...snap.saved, ...snap.shared, ...serverRead])];
         const missing = wanted.filter((id) => !byId.has(id));
         const hydrated = missing.length ? await fetchSummaries(missing, locale) : [];
         if (!active) {
@@ -159,6 +163,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         setLiked((prev) => persistList(LIKED_KEY, merge(snap.liked, prev)));
         setSaved((prev) => persistList(SAVED_KEY, merge(snap.saved, prev)));
         setShared((prev) => persistList(SHARED_KEY, merge(snap.shared, prev)));
+        // Reading history is capped like markRead does (most recent first).
+        setRead((prev) => persistList(READ_KEY, merge(serverRead, prev).slice(0, 200)));
       } catch {
         // Offline or unauthenticated — keep the local library as-is.
       }
@@ -261,6 +267,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         return next;
       });
       sendEvents([{ articleId: article.id, type: "read", ts: Date.now() }]);
+      syncAdd(article.id, "read"); // persist history server-side (cross-device)
     };
 
     const removeRead = (id: string) => {
@@ -271,6 +278,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       });
       // Revoke this article's history contribution from the taste profile.
       sendEvents([{ articleId: id, type: "remove", ts: Date.now() }]);
+      syncRemove(id, "read");
     };
 
     const clearRead = () => {
@@ -278,6 +286,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       void AsyncStorage.removeItem(READ_KEY);
       // Wipe all reading-history contributions (library actions are kept).
       sendEvents([{ articleId: "*", type: "clearHistory", ts: Date.now() }]);
+      if (auth.user) {
+        void clearLibraryKind("read").catch(() => undefined);
+      }
     };
 
     const muteInterest = (category: string) => {

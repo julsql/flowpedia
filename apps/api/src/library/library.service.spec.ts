@@ -12,23 +12,24 @@ interface Row {
 function fakeLibraryRepo() {
   const rows: Row[] = [];
   const qb = {
-    vals: null as Row | null,
+    vals: [] as Row[],
     insert() {
       return qb;
     },
-    values(v: Row) {
-      qb.vals = v;
+    values(v: Row | Row[]) {
+      qb.vals = Array.isArray(v) ? v : [v];
       return qb;
     },
     orIgnore() {
       return qb;
     },
     async execute() {
-      const v = qb.vals!;
-      const dupe = rows.some(
-        (r) => r.userId === v.userId && r.articleId === v.articleId && r.kind === v.kind,
-      );
-      if (!dupe) rows.push({ ...v });
+      for (const v of qb.vals) {
+        const dupe = rows.some(
+          (r) => r.userId === v.userId && r.articleId === v.articleId && r.kind === v.kind,
+        );
+        if (!dupe) rows.push({ ...v });
+      }
       return {};
     },
   };
@@ -37,10 +38,12 @@ function fakeLibraryRepo() {
     createQueryBuilder: () => qb,
     find: async ({ where }: { where: { userId: string } }) =>
       rows.filter((r) => r.userId === where.userId),
-    delete: async (where: Row) => {
+    // Delete rows matching every key present in `where` (userId, and optionally
+    // articleId/kind) — so a whole-kind clear works alongside single removes.
+    delete: async (where: Partial<Row>) => {
       for (let i = rows.length - 1; i >= 0; i -= 1) {
         const r = rows[i];
-        if (r.userId === where.userId && r.articleId === where.articleId && r.kind === where.kind) {
+        if ((Object.keys(where) as (keyof Row)[]).every((k) => r[k] === where[k])) {
           rows.splice(i, 1);
         }
       }
@@ -68,6 +71,38 @@ describe("LibraryService", () => {
     expect(lib.liked).toEqual(["Article A"]);
     expect(lib.saved).toEqual(["Article B"]);
     expect(lib.shared).toEqual(["Article C"]);
+  });
+
+  it("persists reading history (kind read) so it syncs cross-device", async () => {
+    const { service } = makeService();
+    await service.add("u1", "Article R", "read");
+    expect((await service.list("u1")).read).toEqual(["Article R"]);
+  });
+
+  it("bulk-adds a device's local library in one call, skipping dupes/invalids", async () => {
+    const { service, repo } = makeService();
+    await service.add("u1", "A", "like");
+    await service.addMany("u1", [
+      { articleId: "A", kind: "like" }, // dupe → ignored
+      { articleId: "B", kind: "save" },
+      { articleId: "C", kind: "read" },
+      { articleId: "", kind: "read" }, // invalid → skipped
+      { articleId: "D", kind: "bogus" as never }, // invalid → skipped
+    ]);
+    expect(repo!.rows.filter((r) => r.userId === "u1")).toHaveLength(3);
+  });
+
+  it("clears a whole kind without touching the others", async () => {
+    const { service } = makeService();
+    await service.addMany("u1", [
+      { articleId: "R1", kind: "read" },
+      { articleId: "R2", kind: "read" },
+      { articleId: "L1", kind: "like" },
+    ]);
+    await service.clearKind("u1", "read");
+    const lib = await service.list("u1");
+    expect(lib.read).toEqual([]);
+    expect(lib.liked).toEqual(["L1"]);
   });
 
   it("is idempotent on repeated adds and removes on demand", async () => {

@@ -4,7 +4,7 @@ import type { LibraryKind, LibrarySnapshot } from "@flowpedia/shared";
 import { DatabaseService } from "../database/database.service";
 import { LibraryItem } from "./library-item.entity";
 
-const KINDS: LibraryKind[] = ["like", "save", "share"];
+const KINDS: LibraryKind[] = ["like", "save", "share", "read"];
 
 /** Per-account library persistence: the saved entries that feed each account's
  *  own recommendation algorithm and (later) resharing. */
@@ -28,7 +28,7 @@ export class LibraryService {
       order: { createdAt: "DESC" },
     });
     const pick = (kind: LibraryKind) => rows.filter((r) => r.kind === kind).map((r) => r.articleId);
-    return { liked: pick("like"), saved: pick("save"), shared: pick("share") };
+    return { liked: pick("like"), saved: pick("save"), shared: pick("share"), read: pick("read") };
   }
 
   async add(userId: string, articleId: string, kind: LibraryKind): Promise<void> {
@@ -46,5 +46,24 @@ export class LibraryService {
 
   async remove(userId: string, articleId: string, kind: LibraryKind): Promise<void> {
     await this.repo().delete({ userId, articleId, kind });
+  }
+
+  /** Bulk add (reconciling a device's local library on sign-in), idempotent. */
+  async addMany(userId: string, items: { articleId: string; kind: LibraryKind }[]): Promise<void> {
+    const values = items
+      .filter((i) => i.articleId && KINDS.includes(i.kind))
+      .map((i) => ({ userId, articleId: i.articleId, kind: i.kind }));
+    if (!values.length) {
+      return;
+    }
+    await this.repo().createQueryBuilder().insert().values(values).orIgnore().execute();
+  }
+
+  /** Clear a whole kind for a user (e.g. wipe the reading history). */
+  async clearKind(userId: string, kind: LibraryKind): Promise<void> {
+    if (!KINDS.includes(kind)) {
+      return;
+    }
+    await this.repo().delete({ userId, kind });
   }
 }
