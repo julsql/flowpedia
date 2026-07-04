@@ -28,6 +28,7 @@ import { useLibrary } from "../../src/library/LibraryProvider";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { useSeen } from "../../src/seen/SeenProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
+import { useSaveSheet } from "../../src/save/SaveSheetProvider";
 import { useTheme } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
 
@@ -314,8 +315,9 @@ function FlowItem({
   const insets = useSafeAreaInsets();
   const { t } = useLocale();
   const { colors } = useTheme();
-  const { isLiked, isSaved, toggleLike, toggleSave } = useLibrary();
+  const { isLiked, isSaved, toggleLike } = useLibrary();
   const { openShare } = useShare();
+  const { openSave } = useSaveSheet();
 
   const open = () => {
     sendEvents([{ articleId: article.id, type: "openFull", ts: Date.now() }]);
@@ -403,7 +405,7 @@ function FlowItem({
         </Pressable>
         <Pressable
           style={styles.action}
-          onPress={() => toggleSave(article)}
+          onPress={() => openSave(article)}
           hitSlop={12}
           accessibilityRole="button"
           accessibilityState={{ selected: saved }}
