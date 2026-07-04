@@ -386,7 +386,17 @@ export default function ProfileScreen() {
                             : t("a11y.removeFromSaved")
                       }
                     >
-                      <MaterialIcons name="close" size={14} color="#fff" />
+                      <MaterialIcons
+                        name={
+                          openList === "read"
+                            ? "close"
+                            : openList === "liked"
+                              ? "favorite"
+                              : "bookmark"
+                        }
+                        size={14}
+                        color="#fff"
+                      />
                     </Pressable>
                     <Text style={styles.savedCaption} numberOfLines={2}>
                       {article.title}
