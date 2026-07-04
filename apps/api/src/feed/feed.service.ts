@@ -116,6 +116,10 @@ export class FeedService {
       );
     }
 
+    // MMR-lite: spread categories within the page so consecutive cards aren't the
+    // same subject (a light diversity re-rank in lieu of embedding-based MMR).
+    items = diversifyByCategory(items);
+
     // Always return a cursor → the feed is infinite (random fallback beyond the pool).
     return { items, nextCursor: String(offset + PAGE_SIZE) };
   }
@@ -241,6 +245,29 @@ export function capRelatedByWeight(
   }
   const cap = Math.max(1, Math.floor(likedRelated.length * (saveWeight / likeWeight)));
   return [...new Set([...likedRelated, ...savedRelated.slice(0, cap)])];
+}
+
+/**
+ * Greedy category-diversity re-rank (MMR-lite): keep the first item, then always
+ * take the earliest remaining item whose category differs from the last placed —
+ * falling back to the earliest when all remaining share it. Deterministic, so
+ * pagination stays stable. Spreads subjects across a page without embeddings.
+ */
+export function diversifyByCategory<T extends { category: string }>(items: T[]): T[] {
+  if (items.length <= 2) {
+    return items;
+  }
+  const remaining = [...items];
+  const out: T[] = [remaining.shift() as T];
+  while (remaining.length) {
+    const last = out[out.length - 1].category;
+    let idx = remaining.findIndex((it) => it.category !== last);
+    if (idx === -1) {
+      idx = 0;
+    }
+    out.push(remaining.splice(idx, 1)[0]);
+  }
+  return out;
 }
 
 /**

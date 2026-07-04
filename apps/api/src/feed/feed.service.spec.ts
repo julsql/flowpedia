@@ -1,4 +1,4 @@
-import { FeedService, capRelatedByWeight, weaveEvery } from "./feed.service";
+import { FeedService, capRelatedByWeight, diversifyByCategory, weaveEvery } from "./feed.service";
 import type { ProfileService } from "../reco/profile.service";
 import type { SeenService } from "../reco/seen.service";
 import type { SocialService } from "../reco/social.service";
@@ -264,6 +264,38 @@ describe("FeedService", () => {
 
     expect(same).toEqual(first); // same seed → same order
     expect(other).not.toEqual(first); // different seed → different order
+  });
+});
+
+describe("diversifyByCategory", () => {
+  const item = (id: string, category: string) => ({ id, category });
+
+  it("avoids consecutive same-category items", () => {
+    const out = diversifyByCategory([
+      item("a", "X"),
+      item("b", "X"),
+      item("c", "Y"),
+      item("d", "X"),
+      item("e", "Z"),
+    ]);
+    for (let i = 1; i < out.length; i += 1) {
+      // No two adjacent share a category while an alternative existed.
+      if (out[i].category === out[i - 1].category) {
+        const distinctLeft = out.slice(i).some((x) => x.category !== out[i - 1].category);
+        expect(distinctLeft).toBe(false);
+      }
+    }
+  });
+
+  it("keeps the first item and is a stable permutation", () => {
+    const input = [item("a", "X"), item("b", "Y"), item("c", "X")];
+    const out = diversifyByCategory(input);
+    expect(out[0].id).toBe("a");
+    expect(out.map((x) => x.id).sort()).toEqual(["a", "b", "c"]);
+  });
+
+  it("returns short lists unchanged", () => {
+    expect(diversifyByCategory([item("a", "X"), item("b", "X")]).map((x) => x.id)).toEqual(["a", "b"]);
   });
 });
 
