@@ -36,7 +36,8 @@ export default function ProfileScreen() {
   const { t, locale } = useLocale();
   const auth = useAuth();
   const { hasUnseen } = useSeenStories();
-  const { read, liked, saved, mutedInterests, muteInterest, removeRead, clearRead } = useLibrary();
+  const { read, liked, saved, mutedInterests, muteInterest, removeRead, clearRead, toggleLike, toggleSave } =
+    useLibrary();
 
   // Which list (history / liked / saved) is expanded under the stats, if any.
   const [openList, setOpenList] = useState<"read" | "liked" | "saved" | null>(null);
@@ -366,17 +367,27 @@ export default function ProfileScreen() {
                       // No image → first letter on a colored backdrop (small viz).
                       <LetterThumb text={article.title} style={styles.savedImage} fontSize={32} />
                     )}
-                    {openList === "read" ? (
-                      <Pressable
-                        style={styles.deleteBadge}
-                        onPress={() => removeRead(article.id)}
-                        hitSlop={12}
-                        accessibilityRole="button"
-                        accessibilityLabel={t("a11y.removeFromHistory")}
-                      >
-                        <MaterialIcons name="close" size={14} color="#fff" />
-                      </Pressable>
-                    ) : null}
+                    <Pressable
+                      style={styles.deleteBadge}
+                      onPress={() =>
+                        openList === "read"
+                          ? removeRead(article.id)
+                          : openList === "liked"
+                            ? toggleLike(article)
+                            : toggleSave(article)
+                      }
+                      hitSlop={12}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        openList === "read"
+                          ? t("a11y.removeFromHistory")
+                          : openList === "liked"
+                            ? t("a11y.removeFromLiked")
+                            : t("a11y.removeFromSaved")
+                      }
+                    >
+                      <MaterialIcons name="close" size={14} color="#fff" />
+                    </Pressable>
                     <Text style={styles.savedCaption} numberOfLines={2}>
                       {article.title}
                     </Text>

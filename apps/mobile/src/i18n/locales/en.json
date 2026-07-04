@@ -75,6 +75,8 @@
   "a11y.openOnWikipedia": "Open on Wikipedia",
   "a11y.scrollToTop": "Scroll to top",
   "a11y.removeFromHistory": "Remove from history",
+  "a11y.removeFromLiked": "Remove from liked",
+  "a11y.removeFromSaved": "Remove from saved",
   "a11y.searchInterest": "Search “{{interest}}”",
   "a11y.muteInterest": "Remove interest “{{interest}}”",
   "a11y.toggleSubsections": "Toggle subsections",
