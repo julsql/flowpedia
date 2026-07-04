@@ -337,6 +337,11 @@ export function fetchMessagesUnreadCount(): Promise<UnreadCount> {
   return requestJson<UnreadCount>("/messages/unread-count", "GET");
 }
 
+// Cap the recent-seen ids sent inline so the feed URL stays well under nginx's
+// request-line limit (a full 400-id list → ~20 kB URL → 414). The server's
+// userId-keyed seen store covers the long tail cross-device.
+const EXCLUDE_MAX = 40;
+
 export function fetchFeed(
   tab: FeedTab,
   locale: Locale,
@@ -363,8 +368,11 @@ export function fetchFeed(
   if (seed) {
     params.set("seed", String(seed));
   }
+  // Only the most recent seen ids ride in the query string — the server is now
+  // authoritative on de-dup (via userId), so this just covers the intra-session
+  // propagation gap. Sending the full list blows past nginx's URI limit (414).
   if (exclude.length) {
-    params.set("exclude", exclude.join(","));
+    params.set("exclude", exclude.slice(-EXCLUDE_MAX).join(","));
   }
   // Attach the (anonymous) user id so the server can de-dup already-seen pages
   // cross-device and, when asked, personalize from the interaction journal.
