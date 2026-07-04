@@ -36,11 +36,28 @@ export default function ProfileScreen() {
   const { t, locale } = useLocale();
   const auth = useAuth();
   const { hasUnseen } = useSeenStories();
-  const { read, liked, saved, mutedInterests, muteInterest, removeRead, clearRead, toggleLike, toggleSave } =
-    useLibrary();
+  const {
+    read,
+    liked,
+    saved,
+    mutedInterests,
+    muteInterest,
+    removeRead,
+    clearRead,
+    toggleLike,
+    toggleSave,
+    folders,
+    savedFolderOf,
+  } = useLibrary();
+  // Selected bookmark folder filter (null = all). Reset when leaving the list.
+  const [folderFilter, setFolderFilter] = useState<string | null>(null);
 
   // Which list (history / liked / saved) is expanded under the stats, if any.
   const [openList, setOpenList] = useState<"read" | "liked" | "saved" | null>(null);
+  // Clear the folder filter whenever the open list changes.
+  useEffect(() => {
+    setFolderFilter(null);
+  }, [openList]);
 
   // Titles the user kept, grouped by signal so the API can weight them (liked ≫
   // saved ≫ read) when deriving the interest chips. Deduped across groups with
@@ -124,7 +141,15 @@ export default function ProfileScreen() {
     router.push({ pathname: "/(tabs)/explore", params: { q: interest } });
 
   const listArticles =
-    openList === "read" ? read : openList === "liked" ? liked : openList === "saved" ? saved : [];
+    openList === "read"
+      ? read
+      : openList === "liked"
+        ? liked
+        : openList === "saved"
+          ? folderFilter === null
+            ? saved
+            : saved.filter((a) => (savedFolderOf(a.id) ?? "") === folderFilter)
+          : [];
 
   return (
     <ScreenContainer style={{ paddingTop: insets.top + 16 }}>
@@ -342,6 +367,36 @@ export default function ProfileScreen() {
                 >
                   <Text style={styles.listClear}>{t("common.clearAll")}</Text>
                 </Pressable>
+              </View>
+            ) : null}
+            {/* Bookmark folder filter chips (only when the account has folders). */}
+            {openList === "saved" && folders.length > 0 ? (
+              <View style={styles.folderChips}>
+                {[null, ...folders].map((folder) => {
+                  const active = folderFilter === folder;
+                  const label = folder ?? t("save.allFolder");
+                  return (
+                    <Pressable
+                      key={folder ?? "__all__"}
+                      style={[styles.folderChip, active && styles.folderChipActive]}
+                      onPress={() => setFolderFilter(folder)}
+                      accessibilityRole="button"
+                      accessibilityLabel={label}
+                      accessibilityState={{ selected: active }}
+                    >
+                      {folder ? (
+                        <MaterialIcons
+                          name="folder"
+                          size={14}
+                          color={active ? colors.onAccent : colors.textSecondary}
+                        />
+                      ) : null}
+                      <Text style={[styles.folderChipText, active && styles.folderChipTextActive]}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             ) : null}
             {listArticles.length === 0 ? (
@@ -609,6 +664,19 @@ const makeStyles = (colors: ThemeColors) =>
     interestChipLabel: { flexShrink: 1 },
     interestChipText: { color: colors.interestChipText, fontSize: 13, fontWeight: "500" },
     listHeader: { flexDirection: "row", justifyContent: "flex-end", marginBottom: 10 },
+    folderChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+    folderChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      minHeight: 32,
+      paddingHorizontal: 12,
+      borderRadius: radii.pill,
+      backgroundColor: colors.field,
+    },
+    folderChipActive: { backgroundColor: colors.accent },
+    folderChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: "600" },
+    folderChipTextActive: { color: colors.onAccent },
     listClear: { color: colors.accentLinkText, fontSize: 13, fontWeight: "600" },
     savedGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     savedCell: { width: "31%" },
