@@ -5,6 +5,9 @@ import { ProfileService } from "../reco/profile.service";
 import { SeenService } from "../reco/seen.service";
 import { SocialService } from "../reco/social.service";
 import { BlockService } from "../reco/block.service";
+import { EmbeddingService } from "../reco/embedding.service";
+import { TasteService, embedText } from "../reco/taste.service";
+import { mmrRerank } from "../reco/vector";
 import { LIKE_WEIGHT, SAVE_WEIGHT } from "./weights";
 
 const PAGE_SIZE = 5;
@@ -37,6 +40,8 @@ export class FeedService {
     private readonly seen: SeenService,
     private readonly social: SocialService,
     private readonly block: BlockService,
+    private readonly embeddings: EmbeddingService,
+    private readonly taste: TasteService,
   ) {}
 
   /**
@@ -116,9 +121,10 @@ export class FeedService {
       );
     }
 
-    // MMR-lite: spread categories within the page so consecutive cards aren't the
-    // same subject (a light diversity re-rank in lieu of embedding-based MMR).
-    items = diversifyByCategory(items);
+    // Re-rank the page: embedding-based MMR (taste relevance + diversity) when
+    // Phase 2 is enabled and a taste vector exists, else the Phase 1 category
+    // spread. Both degrade to the pool order.
+    items = await this.rerankPage(items, userId, lang, personalize);
 
     // Always return a cursor → the feed is infinite (random fallback beyond the pool).
     return { items, nextCursor: String(offset + PAGE_SIZE) };
@@ -223,6 +229,46 @@ export class FeedService {
         : Promise.resolve<string[]>([]),
     ]);
     return capRelatedByWeight(likedRelated, savedRelated, LIKE_WEIGHT, SAVE_WEIGHT);
+  }
+
+  /**
+   * Order a hydrated page. When personalized and the embedding taste vector is
+   * available, re-rank by MMR (relevance to taste vs diversity); otherwise fall
+   * back to the Phase 1 category spread. Items without an embedding keep their
+   * order after the ranked ones. Never throws — degrades to the category spread.
+   */
+  private async rerankPage(
+    items: Article[],
+    userId: string | undefined,
+    lang: string | undefined,
+    personalize: boolean,
+  ): Promise<Article[]> {
+    if (!personalize || items.length <= 2 || !this.embeddings.enabled) {
+      return diversifyByCategory(items);
+    }
+    try {
+      const taste = await this.taste.getTaste(userId, lang);
+      if (!taste) {
+        return diversifyByCategory(items);
+      }
+      const vecs = await this.embeddings.embed(
+        items.map((a) => ({ articleId: a.id, text: embedText(a) })),
+        this.wikipedia.normalizeLang(lang),
+      );
+      const withVec = items.map((a, i) => ({ a, vec: vecs[i] }));
+      const embeddable = withVec.filter((x) => x.vec);
+      if (embeddable.length <= 1) {
+        return diversifyByCategory(items);
+      }
+      const ranked = mmrRerank(
+        embeddable.map((x) => ({ a: x.a, vec: x.vec as number[] })),
+        taste,
+      ).map((x) => x.a);
+      const rest = withVec.filter((x) => !x.vec).map((x) => x.a);
+      return [...ranked, ...rest];
+    } catch {
+      return diversifyByCategory(items);
+    }
   }
 }
 

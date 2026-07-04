@@ -27,6 +27,9 @@
     "socket.io": "^4.8.3",
     "typeorm": "^0.3.20"
   },
+  "optionalDependencies": {
+    "@huggingface/transformers": "^3.0.0"
+  },
   "devDependencies": {
     "@nestjs/cli": "^10.4.5",
     "@nestjs/schematics": "^10.1.4",

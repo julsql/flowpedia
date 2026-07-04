@@ -35,6 +35,11 @@ export class ProfileService {
     return engaged.slice(0, limit).map((a) => a.articleId);
   }
 
+  /** Engaged articles with weights, best first (for the embedding taste vector). */
+  async getEngaged(userId: string | undefined): Promise<EngagedArticle[]> {
+    return this.engagedArticles(userId);
+  }
+
   /**
    * Category affinity built from the top engaged articles' topical categories,
    * each contributing its article weight. Used both as a recall source

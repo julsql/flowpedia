@@ -3,6 +3,8 @@ import type { ProfileService } from "../reco/profile.service";
 import type { SeenService } from "../reco/seen.service";
 import type { SocialService } from "../reco/social.service";
 import type { BlockService } from "../reco/block.service";
+import type { EmbeddingService } from "../reco/embedding.service";
+import type { TasteService } from "../reco/taste.service";
 import type { Article } from "@flowpedia/shared";
 
 // Reco stubs: empty by default so the existing (non-personalized) tests are
@@ -23,14 +25,23 @@ function emptySocial(titles: string[] = []): SocialService {
 function emptyBlock(topics: string[] = []): BlockService {
   return { getBlocked: jest.fn(async () => new Set(topics)) } as unknown as BlockService;
 }
+// Embeddings off by default → the feed uses its Phase 1 ranking.
+function offEmbeddings(): EmbeddingService {
+  return { enabled: false, embed: jest.fn(async (items: unknown[]) => items.map(() => null)) } as unknown as EmbeddingService;
+}
+function nullTaste(): TasteService {
+  return { getTaste: jest.fn(async () => null) } as unknown as TasteService;
+}
 function makeService(
   wiki: unknown,
   profile: ProfileService = emptyProfile(),
   seen: SeenService = emptySeen(),
   social: SocialService = emptySocial(),
   block: BlockService = emptyBlock(),
+  embeddings: EmbeddingService = offEmbeddings(),
+  taste: TasteService = nullTaste(),
 ): FeedService {
-  return new FeedService(wiki as never, profile, seen, social, block);
+  return new FeedService(wiki as never, profile, seen, social, block, embeddings, taste);
 }
 
 function fakeArticle(id: string): Article {
@@ -234,6 +245,25 @@ describe("FeedService", () => {
     );
 
     expect([...p1, ...p2].some((id) => id.startsWith("News_"))).toBe(true); // an off-profile escape
+  });
+
+  it("re-ranks the page by the embedding taste vector when Phase 2 is enabled", async () => {
+    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const wiki = makeWikipediaMock(getSummary);
+    const taste = { getTaste: jest.fn(async () => [1, 0]) } as unknown as TasteService;
+    // Title_2's embedding aligns with the taste; the others are orthogonal.
+    const embeddings = {
+      enabled: true,
+      embed: jest.fn(async (items: { articleId: string }[]) =>
+        items.map((it) => (it.articleId === TITLES[2] ? [1, 0] : [0, 1])),
+      ),
+    } as unknown as EmbeddingService;
+    const service = makeService(wiki, emptyProfile(), emptySeen(), emptySocial(), emptyBlock(), embeddings, taste);
+
+    const res = await service.getFeed("forYou", "en", undefined, ["Seed"], 0, [], [], "u1", true);
+
+    expect(taste.getTaste).toHaveBeenCalled();
+    expect(res.items[0].id).toBe(TITLES[2]); // most taste-aligned surfaces first
   });
 
   it("hard-filters a blocked topic from the hydrated page", async () => {
