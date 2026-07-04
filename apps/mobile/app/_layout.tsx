@@ -15,6 +15,7 @@ import { SeenProvider } from "../src/seen/SeenProvider";
 import { SeenStoriesProvider } from "../src/seen/SeenStoriesProvider";
 import { SearchHistoryProvider } from "../src/search/SearchHistoryProvider";
 import { ShareSheetProvider } from "../src/share/ShareSheetProvider";
+import { SaveSheetProvider } from "../src/save/SaveSheetProvider";
 
 function ThemedNavigation() {
   const { colors, scheme } = useTheme();
@@ -61,7 +62,9 @@ export default function RootLayout() {
                 <SeenStoriesProvider>
                   <SearchHistoryProvider>
                     <ShareSheetProvider>
-                      <ThemedNavigation />
+                      <SaveSheetProvider>
+                        <ThemedNavigation />
+                      </SaveSheetProvider>
                     </ShareSheetProvider>
                   </SearchHistoryProvider>
                 </SeenStoriesProvider>

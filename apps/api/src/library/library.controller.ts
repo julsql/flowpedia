@@ -25,7 +25,7 @@ export class LibraryController {
     @CurrentUser() principal: AuthPrincipal,
     @Body() body: LibraryItemRequest,
   ): Promise<void> {
-    return this.library.add(principal.id, body.articleId, body.kind);
+    return this.library.add(principal.id, body.articleId, body.kind, body.folder);
   }
 
   @Delete()

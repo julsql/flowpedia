@@ -14,9 +14,13 @@ export class LibraryItem {
   @Column()
   articleId!: string;
 
-  /** "like" | "save" | "share". */
+  /** "like" | "save" | "share" | "read". */
   @Column()
   kind!: string;
+
+  /** Optional bookmark folder (kind "save"); null = unfiled. */
+  @Column({ type: "varchar", nullable: true })
+  folder!: string | null;
 
   @CreateDateColumn({ type: "timestamptz" })
   createdAt!: Date;

@@ -28,19 +28,36 @@ export class LibraryService {
       order: { createdAt: "DESC" },
     });
     const pick = (kind: LibraryKind) => rows.filter((r) => r.kind === kind).map((r) => r.articleId);
-    return { liked: pick("like"), saved: pick("save"), shared: pick("share"), read: pick("read") };
+    // Folders come from the saved rows that carry one.
+    const savedFolders: Record<string, string> = {};
+    for (const r of rows) {
+      if (r.kind === "save" && r.folder) {
+        savedFolders[r.articleId] = r.folder;
+      }
+    }
+    const folders = [...new Set(Object.values(savedFolders))];
+    return {
+      liked: pick("like"),
+      saved: pick("save"),
+      shared: pick("share"),
+      read: pick("read"),
+      folders,
+      savedFolders,
+    };
   }
 
-  async add(userId: string, articleId: string, kind: LibraryKind): Promise<void> {
+  async add(userId: string, articleId: string, kind: LibraryKind, folder?: string): Promise<void> {
     if (!articleId || !KINDS.includes(kind)) {
       return;
     }
-    // Idempotent: the unique (userId, articleId, kind) index makes a repeat a no-op.
+    const cleanFolder = kind === "save" ? folder?.trim() || null : null;
+    // Idempotent on (userId, articleId, kind); a save also updates its folder so
+    // moving a bookmark between folders is a plain re-save.
     await this.repo()
       .createQueryBuilder()
       .insert()
-      .values({ userId, articleId, kind })
-      .orIgnore()
+      .values({ userId, articleId, kind, folder: cleanFolder })
+      .orUpdate(["folder"], ["userId", "articleId", "kind"])
       .execute();
   }
 
@@ -49,14 +66,27 @@ export class LibraryService {
   }
 
   /** Bulk add (reconciling a device's local library on sign-in), idempotent. */
-  async addMany(userId: string, items: { articleId: string; kind: LibraryKind }[]): Promise<void> {
+  async addMany(
+    userId: string,
+    items: { articleId: string; kind: LibraryKind; folder?: string }[],
+  ): Promise<void> {
     const values = items
       .filter((i) => i.articleId && KINDS.includes(i.kind))
-      .map((i) => ({ userId, articleId: i.articleId, kind: i.kind }));
+      .map((i) => ({
+        userId,
+        articleId: i.articleId,
+        kind: i.kind,
+        folder: i.kind === "save" ? i.folder?.trim() || null : null,
+      }));
     if (!values.length) {
       return;
     }
-    await this.repo().createQueryBuilder().insert().values(values).orIgnore().execute();
+    await this.repo()
+      .createQueryBuilder()
+      .insert()
+      .values(values)
+      .orUpdate(["folder"], ["userId", "articleId", "kind"])
+      .execute();
   }
 
   /** Clear a whole kind for a user (e.g. wipe the reading history). */

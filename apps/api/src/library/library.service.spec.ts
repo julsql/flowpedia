@@ -6,6 +6,7 @@ interface Row {
   userId: string;
   articleId: string;
   kind: string;
+  folder?: string | null;
 }
 
 /** In-memory stand-in for the LibraryItem repository (incl. the insert builder). */
@@ -23,12 +24,19 @@ function fakeLibraryRepo() {
     orIgnore() {
       return qb;
     },
+    orUpdate() {
+      return qb;
+    },
     async execute() {
       for (const v of qb.vals) {
-        const dupe = rows.some(
+        const existing = rows.find(
           (r) => r.userId === v.userId && r.articleId === v.articleId && r.kind === v.kind,
         );
-        if (!dupe) rows.push({ ...v });
+        if (existing) {
+          existing.folder = v.folder ?? null; // orUpdate(["folder"])
+        } else {
+          rows.push({ ...v });
+        }
       }
       return {};
     },
@@ -77,6 +85,26 @@ describe("LibraryService", () => {
     const { service } = makeService();
     await service.add("u1", "Article R", "read");
     expect((await service.list("u1")).read).toEqual(["Article R"]);
+  });
+
+  it("files a bookmark under a folder and lists distinct folders", async () => {
+    const { service } = makeService();
+    await service.add("u1", "A", "save", "Voyage");
+    await service.add("u1", "B", "save", "Voyage");
+    await service.add("u1", "C", "save"); // unfiled
+    const lib = await service.list("u1");
+    expect(lib.saved.sort()).toEqual(["A", "B", "C"]);
+    expect(lib.folders).toEqual(["Voyage"]);
+    expect(lib.savedFolders).toEqual({ A: "Voyage", B: "Voyage" });
+  });
+
+  it("moves a bookmark between folders on re-save (still one save)", async () => {
+    const { service } = makeService();
+    await service.add("u1", "A", "save", "Voyage");
+    await service.add("u1", "A", "save", "Cuisine");
+    const lib = await service.list("u1");
+    expect(lib.saved).toEqual(["A"]);
+    expect(lib.savedFolders).toEqual({ A: "Cuisine" });
   });
 
   it("bulk-adds a device's local library in one call, skipping dupes/invalids", async () => {

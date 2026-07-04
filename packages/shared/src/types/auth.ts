@@ -84,6 +84,8 @@ export type LibraryKind = "like" | "save" | "share" | "read";
 export interface LibraryItemRequest {
   articleId: string;
   kind: LibraryKind;
+  /** Optional folder for a bookmark (kind "save"); empty/undefined = unfiled. */
+  folder?: string;
 }
 
 /** Bulk add (used to reconcile a device's local library on sign-in). */
@@ -102,6 +104,10 @@ export interface LibrarySnapshot {
   saved: string[];
   shared: string[];
   read: string[];
+  /** Distinct bookmark folder names the account has. */
+  folders: string[];
+  /** Bookmark → folder, for saves that are filed under one. */
+  savedFolders: Record<string, string>;
 }
 
 /** Minimal, safe-to-expose user shape for social lists/cards. */

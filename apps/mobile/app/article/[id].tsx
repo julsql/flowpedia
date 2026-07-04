@@ -48,6 +48,7 @@ import { RemoteImage } from "../../src/components/RemoteImage";
 import { useLibrary } from "../../src/library/LibraryProvider";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { useShare } from "../../src/share/ShareSheetProvider";
+import { useSaveSheet } from "../../src/save/SaveSheetProvider";
 import { useArticleSpeech } from "../../src/speech/useArticleSpeech";
 import { radii, spacing, useTheme, type ThemeColors } from "../../src/theme";
 import { useLocale } from "../../src/i18n";
@@ -83,7 +84,8 @@ export default function ArticleScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, locale } = useLocale();
-  const { isSaved, toggleSave, isLiked, toggleLike, markRead } = useLibrary();
+  const { isSaved, isLiked, toggleLike, markRead } = useLibrary();
+  const { openSave } = useSaveSheet();
   const auth = useAuth();
   const { openShare } = useShare();
   // "Keep exploring" — an infinite feed of related articles (related-to-this +
@@ -881,7 +883,7 @@ export default function ArticleScreen() {
             />
           </Pressable>
           <Pressable
-            onPress={() => article && toggleSave(article)}
+            onPress={() => article && openSave(article)}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityState={{ selected: Boolean(article && isSaved(article.id)) }}

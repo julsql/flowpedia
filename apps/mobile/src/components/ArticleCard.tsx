@@ -15,6 +15,7 @@ import { MoreOptionsMenu } from "./MoreOptionsMenu";
 import { radii, spacing, useTheme, type ThemeColors } from "../theme";
 import { useLocale } from "../i18n";
 import { useLibrary } from "../library/LibraryProvider";
+import { useSaveSheet } from "../save/SaveSheetProvider";
 
 const COLLAPSED_LINES = 3;
 
@@ -31,7 +32,8 @@ export function ArticleCard({ article, onShare, onOpen, onNotInterested }: Artic
   const { t } = useLocale();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { isLiked, isSaved, toggleLike, toggleSave } = useLibrary();
+  const { isLiked, isSaved, toggleLike } = useLibrary();
+  const { openSave } = useSaveSheet();
   const liked = isLiked(article.id);
   const saved = isSaved(article.id);
   const [expanded, setExpanded] = useState(false);
@@ -135,7 +137,7 @@ export function ArticleCard({ article, onShare, onOpen, onNotInterested }: Artic
           </Pressable>
         </View>
         <Pressable
-          onPress={() => toggleSave(article)}
+          onPress={() => openSave(article)}
           hitSlop={12}
           accessibilityRole="button"
           accessibilityState={{ selected: saved }}

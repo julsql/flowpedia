@@ -21,12 +21,19 @@ const SAVED_KEY = "flowpedia.saved";
 const SHARED_KEY = "flowpedia.shared";
 const READ_KEY = "flowpedia.read";
 const MUTED_KEY = "flowpedia.mutedInterests";
+const FOLDERS_KEY = "flowpedia.savedFolders";
 
 interface LibraryValue {
   isLiked: (id: string) => boolean;
   isSaved: (id: string) => boolean;
   toggleLike: (article: Article) => void;
   toggleSave: (article: Article) => void;
+  /** Save (or move) a bookmark into a folder; empty folder = unfiled. */
+  saveToFolder: (article: Article, folder: string) => void;
+  /** Current folder of a saved article, or undefined when unfiled. */
+  savedFolderOf: (id: string) => string | undefined;
+  /** Distinct bookmark folder names, most used first. */
+  folders: string[];
   /** Record an article as shared (local history for the Shared tab). */
   recordShare: (article: Article) => void;
   /** Record an article as read (opened) — feeds the profile "Read" stat. */
@@ -77,6 +84,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [shared, setShared] = useState<Article[]>([]);
   const [read, setRead] = useState<Article[]>([]);
   const [mutedInterests, setMutedInterests] = useState<string[]>([]);
+  const [savedFolders, setSavedFolders] = useState<Record<string, string>>({});
   const { locale } = useLocale();
   const auth = useAuth();
   const router = useRouter();
@@ -91,12 +99,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void (async () => {
-      const [likedRaw, savedRaw, sharedRaw, readRaw, mutedRaw] = await Promise.all([
+      const [likedRaw, savedRaw, sharedRaw, readRaw, mutedRaw, foldersRaw] = await Promise.all([
         AsyncStorage.getItem(LIKED_KEY),
         AsyncStorage.getItem(SAVED_KEY),
         AsyncStorage.getItem(SHARED_KEY),
         AsyncStorage.getItem(READ_KEY),
         AsyncStorage.getItem(MUTED_KEY),
+        AsyncStorage.getItem(FOLDERS_KEY),
       ]);
       setLiked(parseArticles(likedRaw));
       setSaved(parseArticles(savedRaw));
@@ -106,6 +115,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(mutedRaw) as unknown;
         if (Array.isArray(parsed)) {
           setMutedInterests(parsed.filter((x): x is string => typeof x === "string"));
+        }
+      }
+      if (foldersRaw) {
+        const parsed = JSON.parse(foldersRaw) as unknown;
+        if (parsed && typeof parsed === "object") {
+          setSavedFolders(parsed as Record<string, string>);
         }
       }
     })();
@@ -132,10 +147,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           const known = new Set(serverIds);
           return arts.filter((a) => !known.has(a.id)).map((a) => ({ articleId: a.id, kind }));
         };
+        // Local-only saves carry their folder so the account keeps the filing.
+        const knownSaved = new Set(snap.saved);
+        const localOnlySaves = saved
+          .filter((a) => !knownSaved.has(a.id))
+          .map((a) => ({ articleId: a.id, kind: "save" as const, folder: savedFolders[a.id] }));
         // Push every device-local entry the account doesn't have yet, in one call.
         void addLibraryItems([
           ...localOnly(liked, snap.liked, "like"),
-          ...localOnly(saved, snap.saved, "save"),
+          ...localOnlySaves,
           ...localOnly(shared, snap.shared, "share"),
           ...localOnly(read, serverRead, "read"),
         ]).catch(() => undefined);
@@ -165,6 +185,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         setShared((prev) => persistList(SHARED_KEY, merge(snap.shared, prev)));
         // Reading history is capped like markRead does (most recent first).
         setRead((prev) => persistList(READ_KEY, merge(serverRead, prev).slice(0, 200)));
+        // Merge the account's bookmark folders (local device wins on conflict).
+        const serverFolders = snap.savedFolders ?? {};
+        setSavedFolders((prev) => {
+          const next = { ...serverFolders, ...prev };
+          void AsyncStorage.setItem(FOLDERS_KEY, JSON.stringify(next));
+          return next;
+        });
       } catch {
         // Offline or unauthenticated — keep the local library as-is.
       }
@@ -178,9 +205,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const value = useMemo<LibraryValue>(() => {
     const isLiked = (id: string) => liked.some((a) => a.id === id);
     const isSaved = (id: string) => saved.some((a) => a.id === id);
-    const syncAdd = (articleId: string, kind: LibraryKind) => {
+    const syncAdd = (articleId: string, kind: LibraryKind, folder?: string) => {
       if (auth.user) {
-        void addLibraryItem(articleId, kind).catch(() => undefined);
+        void addLibraryItem(articleId, kind, folder).catch(() => undefined);
       }
     };
     const syncRemove = (articleId: string, kind: LibraryKind) => {
@@ -238,10 +265,52 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       // Un-bookmarking emits a revocation so the profile recomputes without it.
       sendEvents([{ articleId: article.id, type: wasSaved ? "remove" : "save", ts: Date.now() }]);
       if (wasSaved) {
+        clearFolder(article.id);
         syncRemove(article.id, "save");
       } else {
         syncAdd(article.id, "save");
       }
+    };
+
+    /** Drop a bookmark's folder mapping (on unsave). */
+    const clearFolder = (id: string) => {
+      setSavedFolders((prev) => {
+        if (!(id in prev)) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[id];
+        void AsyncStorage.setItem(FOLDERS_KEY, JSON.stringify(next));
+        return next;
+      });
+    };
+
+    // Save (or move) a bookmark into a folder; empty folder = unfiled bucket.
+    const saveToFolder = (article: Article, folder: string) => {
+      if (!requireAccount()) {
+        return;
+      }
+      const f = folder.trim();
+      const wasSaved = saved.some((a) => a.id === article.id);
+      setSaved((prev) =>
+        prev.some((a) => a.id === article.id)
+          ? prev
+          : persistList(SAVED_KEY, [compact(article), ...prev]),
+      );
+      setSavedFolders((prev) => {
+        const next = { ...prev };
+        if (f) {
+          next[article.id] = f;
+        } else {
+          delete next[article.id];
+        }
+        void AsyncStorage.setItem(FOLDERS_KEY, JSON.stringify(next));
+        return next;
+      });
+      if (!wasSaved) {
+        sendEvents([{ articleId: article.id, type: "save", ts: Date.now() }]);
+      }
+      syncAdd(article.id, "save", f || undefined); // upsert the folder server-side
     };
 
     const recordShare = (article: Article) => {
@@ -304,11 +373,21 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       });
     };
 
+    // Distinct folders, most-used first (drives the picker + profile chips).
+    const counts = new Map<string, number>();
+    for (const f of Object.values(savedFolders)) {
+      counts.set(f, (counts.get(f) ?? 0) + 1);
+    }
+    const folders = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([f]) => f);
+
     return {
       isLiked,
       isSaved,
       toggleLike,
       toggleSave,
+      saveToFolder,
+      savedFolderOf: (id: string) => savedFolders[id],
+      folders,
       recordShare,
       markRead,
       removeRead,
@@ -322,7 +401,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       muteInterest,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liked, saved, shared, read, mutedInterests, auth.user]);
+  }, [liked, saved, shared, read, mutedInterests, savedFolders, auth.user]);
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
 }

@@ -209,8 +209,12 @@ export function fetchLibrary(): Promise<LibrarySnapshot> {
   return requestJson<LibrarySnapshot>("/library", "GET");
 }
 
-export function addLibraryItem(articleId: string, kind: LibraryKind): Promise<void> {
-  return requestJson<void>("/library", "POST", { articleId, kind });
+export function addLibraryItem(
+  articleId: string,
+  kind: LibraryKind,
+  folder?: string,
+): Promise<void> {
+  return requestJson<void>("/library", "POST", { articleId, kind, folder });
 }
 
 export function removeLibraryItem(articleId: string, kind: LibraryKind): Promise<void> {
@@ -218,7 +222,9 @@ export function removeLibraryItem(articleId: string, kind: LibraryKind): Promise
 }
 
 /** Bulk add (reconcile a device's local library on sign-in) — one request. */
-export function addLibraryItems(items: { articleId: string; kind: LibraryKind }[]): Promise<void> {
+export function addLibraryItems(
+  items: { articleId: string; kind: LibraryKind; folder?: string }[],
+): Promise<void> {
   if (!items.length) {
     return Promise.resolve();
   }
