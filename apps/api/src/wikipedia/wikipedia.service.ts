@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Article, ArticleLink, FeedResponse } from "@flowpedia/shared";
 import { CacheService } from "../cache/cache.service";
+import { assertWikimediaUrl } from "../common/outbound-url";
 import {
   collectLinks,
   isScaffoldImage,
@@ -134,7 +135,7 @@ export class WikipediaService {
     const url = `https://${language}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(
       title,
     )}`;
-    const res = await fetch(url, {
+    const res = await fetch(assertWikimediaUrl(url), {
       headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
     });
 
@@ -223,7 +224,7 @@ export class WikipediaService {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 15000);
       try {
-        const res = await fetch(url, {
+        const res = await fetch(assertWikimediaUrl(url), {
           headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
           signal: controller.signal,
         });
@@ -254,7 +255,7 @@ export class WikipediaService {
       `&srsearch=${encodeURIComponent(query)}&srlimit=${limit}&srnamespace=0` +
       `&srinfo=suggestion&format=json&origin=*`;
     try {
-      const res = await fetch(url, {
+      const res = await fetch(assertWikimediaUrl(url), {
         headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
       });
       if (!res.ok) {
@@ -391,7 +392,7 @@ export class WikipediaService {
       const url = `https://wikimedia.org/api/rest_v1/metrics/pageviews/top/${language}.wikipedia/all-access/${yyyy}/${mm}/${dd}`;
 
       try {
-        const res = await fetch(url, {
+        const res = await fetch(assertWikimediaUrl(url), {
           headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
         });
         if (!res.ok) {
@@ -430,7 +431,7 @@ export class WikipediaService {
       const dd = String(date.getUTCDate()).padStart(2, "0");
       const url = `https://api.wikimedia.org/feed/v1/wikipedia/${language}/featured/${yyyy}/${mm}/${dd}`;
       try {
-        const res = await fetch(url, {
+        const res = await fetch(assertWikimediaUrl(url), {
           headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
         });
         if (!res.ok) {
@@ -486,7 +487,7 @@ export class WikipediaService {
       `https://${language}.wikipedia.org/w/api.php?action=query&list=search` +
       `&srsearch=${encodeURIComponent(srsearch)}&srlimit=80&srnamespace=0&format=json&origin=*`;
     try {
-      const res = await fetch(url, {
+      const res = await fetch(assertWikimediaUrl(url), {
         headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
       });
       if (!res.ok) {
@@ -586,7 +587,7 @@ export class WikipediaService {
       `https://${language}.wikipedia.org/w/api.php?action=query&prop=categories` +
       `&clshow=!hidden&cllimit=max&titles=${encodeURIComponent(title)}&format=json&origin=*`;
     try {
-      const res = await fetch(url, {
+      const res = await fetch(assertWikimediaUrl(url), {
         headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
       });
       if (!res.ok) {
@@ -614,7 +615,7 @@ export class WikipediaService {
       `&cmtitle=${encodeURIComponent(category)}&cmnamespace=0&cmtype=page` +
       `&cmlimit=${CATEGORY_MEMBERS_PER_CAT}&format=json&origin=*`;
     try {
-      const res = await fetch(url, {
+      const res = await fetch(assertWikimediaUrl(url), {
         headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
       });
       if (!res.ok) {
@@ -635,7 +636,7 @@ export class WikipediaService {
       `https://${language}.wikipedia.org/w/api.php?action=query&list=random` +
       `&rnnamespace=0&rnlimit=${Math.min(count * 2, 20)}&format=json&origin=*`;
     try {
-      const res = await fetch(url, {
+      const res = await fetch(assertWikimediaUrl(url), {
         headers: { "User-Agent": this.userAgent, "Api-User-Agent": this.userAgent },
       });
       if (!res.ok) {

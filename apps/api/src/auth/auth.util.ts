@@ -5,6 +5,11 @@ import { User } from "./user.entity";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_RE = /^[a-z0-9_.]{3,30}$/;
 
+// RFC 5321 caps an address at 254 chars. Bounding the length before the regex
+// runs removes the ReDoS surface (the pattern's ambiguous `[^\s@]+…[^\s@]+`
+// around the literal dot can backtrack quadratically on long crafted inputs).
+const MAX_EMAIL_LENGTH = 254;
+
 export function normalizeEmail(email: string): string {
   return (email ?? "").trim().toLowerCase();
 }
@@ -14,7 +19,7 @@ export function normalizeUsername(username: string): string {
 }
 
 export function assertValidEmail(email: string): void {
-  if (!EMAIL_RE.test(email)) {
+  if (typeof email !== "string" || email.length > MAX_EMAIL_LENGTH || !EMAIL_RE.test(email)) {
     throw new BadRequestException("Invalid email address.");
   }
 }

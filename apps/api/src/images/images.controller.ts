@@ -1,9 +1,7 @@
 import { BadRequestException, Controller, Get, Logger, Query, Res } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Response } from "express";
-
-// Only proxy Wikimedia-hosted images (prevents an open proxy / SSRF).
-const ALLOWED_HOST = /(^|\.)(wikimedia\.org|wikipedia\.org)$/i;
+import { assertWikimediaUrl } from "../common/outbound-url";
 
 /**
  * Image proxy. Devices often can't load Wikimedia images directly (User-Agent
@@ -21,19 +19,12 @@ export class ImagesController {
     if (!u) {
       throw new BadRequestException("missing url");
     }
-    let url: URL;
-    try {
-      url = new URL(u);
-    } catch {
-      throw new BadRequestException("bad url");
-    }
-    if (url.protocol !== "https:" || !ALLOWED_HOST.test(url.hostname)) {
-      throw new BadRequestException("host not allowed");
-    }
+    // Validate against the Wikimedia allowlist (prevents an open proxy / SSRF).
+    const url = assertWikimediaUrl(u);
 
     const ua = this.config.get<string>("WIKIPEDIA_USER_AGENT", "Flowpedia/1.0 (dev)");
     try {
-      const upstream = await fetch(url.toString(), {
+      const upstream = await fetch(url, {
         headers: { "User-Agent": ua, "Api-User-Agent": ua },
       });
       if (!upstream.ok) {
