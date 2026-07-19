@@ -172,8 +172,8 @@ The app runs on **k3s**. CI does one thing: build and publish the images.
   `ghcr.io/<owner>/flowpedia-api` and `ghcr.io/<owner>/flowpedia-web` (each tagged
   `latest` + the commit `sha`). `EXPO_PUBLIC_API_URL` is baked into the web image
   at **build time** (a `build-arg`), so it can't be changed at runtime.
-- **Rollout** — **Keel** runs in the cluster, polls GHCR, and rolls out the
-  Deployments automatically when an image digest changes. No SSH, no manual step.
+- **Rollout** — Deployment is automatic: after the push, the CI pings the
+  server (Keel webhook), which updates its pods. No SSH, no manual `kubectl`.
 - **Manifests** — the k8s objects (Deployments, Services, Ingress, Postgres,
   secrets) live in the separate [`k3s-manifests`](https://github.com/julsql/k3s-manifests)
   repo, not here.
