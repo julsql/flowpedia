@@ -1,10 +1,12 @@
 import { Body, Controller, Delete, Get, Post, Query } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { BlockService } from "./block.service";
 
 /**
  * Blocked-topic management for "not interested in this genre" (§2.9). Keyed by
  * the same anonymous userId the client attaches to signals (MVP trust model).
  */
+@ApiTags("reco")
 @Controller("reco")
 export class RecoController {
   constructor(private readonly block: BlockService) {}

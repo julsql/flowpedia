@@ -1,7 +1,9 @@
 import { Controller, Get, Query } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import type { FeedResponse } from "@flowpedia/shared";
 import { WikipediaService } from "../wikipedia/wikipedia.service";
 
+@ApiTags("search")
 @Controller("search")
 export class SearchController {
   constructor(private readonly wikipedia: WikipediaService) {}

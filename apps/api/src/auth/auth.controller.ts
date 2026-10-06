@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Patch, Post, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type {
   AuthResponse,
   AuthUser,
@@ -15,6 +16,7 @@ import { AuthService } from "./auth.service";
 import { CurrentUser } from "./current-user.decorator";
 import { JwtAuthGuard, type AuthPrincipal } from "./jwt-auth.guard";
 
+@ApiTags("auth")
 @Controller("auth")
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -30,11 +32,15 @@ export class AuthController {
     return this.auth.login(body);
   }
 
+  @ApiBearerAuth()
+
   @UseGuards(JwtAuthGuard)
   @Get("me")
   me(@CurrentUser() principal: AuthPrincipal): Promise<AuthUser> {
     return this.auth.me(principal.id);
   }
+
+  @ApiBearerAuth()
 
   @UseGuards(JwtAuthGuard)
   @Patch("me")
@@ -44,6 +50,8 @@ export class AuthController {
   ): Promise<AuthUser> {
     return this.auth.updateProfile(principal.id, body);
   }
+
+  @ApiBearerAuth()
 
   @UseGuards(JwtAuthGuard)
   @Post("change-password")
@@ -55,12 +63,16 @@ export class AuthController {
     return this.auth.changePassword(principal.id, body);
   }
 
+  @ApiBearerAuth()
+
   @UseGuards(JwtAuthGuard)
   @Delete("me")
   @HttpCode(200)
   deleteAccount(@CurrentUser() principal: AuthPrincipal): Promise<{ message: string }> {
     return this.auth.deleteAccount(principal.id);
   }
+
+  @ApiBearerAuth()
 
   @UseGuards(JwtAuthGuard)
   @Post("wipe-data")
@@ -80,6 +92,8 @@ export class AuthController {
   resetPassword(@Body() body: ResetPasswordRequest): Promise<{ message: string }> {
     return this.auth.resetPassword(body);
   }
+
+  @ApiBearerAuth()
 
   @UseGuards(JwtAuthGuard)
   @Post("email/change")

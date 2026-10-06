@@ -1,7 +1,9 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import type { Article } from "@flowpedia/shared";
 import { WikipediaService } from "../wikipedia/wikipedia.service";
 
+@ApiTags("articles")
 @Controller("articles")
 export class ArticlesController {
   constructor(private readonly wikipedia: WikipediaService) {}

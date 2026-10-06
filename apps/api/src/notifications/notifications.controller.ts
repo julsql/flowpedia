@@ -1,10 +1,14 @@
 import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type { NotificationItem, RegisterPushTokenRequest, UnreadCount } from "@flowpedia/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard, type AuthPrincipal } from "../auth/jwt-auth.guard";
 import { NotificationsService } from "./notifications.service";
 
+@ApiBearerAuth()
+
 @UseGuards(JwtAuthGuard)
+@ApiTags("notifications")
 @Controller("notifications")
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}

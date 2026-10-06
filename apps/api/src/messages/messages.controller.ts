@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type {
   ConversationMessage,
   ConversationSummary,
@@ -22,7 +23,10 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard, type AuthPrincipal } from "../auth/jwt-auth.guard";
 import { MessagesService } from "./messages.service";
 
+@ApiBearerAuth()
+
 @UseGuards(JwtAuthGuard)
+@ApiTags("messages")
 @Controller("messages")
 export class MessagesController {
   constructor(private readonly messages: MessagesService) {}

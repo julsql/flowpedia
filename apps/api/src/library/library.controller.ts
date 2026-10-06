@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Post, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type {
   BulkLibraryRequest,
   ClearLibraryRequest,
@@ -9,7 +10,10 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard, type AuthPrincipal } from "../auth/jwt-auth.guard";
 import { LibraryService } from "./library.service";
 
+@ApiBearerAuth()
+
 @UseGuards(JwtAuthGuard)
+@ApiTags("library")
 @Controller("library")
 export class LibraryController {
   constructor(private readonly library: LibraryService) {}

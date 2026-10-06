@@ -1,9 +1,11 @@
 import { Controller, Get, Query } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import type { FeedResponse, FeedTab } from "@flowpedia/shared";
 import { FeedService } from "./feed.service";
 
 const VALID_TABS: FeedTab[] = ["forYou", "popular", "news", "discover"];
 
+@ApiTags("feed")
 @Controller("feed")
 export class FeedController {
   constructor(private readonly feed: FeedService) {}

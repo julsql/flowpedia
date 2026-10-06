@@ -2,6 +2,7 @@ import { networkInterfaces } from "node:os";
 import { RequestMethod } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
+import { setupSwagger } from "./swagger";
 
 /** First non-internal IPv4 address, so a phone on the same Wi-Fi can reach us. */
 function lanAddress(): string | undefined {
@@ -25,6 +26,7 @@ async function bootstrap() {
       { path: "health", method: RequestMethod.GET },
     ],
   });
+  setupSwagger(app); // Swagger UI on /docs
   // ValidationPipe (class-validator) will be added when request DTOs need validation.
   const port = process.env.PORT ?? 3000;
   // Bind to all interfaces so the API is reachable over the LAN (phone on Wi-Fi),
@@ -33,6 +35,8 @@ async function bootstrap() {
   const lan = lanAddress();
   // eslint-disable-next-line no-console
   console.log(`Flowpedia API → http://localhost:${port}/api`);
+  // eslint-disable-next-line no-console
+  console.log(`           docs → http://localhost:${port}/docs`);
   if (lan) {
     // eslint-disable-next-line no-console
     console.log(`            LAN → http://${lan}:${port}/api  (set EXPO_PUBLIC_API_URL to this on your phone)`);
