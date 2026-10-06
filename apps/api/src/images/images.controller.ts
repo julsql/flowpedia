@@ -1,4 +1,5 @@
 import { BadRequestException, Controller, Get, Logger, Query, Res } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import type { Response } from "express";
 import { assertWikimediaUrl } from "../common/outbound-url";
@@ -8,6 +9,7 @@ import { assertWikimediaUrl } from "../common/outbound-url";
  * policy 403s, or no direct internet route), but they can always reach this
  * API — so we fetch the image here (with a compliant UA) and stream it back.
  */
+@ApiTags("images")
 @Controller("image")
 export class ImagesController {
   private readonly logger = new Logger(ImagesController.name);

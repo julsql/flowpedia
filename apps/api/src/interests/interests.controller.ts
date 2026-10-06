@@ -1,4 +1,5 @@
 import { Controller, Get, Query } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import type { Interest } from "@flowpedia/shared";
 import { InterestsService, type WeightedTitle } from "./interests.service";
 import { LIKE_WEIGHT, SAVE_WEIGHT, READ_WEIGHT } from "../feed/weights";
@@ -7,6 +8,7 @@ function parseList(csv?: string): string[] {
   return csv ? csv.split(",").map((t) => t.trim()).filter(Boolean) : [];
 }
 
+@ApiTags("interests")
 @Controller("interests")
 export class InterestsController {
   constructor(private readonly interests: InterestsService) {}

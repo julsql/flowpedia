@@ -8,12 +8,16 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type { FollowResult, ProfileView, PublicUser } from "@flowpedia/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard, type AuthPrincipal } from "../auth/jwt-auth.guard";
 import { FollowService } from "./follow.service";
 
+@ApiBearerAuth()
+
 @UseGuards(JwtAuthGuard)
+@ApiTags("social")
 @Controller()
 export class SocialController {
   constructor(private readonly follow: FollowService) {}

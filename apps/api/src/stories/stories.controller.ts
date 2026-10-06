@@ -1,10 +1,14 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type { CreateStoryRequest, StoryGroup } from "@flowpedia/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard, type AuthPrincipal } from "../auth/jwt-auth.guard";
 import { StoriesService } from "./stories.service";
 
+@ApiBearerAuth()
+
 @UseGuards(JwtAuthGuard)
+@ApiTags("stories")
 @Controller("stories")
 export class StoriesController {
   constructor(private readonly stories: StoriesService) {}
