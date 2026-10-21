@@ -273,7 +273,9 @@ export default function FeedScreen() {
   return (
     <ScreenContainer style={{ paddingTop: insets.top }}>
       <View style={[styles.header, centeredColumn]}>
-        <Text style={styles.brand}>Flowpedia</Text>
+        <Text style={styles.brand} accessibilityRole="header">
+          Flowpedia
+        </Text>
         <NotificationBell />
       </View>
 

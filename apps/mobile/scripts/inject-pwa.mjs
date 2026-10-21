@@ -1,8 +1,9 @@
 // `expo export` (web.output = "single") emits a default index.html and ignores
 // app/+html.tsx, so we inject the PWA bits (manifest, icons, theme-color and the
 // service-worker registration) into the exported document. Idempotent.
-import { readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { PAGES, renderPage } from "./seo.mjs";
 
 const file = resolve("dist/index.html");
 let html = readFileSync(file, "utf8");
@@ -12,27 +13,7 @@ if (html.includes('rel="manifest"')) {
   process.exit(0);
 }
 
-const SITE_URL = "https://flowpedia.julsql.fr";
-const DESCRIPTION =
-  "Flowpedia: scroll Wikipedia like a social feed. Like, share and jump from topic to topic through inline links.";
-
-const tags = `    <meta name="description" content="${DESCRIPTION}" />
-    <link rel="canonical" href="${SITE_URL}/" />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Flowpedia" />
-    <meta property="og:title" content="Flowpedia" />
-    <meta property="og:description" content="${DESCRIPTION}" />
-    <meta property="og:url" content="${SITE_URL}/" />
-    <meta property="og:image" content="${SITE_URL}/icon-512.png" />
-    <meta name="twitter:card" content="summary" />
-    <script>
-      // Single-page export: point the canonical at the current route, not always "/".
-      (function () {
-        var l = document.querySelector('link[rel="canonical"]');
-        if (l && location.origin === "${SITE_URL}") l.href = "${SITE_URL}" + location.pathname;
-      })();
-    </script>
-    <link rel="manifest" href="/manifest.json" />
+const tags = `    <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#121110" />
     <link rel="icon" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -63,5 +44,16 @@ if (!html.includes('rel="manifest"')) {
   throw new Error("inject-pwa: failed to inject (no </head> found in index.html)");
 }
 
-writeFileSync(file, html);
-console.log("inject-pwa: injected PWA tags into dist/index.html");
+// Preload the icon font every screen draws with (hashed name, found in dist).
+const findFonts = (dir, name) =>
+  readdirSync(dir, { recursive: true })
+    .filter((f) => new RegExp(`(^|/)${name}\\.[0-9a-f]+\\.ttf$`).test(f))
+    .map((f) => "/" + join("assets", f));
+const fontPreloads = findFonts(resolve("dist/assets"), "MaterialIcons").slice(0, 1);
+
+// One pre-rendered document per public route (nginx serves /explore → explore.html),
+// each with its own title/description/canonical/OG tags.
+for (const page of PAGES) {
+  writeFileSync(resolve("dist", page.file), renderPage(html, page, { fontPreloads }));
+}
+console.log(`inject-pwa: injected PWA + SEO tags into ${PAGES.map((p) => p.file).join(", ")}`);
