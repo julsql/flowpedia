@@ -1,6 +1,7 @@
 // `expo export` (web.output = "single") emits a default index.html and ignores
-// app/+html.tsx, so we inject the PWA bits (manifest, icons, theme-color and the
-// service-worker registration) into the exported document. Idempotent.
+// app/+html.tsx, so we inject the PWA bits (manifest, icons, theme-color, the
+// service-worker registration) and the Umami page-view tracker into the exported
+// document. Idempotent.
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { PAGES, renderPage } from "./seo.mjs";
@@ -21,6 +22,7 @@ const tags = `    <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Flowpedia" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script defer src="https://stats.julsql.fr/js/app.js" data-website-id="0fe9e54f-c2c6-4fbf-95ee-a49cd2260017" data-domains="flowpedia.julsql.fr"></script>
     <script>
       // Never run the service worker on localhost, so a locally-served build
       // can't hijack the dev server's bundle with a cached copy.
