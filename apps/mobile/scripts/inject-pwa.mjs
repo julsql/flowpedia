@@ -12,7 +12,27 @@ if (html.includes('rel="manifest"')) {
   process.exit(0);
 }
 
-const tags = `    <link rel="manifest" href="/manifest.json" />
+const SITE_URL = "https://flowpedia.julsql.fr";
+const DESCRIPTION =
+  "Flowpedia: scroll Wikipedia like a social feed. Like, share and jump from topic to topic through inline links.";
+
+const tags = `    <meta name="description" content="${DESCRIPTION}" />
+    <link rel="canonical" href="${SITE_URL}/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Flowpedia" />
+    <meta property="og:title" content="Flowpedia" />
+    <meta property="og:description" content="${DESCRIPTION}" />
+    <meta property="og:url" content="${SITE_URL}/" />
+    <meta property="og:image" content="${SITE_URL}/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <script>
+      // Single-page export: point the canonical at the current route, not always "/".
+      (function () {
+        var l = document.querySelector('link[rel="canonical"]');
+        if (l && location.origin === "${SITE_URL}") l.href = "${SITE_URL}" + location.pathname;
+      })();
+    </script>
+    <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#121110" />
     <link rel="icon" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

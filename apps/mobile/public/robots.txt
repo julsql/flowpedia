@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Disallow: /auth/
+Disallow: /account
+Disallow: /advanced-settings
+Disallow: /inbox
+Disallow: /notifications
+Disallow: /requests
+Disallow: /people
+Disallow: /conversation/
+Disallow: /reset/
+Disallow: /confirm-email/
+Disallow: /profile
+Disallow: /shared
+
+Sitemap: https://flowpedia.julsql.fr/sitemap.xml
