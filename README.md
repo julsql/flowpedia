@@ -7,6 +7,15 @@ recommendation algorithm driven by reading signals.
 > Code is in English; the app UI is bilingual (en/fr), switchable in the profile.
 > Visual source of truth: [`design/README.md`](./design/README.md) (Direction A).
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/feed.png" alt="Home feed" width="32%">
+  <img src="docs/screenshots/article.jpg" alt="Article reader" width="32%">
+</p>
+
+<sub>Web build (Expo) in a mobile viewport; the feed shows live Wikipedia content.</sub>
+
 ## Stack
 
 - **Mobile** — React Native + Expo (universal: iOS / Android / web), expo-router, FlashList.
