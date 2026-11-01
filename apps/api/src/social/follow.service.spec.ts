@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import { ConflictException } from "@nestjs/common";
 import { FollowService } from "./follow.service";
 import { User } from "../auth/user.entity";
@@ -58,7 +59,7 @@ function makeService() {
     repo: (e: unknown) =>
       e === User ? userRepo : e === Follow ? followRepo : e === LibraryItem ? libraryRepo : undefined,
   };
-  const notifications = { notify: jest.fn(async () => undefined) };
+  const notifications = { notify: vi.fn(async () => undefined) };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = new FollowService(db as any, notifications as any);
   return { service, addUser, followRepo, libraryRepo, notifications };

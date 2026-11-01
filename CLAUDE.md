@@ -23,7 +23,7 @@ pnpm test                    # all workspaces (only API has real tests today)
 ```
 
 Run a single API test: `pnpm --filter @flowpedia/api test -- parse-article.spec.ts`
-(or `-t "<test name>"`). API tests are Jest + ts-jest, colocated as `*.spec.ts`.
+(or `-t "<test name>"`). API tests are Vitest (SWC transform, Jest-style globals), colocated as `*.spec.ts`.
 
 The mobile/shared `test` scripts are stubs (`exit 0`) — there are no RN tests yet.
 

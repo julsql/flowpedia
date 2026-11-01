@@ -17,7 +17,7 @@
   "flow.swipeHint": "上滑阅读",
   "article.readMore": "阅读更多",
   "article.showLess": "收起",
-  "article.minRead": "阅读 {{count}} 分钟",
+  "article.minRead_other": "阅读 {{count}} 分钟",
   "common.retry": "重试",
   "common.loadError": "无法加载信息流。",
   "common.source": "来源：维基百科",

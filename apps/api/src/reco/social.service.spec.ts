@@ -1,3 +1,4 @@
+import { vi, type Mock } from "vitest";
 import { SocialService } from "./social.service";
 import { DatabaseService } from "../database/database.service";
 import { Follow } from "../social/follow.entity";
@@ -10,12 +11,12 @@ function service(opts: {
   library?: Partial<LibraryItem>[];
   stories?: Partial<Story>[];
 }): SocialService {
-  const repos = new Map<unknown, { find: jest.Mock } | undefined>([
-    [Follow, opts.follows === null ? undefined : { find: jest.fn(async () => opts.follows ?? []) }],
-    [LibraryItem, { find: jest.fn(async () => opts.library ?? []) }],
-    [Story, { find: jest.fn(async () => opts.stories ?? []) }],
+  const repos = new Map<unknown, { find: Mock } | undefined>([
+    [Follow, opts.follows === null ? undefined : { find: vi.fn(async () => opts.follows ?? []) }],
+    [LibraryItem, { find: vi.fn(async () => opts.library ?? []) }],
+    [Story, { find: vi.fn(async () => opts.stories ?? []) }],
   ]);
-  const db = { repo: jest.fn((e: unknown) => repos.get(e)) } as unknown as DatabaseService;
+  const db = { repo: vi.fn((e: unknown) => repos.get(e)) } as unknown as DatabaseService;
   return new SocialService(db);
 }
 

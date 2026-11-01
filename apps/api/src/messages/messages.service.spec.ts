@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import { MessagesService } from "./messages.service";
 import { User } from "../auth/user.entity";
@@ -54,7 +55,7 @@ function makeService() {
   const db = {
     repo: (e: unknown) => (e === PageMessage ? msgRepo : e === User ? userRepo : undefined),
   };
-  const notifications = { notify: jest.fn(async () => undefined) };
+  const notifications = { notify: vi.fn(async () => undefined) };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = new MessagesService(db as any, notifications as any);
   return { service, msgRepo, notifications };

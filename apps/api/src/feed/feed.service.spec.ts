@@ -1,3 +1,4 @@
+import { vi, type Mock } from "vitest";
 import { FeedService, capRelatedByWeight, diversifyByCategory, weaveEvery } from "./feed.service";
 import type { ProfileService } from "../reco/profile.service";
 import type { SeenService } from "../reco/seen.service";
@@ -11,26 +12,26 @@ import type { Article } from "@flowpedia/shared";
 // unaffected. Tests that exercise personalization/de-dup pass their own.
 function emptyProfile(overrides: Partial<ProfileService> = {}): ProfileService {
   return {
-    getWeightedSeeds: jest.fn(async () => []),
-    getCategoryAffinity: jest.fn(async () => ({ entries: [] })),
+    getWeightedSeeds: vi.fn(async () => []),
+    getCategoryAffinity: vi.fn(async () => ({ entries: [] })),
     ...overrides,
   } as unknown as ProfileService;
 }
 function emptySeen(seen: string[] = []): SeenService {
-  return { getSeen: jest.fn(async () => new Set(seen)) } as unknown as SeenService;
+  return { getSeen: vi.fn(async () => new Set(seen)) } as unknown as SeenService;
 }
 function emptySocial(titles: string[] = []): SocialService {
-  return { getFollowedTitles: jest.fn(async () => titles) } as unknown as SocialService;
+  return { getFollowedTitles: vi.fn(async () => titles) } as unknown as SocialService;
 }
 function emptyBlock(topics: string[] = []): BlockService {
-  return { getBlocked: jest.fn(async () => new Set(topics)) } as unknown as BlockService;
+  return { getBlocked: vi.fn(async () => new Set(topics)) } as unknown as BlockService;
 }
 // Embeddings off by default → the feed uses its Phase 1 ranking.
 function offEmbeddings(): EmbeddingService {
-  return { enabled: false, embed: jest.fn(async (items: unknown[]) => items.map(() => null)) } as unknown as EmbeddingService;
+  return { enabled: false, embed: vi.fn(async (items: unknown[]) => items.map(() => null)) } as unknown as EmbeddingService;
 }
 function nullTaste(): TasteService {
-  return { getTaste: jest.fn(async () => null) } as unknown as TasteService;
+  return { getTaste: vi.fn(async () => null) } as unknown as TasteService;
 }
 function makeService(
   wiki: unknown,
@@ -61,15 +62,15 @@ function fakeArticle(id: string): Article {
 
 const TITLES = Array.from({ length: 12 }, (_, i) => `Title_${i}`);
 
-function makeWikipediaMock(getSummary: jest.Mock, pool: string[] = TITLES) {
+function makeWikipediaMock(getSummary: Mock, pool: string[] = TITLES) {
   return {
     getSummary,
     normalizeLang: (lang?: string) => (lang === "en" ? "en" : "fr"),
-    getPopularTitles: jest.fn(async () => pool),
-    getNewsTitles: jest.fn(async () => pool),
-    getRelatedTitles: jest.fn(async () => pool),
-    getDiscoverTitles: jest.fn(async () => pool),
-    getRandomTitles: jest.fn(async (_lang: string, n: number) =>
+    getPopularTitles: vi.fn(async () => pool),
+    getNewsTitles: vi.fn(async () => pool),
+    getRelatedTitles: vi.fn(async () => pool),
+    getDiscoverTitles: vi.fn(async () => pool),
+    getRandomTitles: vi.fn(async (_lang: string, n: number) =>
       Array.from({ length: n }, (_, i) => `Random_${i}`),
     ),
   };
@@ -77,7 +78,7 @@ function makeWikipediaMock(getSummary: jest.Mock, pool: string[] = TITLES) {
 
 describe("FeedService", () => {
   it("returns a first page of 5 articles with a cursor (no shuffle when seed=0)", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const wiki = makeWikipediaMock(getSummary);
     const service = makeService(wiki);
 
@@ -89,7 +90,7 @@ describe("FeedService", () => {
   });
 
   it("selects the pool by tab", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const wiki = makeWikipediaMock(getSummary);
     const service = makeService(wiki);
 
@@ -106,7 +107,7 @@ describe("FeedService", () => {
   });
 
   it("skips articles whose fetch fails", async () => {
-    const getSummary = jest.fn(async (t: string) => {
+    const getSummary = vi.fn(async (t: string) => {
       if (t === TITLES[1]) throw new Error("404");
       return fakeArticle(t);
     });
@@ -118,7 +119,7 @@ describe("FeedService", () => {
   });
 
   it("falls back to random articles past the end of the pool (infinite)", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const wiki = makeWikipediaMock(getSummary);
     const service = makeService(wiki);
 
@@ -130,12 +131,12 @@ describe("FeedService", () => {
   });
 
   it("weaves a different subject into 'forYou' (escape door from the rabbit hole)", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const wiki = makeWikipediaMock(getSummary);
     const related = Array.from({ length: 12 }, (_, i) => `Related_${i}`);
     const popular = Array.from({ length: 12 }, (_, i) => `Popular_${i}`);
-    wiki.getRelatedTitles = jest.fn(async () => related);
-    wiki.getPopularTitles = jest.fn(async () => popular);
+    wiki.getRelatedTitles = vi.fn(async () => related);
+    wiki.getPopularTitles = vi.fn(async () => popular);
     const service = makeService(wiki);
 
     // First two pages (10 items) should contain at least one popular item.
@@ -148,12 +149,12 @@ describe("FeedService", () => {
   });
 
   it("orients news toward the user's interests when seeds exist", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const wiki = makeWikipediaMock(getSummary);
     const news = Array.from({ length: 12 }, (_, i) => `News_${i}`);
     const related = Array.from({ length: 12 }, (_, i) => `Interest_${i}`);
-    wiki.getNewsTitles = jest.fn(async () => news);
-    wiki.getRelatedTitles = jest.fn(async () => related);
+    wiki.getNewsTitles = vi.fn(async () => news);
+    wiki.getRelatedTitles = vi.fn(async () => related);
     const service = makeService(wiki);
 
     const ids = (await service.getFeed("news", "en", undefined, ["Seed"])).items.map((a) => a.id);
@@ -163,7 +164,7 @@ describe("FeedService", () => {
   });
 
   it("excludes already-seen articles from the pool", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const service = makeService(makeWikipediaMock(getSummary));
 
     const seen = [TITLES[0], TITLES[1], TITLES[2]];
@@ -173,10 +174,10 @@ describe("FeedService", () => {
   });
 
   it("enriches recall with the taste profile only when personalize is on", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const wiki = makeWikipediaMock(getSummary);
-    wiki.getRelatedTitles = jest.fn(async () => TITLES);
-    const profile = emptyProfile({ getWeightedSeeds: jest.fn(async () => ["ProfileSeed"]) });
+    wiki.getRelatedTitles = vi.fn(async () => TITLES);
+    const profile = emptyProfile({ getWeightedSeeds: vi.fn(async () => ["ProfileSeed"]) });
     const service = makeService(wiki, profile);
 
     // Page-anchored (personalize off): the explicit page seed drives recall.
@@ -194,7 +195,7 @@ describe("FeedService", () => {
   });
 
   it("excludes server-side seen titles even when the client sends no exclude", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const service = makeService(makeWikipediaMock(getSummary), emptyProfile(), emptySeen([TITLES[0], TITLES[1]]));
 
     const res = await service.getFeed("popular", "en", undefined, [], 0, [], [], "u1");
@@ -203,7 +204,7 @@ describe("FeedService", () => {
   });
 
   it("weaves a small dose of followed-accounts' picks into the personalized feed", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const wiki = makeWikipediaMock(getSummary);
     const social = emptySocial(["FollowedPick"]);
     const service = makeService(wiki, emptyProfile(), emptySeen(), social);
@@ -218,7 +219,7 @@ describe("FeedService", () => {
   });
 
   it("does not pull social picks for a page-anchored feed", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const social = emptySocial(["FollowedPick"]);
     const service = makeService(makeWikipediaMock(getSummary), emptyProfile(), emptySeen(), social);
 
@@ -228,13 +229,13 @@ describe("FeedService", () => {
   });
 
   it("weaves deliberate off-profile current events into the personalized feed", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const wiki = makeWikipediaMock(getSummary);
     const onProfile = Array.from({ length: 12 }, (_, i) => `Rel_${i}`);
     const news = Array.from({ length: 12 }, (_, i) => `News_${i}`);
-    wiki.getRelatedTitles = jest.fn(async () => onProfile);
-    wiki.getPopularTitles = jest.fn(async () => onProfile); // keep the pool on-profile
-    wiki.getNewsTitles = jest.fn(async () => news);
+    wiki.getRelatedTitles = vi.fn(async () => onProfile);
+    wiki.getPopularTitles = vi.fn(async () => onProfile); // keep the pool on-profile
+    wiki.getNewsTitles = vi.fn(async () => news);
     const service = makeService(wiki);
 
     const p1 = (await service.getFeed("forYou", "en", undefined, ["Seed"], 0, [], [], "u1", true)).items.map(
@@ -248,13 +249,13 @@ describe("FeedService", () => {
   });
 
   it("re-ranks the page by the embedding taste vector when Phase 2 is enabled", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const wiki = makeWikipediaMock(getSummary);
-    const taste = { getTaste: jest.fn(async () => [1, 0]) } as unknown as TasteService;
+    const taste = { getTaste: vi.fn(async () => [1, 0]) } as unknown as TasteService;
     // Title_2's embedding aligns with the taste; the others are orthogonal.
     const embeddings = {
       enabled: true,
-      embed: jest.fn(async (items: { articleId: string }[]) =>
+      embed: vi.fn(async (items: { articleId: string }[]) =>
         items.map((it) => (it.articleId === TITLES[2] ? [1, 0] : [0, 1])),
       ),
     } as unknown as EmbeddingService;
@@ -267,7 +268,7 @@ describe("FeedService", () => {
   });
 
   it("hard-filters a blocked topic from the hydrated page", async () => {
-    const getSummary = jest.fn(async (t: string) => ({
+    const getSummary = vi.fn(async (t: string) => ({
       ...fakeArticle(t),
       category: t === TITLES[0] ? "Blocked" : "Keep",
     }));
@@ -285,7 +286,7 @@ describe("FeedService", () => {
   });
 
   it("reorders deterministically with a seed", async () => {
-    const getSummary = jest.fn(async (t: string) => fakeArticle(t));
+    const getSummary = vi.fn(async (t: string) => fakeArticle(t));
     const service = makeService(makeWikipediaMock(getSummary));
 
     const first = (await service.getFeed("popular", "en", undefined, [], 123)).items.map((a) => a.id);

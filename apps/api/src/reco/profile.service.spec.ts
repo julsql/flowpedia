@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import { ProfileService } from "./profile.service";
 import { DatabaseService } from "../database/database.service";
 import { Interaction } from "../events/interaction.entity";
@@ -11,11 +12,11 @@ function service(
   graph: Record<string, string[]> = {},
 ): ProfileService {
   const repo = rows
-    ? { find: jest.fn(async () => rows) }
+    ? { find: vi.fn(async () => rows) }
     : undefined;
-  const db = { repo: jest.fn(() => repo) } as unknown as DatabaseService;
+  const db = { repo: vi.fn(() => repo) } as unknown as DatabaseService;
   const wikipedia = {
-    getTopicalCategories: jest.fn(async (title: string) => graph[title] ?? []),
+    getTopicalCategories: vi.fn(async (title: string) => graph[title] ?? []),
   } as unknown as WikipediaService;
   return new ProfileService(db, wikipedia);
 }

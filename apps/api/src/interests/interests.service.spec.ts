@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import { InterestsService } from "./interests.service";
 import { WikipediaService } from "../wikipedia/wikipedia.service";
 
@@ -9,7 +10,7 @@ import { WikipediaService } from "../wikipedia/wikipedia.service";
  */
 function serviceWithGraph(graph: Record<string, string[]>): InterestsService {
   const wikipedia = {
-    getTopicalCategories: jest.fn(async (title: string) => graph[title] ?? []),
+    getTopicalCategories: vi.fn(async (title: string) => graph[title] ?? []),
   } as unknown as WikipediaService;
   return new InterestsService(wikipedia);
 }

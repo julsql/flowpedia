@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import { ServiceUnavailableException } from "@nestjs/common";
 import { LibraryService } from "./library.service";
 import { LibraryItem } from "./library-item.entity";
@@ -148,6 +149,20 @@ describe("LibraryService", () => {
     await service.add("u1", "A", "bogus" as never);
     await service.add("u1", "", "like");
     expect(repo!.rows).toHaveLength(0);
+  });
+
+  it("ignores a remove missing its article or kind instead of widening the delete", async () => {
+    const { service, repo } = makeService();
+    await service.add("u1", "A", "like");
+    await service.add("u1", "B", "save");
+    const deleteSpy = vi.spyOn(repo!, "delete");
+
+    await service.remove("u1", undefined as never, "like");
+    await service.remove("u1", "A", undefined as never);
+    await service.remove("u1", "", "like");
+
+    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(repo!.rows).toHaveLength(2);
   });
 
   it("requires a database", async () => {

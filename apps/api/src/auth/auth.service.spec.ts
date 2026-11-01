@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import {
   BadRequestException,
   ConflictException,
@@ -46,18 +47,18 @@ function fakeUserRepo() {
 
 function makeService() {
   const repo = fakeUserRepo();
-  const interactions = { delete: jest.fn(async () => ({ affected: 0 })) };
+  const interactions = { delete: vi.fn(async () => ({ affected: 0 })) };
   const mail = {
-    sendPasswordReset: jest.fn((_to: string, _name: string, _link: string) =>
+    sendPasswordReset: vi.fn((_to: string, _name: string, _link: string) =>
       Promise.resolve<undefined>(undefined),
     ),
-    sendEmailChange: jest.fn((_to: string, _name: string, _link: string) =>
+    sendEmailChange: vi.fn((_to: string, _name: string, _link: string) =>
       Promise.resolve<undefined>(undefined),
     ),
   };
   // Route by entity: User → the user repo, anything else → the interactions stub.
   const db = { repo: (entity: unknown) => (entity === User ? repo : interactions), isReady: true };
-  const jwt = { sign: jest.fn(() => "jwt-token") };
+  const jwt = { sign: vi.fn(() => "jwt-token") };
   const config = { get: (_key: string, def?: unknown) => def };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = new AuthService(db as any, jwt as any, mail as any, config as any);

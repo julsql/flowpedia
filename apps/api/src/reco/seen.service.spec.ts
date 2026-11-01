@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import { SeenService } from "./seen.service";
 import { DatabaseService } from "../database/database.service";
 import { Interaction } from "../events/interaction.entity";
@@ -6,8 +7,8 @@ const now = Date.now();
 const DAY = 24 * 60 * 60 * 1000;
 
 function service(rows: Partial<Interaction>[] | null): SeenService {
-  const repo = rows ? { find: jest.fn(async () => rows) } : undefined;
-  const db = { repo: jest.fn(() => repo) } as unknown as DatabaseService;
+  const repo = rows ? { find: vi.fn(async () => rows) } : undefined;
+  const db = { repo: vi.fn(() => repo) } as unknown as DatabaseService;
   return new SeenService(db);
 }
 

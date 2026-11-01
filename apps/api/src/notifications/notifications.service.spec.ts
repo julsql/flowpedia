@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import { NotificationsService } from "./notifications.service";
 import { User } from "../auth/user.entity";
 import { Notification } from "./notification.entity";
@@ -44,10 +45,10 @@ function makeService() {
     repo: (e: unknown) => (e === Notification ? notifRepo : e === User ? userRepo : undefined),
   };
   const push = {
-    tokensForUser: jest.fn(async () => [{ token: "ExponentPushToken[x]", locale: "fr" }]),
-    send: jest.fn(async () => undefined),
+    tokensForUser: vi.fn(async () => [{ token: "ExponentPushToken[x]", locale: "fr" }]),
+    send: vi.fn(async () => undefined),
   };
-  const realtime = { emitToUser: jest.fn() };
+  const realtime = { emitToUser: vi.fn() };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = new NotificationsService(db as any, push as any, realtime as any);
   return { service, notifRepo, push, realtime };
