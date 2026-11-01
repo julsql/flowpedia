@@ -117,5 +117,5 @@ export function RemoteImage({
 
 const styles = StyleSheet.create({
   clip: { overflow: "hidden" },
-  skeleton: { ...StyleSheet.absoluteFillObject },
+  skeleton: { ...StyleSheet.absoluteFill },
 });

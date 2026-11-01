@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   columnWeb: { maxWidth: CONTENT_MAX_WIDTH },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   item: { width: "100%", justifyContent: "flex-end" },
-  image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+  image: { ...StyleSheet.absoluteFill, width: "100%", height: "100%" },
   gradient: { position: "absolute", left: 0, right: 0, bottom: 0, height: "60%" },
   actions: { position: "absolute", right: 14, bottom: 150, alignItems: "center", gap: 22 },
   action: { alignItems: "center" },

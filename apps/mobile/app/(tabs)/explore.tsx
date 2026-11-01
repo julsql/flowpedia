@@ -602,7 +602,7 @@ const makeStyles = (colors: ThemeColors) =>
     grid: { flexDirection: "row", flexWrap: "wrap" },
     // Instagram-style square tile (sharp corners, hairline gaps via margins).
     cell: { overflow: "hidden", backgroundColor: colors.field, justifyContent: "flex-end" },
-    cellImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+    cellImage: { ...StyleSheet.absoluteFill, width: "100%", height: "100%" },
     // Title overlaid on the image (gradient for legibility).
     cellGradient: { position: "absolute", left: 0, right: 0, bottom: 0, height: "60%" },
     cellTitle: { color: "#fff", fontSize: 12, fontWeight: "600", padding: 8, lineHeight: 15 },

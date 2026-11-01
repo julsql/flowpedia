@@ -381,7 +381,7 @@ export function useShare(): ShareSheetValue {
 
 const makeStyles = (colors: ThemeColors) =>
   StyleSheet.create({
-    overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.55)" },
+    overlay: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.55)" },
     sheet: {
       position: "absolute",
       left: 0,

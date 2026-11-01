@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { ViewToken } from "react-native";
+import type { ViewToken } from "@shopify/flash-list";
 import type { Article } from "@flowpedia/shared";
 import { sendEvents } from "../api/client";
 
@@ -15,10 +15,10 @@ const MIN_CARD_DWELL_MS = 300;
 export function useCardDwell() {
   const startedAt = useRef(new Map<string, number>()).current;
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
-  const onViewableItemsChanged = useRef(({ changed }: { changed: ViewToken[] }) => {
+  const onViewableItemsChanged = useRef(({ changed }: { changed: ViewToken<Article>[] }) => {
     const now = Date.now();
     for (const token of changed) {
-      const id = (token.item as Article | undefined)?.id;
+      const id = token.item?.id;
       if (!id) {
         continue;
       }

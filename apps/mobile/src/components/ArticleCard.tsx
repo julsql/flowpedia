@@ -4,8 +4,7 @@ import {
   StyleSheet,
   Text,
   View,
-  type NativeSyntheticEvent,
-  type TextLayoutEventData,
+  type TextLayoutEvent,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import type { Article } from "@flowpedia/shared";
@@ -41,7 +40,7 @@ export function ArticleCard({ article, onShare, onOpen, onNotInterested }: Artic
   const [lineCount, setLineCount] = useState(0);
   const canExpand = lineCount > COLLAPSED_LINES;
 
-  const handleTextLayout = (e: NativeSyntheticEvent<TextLayoutEventData>) => {
+  const handleTextLayout = (e: TextLayoutEvent) => {
     if (lineCount === 0) {
       setLineCount(e.nativeEvent.lines.length);
     }
