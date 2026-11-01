@@ -1,3 +1,61 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Expo / React Native + Metro need a flat node_modules to resolve transitive
+# packages (e.g. @babel/runtime). Recommended layout for Expo in a pnpm monorepo.
+nodeLinker: hoisted
+
+# Install scripts are not needed: prebuilt binaries ship via optional deps / the
+# package itself (onnxruntime-node's script only fetches GPU runtimes), and
+# @scarf/scarf is telemetry.
+allowBuilds:
+  "@scarf/scarf": false
+  "@swc/core": false
+  onnxruntime-node: false
+  protobufjs: false
+
+# pnpm >=11 enforces a 1-day minimumReleaseAge. These exact versions are already
+# on main and were published < 24h before the pnpm 12 migration; the exclusion
+# is version-pinned and can be dropped after 2026-11-02T22:00Z.
+minimumReleaseAgeExclude:
+  - i18next@26.7.0
+  - react-i18next@17.1.11
+  - tinybench@6.2.3
+
+overrides:
+  "ajv": ">=8.18.0"
+  "baseline-browser-mapping": ">=2.11.0"
+  "body-parser@^1": "^1.20.9"
+  "brace-expansion@^1": "^1.1.21"
+  "brace-expansion@^2": "^2.1.7"
+  "brace-expansion@^5": "^5.0.12"
+  "browserslist": ">=4.28.7"
+  "compression": ">=1.8.2"
+  "decode-uri-component": ">=0.5.1"
+  "engine.io": ">=6.6.10"
+  "fast-uri@^3": "^3.1.9"
+  "file-type": ">=21.3.2"
+  "glob": ">=14.0.2"
+  "js-yaml@^3": "^3.15.2"
+  "js-yaml@^4": "^4.3.2"
+  "lodash": ">=4.18.0"
+  "minimatch": ">=11.0.1"
+  "multer": ">=2.5.0"
+  "nanoid@^3": "^3.3.18"
+  "node-forge": ">=1.4.1"
+  "picomatch@>=4.0.0 <4.0.4": ">=4.0.4"
+  "postcss@^8": "^8.5.26"
+  "proxy-addr": ">=2.0.8"
+  "qs": ">=6.16.1"
+  "sharp@^0.34": "^0.35.0"
+  "shell-quote": ">=1.11.0"
+  "socket.io-parser@^4": "^4.2.7"
+  "source-map-js": ">=1.2.2"
+  "tar@^7": "^7.5.21"
+  "tmp": ">=0.2.6"
+  "undici@^6": "^6.29.1"
+  "uuid": "^11.1.1"
+  "webpack": ">=5.104.1"
+  "@xmldom/xmldom@^0.8": "^0.8.15"
+  "@xmldom/xmldom@^0.9": "^0.9.12"
