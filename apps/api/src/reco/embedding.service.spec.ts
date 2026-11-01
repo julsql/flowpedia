@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import { EmbeddingService } from "./embedding.service";
 import { DatabaseService } from "../database/database.service";
 import { ConfigService } from "@nestjs/config";
@@ -6,16 +7,16 @@ import { ArticleEmbedding } from "./article-embedding.entity";
 function service(opts: { enabled: boolean; rows?: Partial<ArticleEmbedding>[]; hasDb?: boolean }) {
   const store: Partial<ArticleEmbedding>[] = [...(opts.rows ?? [])];
   const repo = {
-    find: jest.fn(async () => store),
-    upsert: jest.fn(async (row: Partial<ArticleEmbedding>) => {
+    find: vi.fn(async () => store),
+    upsert: vi.fn(async (row: Partial<ArticleEmbedding>) => {
       store.push(row);
     }),
   };
   const db = {
-    repo: jest.fn(() => (opts.hasDb === false ? undefined : repo)),
+    repo: vi.fn(() => (opts.hasDb === false ? undefined : repo)),
   } as unknown as DatabaseService;
   const config = {
-    get: jest.fn((k: string) => (k === "RECO_EMBEDDINGS" && opts.enabled ? "1" : undefined)),
+    get: vi.fn((k: string) => (k === "RECO_EMBEDDINGS" && opts.enabled ? "1" : undefined)),
   } as unknown as ConfigService;
   return { svc: new EmbeddingService(db, config), repo };
 }
@@ -34,7 +35,7 @@ describe("EmbeddingService", () => {
 
   it("computes, caches and returns vectors via the injected embedder", async () => {
     const { svc, repo } = service({ enabled: true });
-    const embedder = jest.fn(async (texts: string[]) => texts.map((_, i) => [i + 1, 0]));
+    const embedder = vi.fn(async (texts: string[]) => texts.map((_, i) => [i + 1, 0]));
     svc.setEmbedder(embedder);
 
     const out = await svc.embed([{ articleId: "A", text: "a" }, { articleId: "B", text: "b" }], "en");
@@ -44,7 +45,7 @@ describe("EmbeddingService", () => {
 
   it("serves cached vectors without calling the embedder", async () => {
     const { svc } = service({ enabled: true, rows: [{ articleId: "A", lang: "en", model: "Xenova/multilingual-e5-small", vec: [9, 9] }] });
-    const embedder = jest.fn(async (texts: string[]) => texts.map(() => [0, 0]));
+    const embedder = vi.fn(async (texts: string[]) => texts.map(() => [0, 0]));
     svc.setEmbedder(embedder);
 
     const out = await svc.embed([{ articleId: "A", text: "a" }], "en");

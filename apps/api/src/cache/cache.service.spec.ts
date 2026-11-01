@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import { ConfigService } from "@nestjs/config";
 import { CacheService } from "./cache.service";
 
@@ -14,7 +15,7 @@ async function makeCache(): Promise<CacheService> {
 
 describe("CacheService (in-memory fallback)", () => {
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it("returns undefined on a miss", async () => {
@@ -30,14 +31,14 @@ describe("CacheService (in-memory fallback)", () => {
   });
 
   it("returns undefined once the TTL has elapsed", async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const cache = await makeCache();
     await cache.set("key", "value", 1_000);
 
-    jest.advanceTimersByTime(999);
+    vi.advanceTimersByTime(999);
     expect(await cache.get<string>("key")).toBe("value");
 
-    jest.advanceTimersByTime(2);
+    vi.advanceTimersByTime(2);
     expect(await cache.get("key")).toBeUndefined();
   });
 

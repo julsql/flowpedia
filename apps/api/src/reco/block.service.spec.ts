@@ -1,12 +1,13 @@
+import { vi } from "vitest";
 import { BlockService } from "./block.service";
 import { DatabaseService } from "../database/database.service";
 import { BlockedTopic } from "./blocked-topic.entity";
 
 function service(rows: Partial<BlockedTopic>[] | null) {
   const repo = rows
-    ? { find: jest.fn(async () => rows), upsert: jest.fn(async () => undefined), delete: jest.fn(async () => undefined) }
+    ? { find: vi.fn(async () => rows), upsert: vi.fn(async () => undefined), delete: vi.fn(async () => undefined) }
     : undefined;
-  const db = { repo: jest.fn(() => repo) } as unknown as DatabaseService;
+  const db = { repo: vi.fn(() => repo) } as unknown as DatabaseService;
   return { svc: new BlockService(db), repo };
 }
 

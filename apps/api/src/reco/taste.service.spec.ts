@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import { TasteService, embedText } from "./taste.service";
 import type { ProfileService } from "./profile.service";
 import type { WikipediaService } from "../wikipedia/wikipedia.service";
@@ -10,15 +11,15 @@ function service(opts: {
   vecs?: Record<string, number[]>;
 }): TasteService {
   const profile = {
-    getEngaged: jest.fn(async () => opts.engaged ?? []),
+    getEngaged: vi.fn(async () => opts.engaged ?? []),
   } as unknown as ProfileService;
   const wikipedia = {
     normalizeLang: () => "en",
-    getSummary: jest.fn(async (id: string) => ({ title: id, category: "c", summary: "s" })),
+    getSummary: vi.fn(async (id: string) => ({ title: id, category: "c", summary: "s" })),
   } as unknown as WikipediaService;
   const embeddings = {
     enabled: opts.enabled,
-    embed: jest.fn(async (items: { articleId: string }[]) =>
+    embed: vi.fn(async (items: { articleId: string }[]) =>
       items.map((i) => opts.vecs?.[i.articleId] ?? null),
     ),
   } as unknown as EmbeddingService;

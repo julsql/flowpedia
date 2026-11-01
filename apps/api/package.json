@@ -6,18 +6,18 @@
     "build": "nest build",
     "start": "nest start",
     "start:dev": "nest start --watch",
-    "test": "jest"
+    "test": "vitest run"
   },
   "dependencies": {
     "@flowpedia/shared": "workspace:*",
-    "@nestjs/common": "^10.4.4",
-    "@nestjs/config": "^3.2.3",
-    "@nestjs/core": "^11.1.18",
-    "@nestjs/jwt": "^10.2.0",
-    "@nestjs/platform-express": "^10.4.4",
-    "@nestjs/platform-socket.io": "^10",
-    "@nestjs/swagger": "^8.1.1",
-    "@nestjs/websockets": "^10",
+    "@nestjs/common": "^12.3.2",
+    "@nestjs/config": "^12.0.1",
+    "@nestjs/core": "^12.3.2",
+    "@nestjs/jwt": "^12.0.3",
+    "@nestjs/platform-express": "^12.3.2",
+    "@nestjs/platform-socket.io": "^12.3.2",
+    "@nestjs/swagger": "^12.0.5",
+    "@nestjs/websockets": "^12.3.2",
     "bcryptjs": "^3.0.3",
     "ioredis": "^6.0.0",
     "node-html-parser": "^9.0.6",
@@ -32,30 +32,18 @@
     "@huggingface/transformers": "^4.3.2"
   },
   "devDependencies": {
-    "@nestjs/cli": "^10.4.5",
-    "@nestjs/schematics": "^10.1.4",
-    "@nestjs/testing": "^10.4.4",
+    "@nestjs/cli": "^12.0.11",
+    "@nestjs/schematics": "^12.0.12",
+    "@nestjs/testing": "^12.3.2",
+    "@swc/core": "^1.16.21",
     "@types/express": "^5.0.0",
-    "@types/jest": "^30.0.0",
     "@types/node": "^22.7.4",
     "@types/nodemailer": "^8.0.2",
-    "jest": "^30.5.2",
-    "ts-jest": "^29.4.15",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.6.3"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.ts$": "ts-jest"
-    },
-    "testEnvironment": "node"
+    "typescript": "^6.0.3",
+    "unplugin-swc": "^2.0.0",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   }
 }
