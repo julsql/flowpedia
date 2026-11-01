@@ -35,7 +35,7 @@ prints it on boot) or use `adb reverse`. Before first API run:
 
 ## Architecture
 
-pnpm workspace (Node ≥22.13), three packages:
+pnpm workspace (Node ≥24), three packages:
 
 - `apps/api` — **NestJS**. A thin, cached proxy over the Wikimedia REST API plus
   feed assembly and signal ingestion. No build needed in dev (`nest start`).

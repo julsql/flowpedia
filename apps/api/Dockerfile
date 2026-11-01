@@ -1,5 +1,5 @@
 # --- Build (pnpm workspace: only @flowpedia/api and its deps) ---
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 RUN corepack enable
 WORKDIR /repo
 
@@ -18,7 +18,7 @@ RUN pnpm --filter @flowpedia/api build
 RUN pnpm --filter @flowpedia/api... install --frozen-lockfile --prod
 
 # --- Runtime ---
-FROM node:22-alpine AS runtime
+FROM node:24-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /repo/node_modules ./node_modules

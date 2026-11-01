@@ -37,7 +37,7 @@
     "@nestjs/testing": "^12.3.2",
     "@swc/core": "^1.16.21",
     "@types/express": "^5.0.0",
-    "@types/node": "^22.7.4",
+    "@types/node": "^24.19.2",
     "@types/nodemailer": "^8.0.2",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
