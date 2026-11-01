@@ -1,5 +1,5 @@
 # --- Build the Expo web bundle (static SPA, app.json web.output = "single") ---
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 RUN corepack enable
 WORKDIR /repo
 

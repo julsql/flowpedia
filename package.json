@@ -5,7 +5,7 @@
   "description": "Flowpedia — a social-style feed of Wikipedia articles",
   "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=24"
   },
   "scripts": {
     "api": "pnpm --filter @flowpedia/api start:dev",
