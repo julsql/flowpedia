@@ -5,7 +5,7 @@ RUN npm i -g corepack@0.36.0 && corepack enable
 WORKDIR /repo
 
 # Manifests first so the install layer is cached across source changes.
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 RUN pnpm install --frozen-lockfile --filter @flowpedia/api...
