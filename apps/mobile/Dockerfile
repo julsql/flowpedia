@@ -1,6 +1,7 @@
 # --- Build the Expo web bundle (static SPA, app.json web.output = "single") ---
-FROM node:24-alpine AS build
-RUN corepack enable
+FROM node:26-alpine AS build
+# node:26 no longer bundles corepack.
+RUN npm i -g corepack@0.36.0 && corepack enable
 WORKDIR /repo
 
 # The API URL is baked into the JS bundle at build time (EXPO_PUBLIC_*).

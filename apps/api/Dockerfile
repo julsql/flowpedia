@@ -1,6 +1,7 @@
 # --- Build (pnpm workspace: only @flowpedia/api and its deps) ---
-FROM node:24-alpine AS build
-RUN corepack enable
+FROM node:26-alpine AS build
+# node:26 no longer bundles corepack.
+RUN npm i -g corepack@0.36.0 && corepack enable
 WORKDIR /repo
 
 # Manifests first so the install layer is cached across source changes.
@@ -18,7 +19,7 @@ RUN pnpm --filter @flowpedia/api build
 RUN pnpm --filter @flowpedia/api... install --frozen-lockfile --prod
 
 # --- Runtime ---
-FROM node:24-alpine AS runtime
+FROM node:26-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /repo/node_modules ./node_modules
