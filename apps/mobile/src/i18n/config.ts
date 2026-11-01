@@ -1,3 +1,7 @@
+// Must run before i18next initializes: Hermes may ship without a complete
+// Intl.PluralRules, which i18next's v4 plural keys (`_one`, `_other`…) rely on.
+// The polyfill is a no-op wherever a full implementation already exists (web).
+import "intl-pluralrules";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { getLocales } from "expo-localization";
@@ -57,8 +61,15 @@ export const LOCALE_LABELS: Record<Locale, string> = {
   tr: "Türkçe",
 };
 
-/** Translation keys are derived from the reference locale (en). */
-export type TranslationKey = keyof typeof en;
+type PluralSuffix = "zero" | "one" | "two" | "few" | "many" | "other";
+type StripPluralSuffix<K> = K extends `${infer Base}_${PluralSuffix}` ? Base : K;
+
+/**
+ * Translation keys are derived from the reference locale (en). Plural variants
+ * (`key_one`, `key_other`…) collapse to their base key, which is what callers
+ * pass to `t()` along with `count`.
+ */
+export type TranslationKey = StripPluralSuffix<keyof typeof en>;
 
 const resources = {
   en: { translation: en },
@@ -96,9 +107,6 @@ void i18n.use(initReactI18next).init({
   fallbackLng: "en",
   interpolation: { escapeValue: false },
   returnNull: false,
-  // Hermes (React Native) has no full Intl.PluralRules; v3 plural handling
-  // avoids the runtime warning and works with our single-form keys.
-  compatibilityJSON: "v3",
 });
 
 void AsyncStorage.getItem(STORAGE_KEY).then((saved) => {
