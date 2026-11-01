@@ -21,7 +21,7 @@ COPY apps/mobile ./apps/mobile
 RUN pnpm --filter @flowpedia/mobile build:web
 
 # --- Serve the static bundle with nginx ---
-FROM nginx:1.27-alpine
+FROM nginx:1.30-alpine
 COPY apps/mobile/docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/apps/mobile/dist /usr/share/nginx/html
 EXPOSE 80
