@@ -200,8 +200,8 @@ importers:
         specifier: ~58.0.4
         version: 58.0.4(expo@58.0.22)(react-native@0.88.1(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       i18next:
-        specifier: ^26.6.0
-        version: 26.6.0(typescript@7.0.2)
+        specifier: ^26.7.0
+        version: 26.7.0(typescript@7.0.2)
       intl-pluralrules:
         specifier: ^2.0.1
         version: 2.0.1
@@ -212,8 +212,8 @@ importers:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
       react-i18next:
-        specifier: ^17.1.10
-        version: 17.1.10(i18next@26.6.0(typescript@7.0.2))(react-dom@19.3.0(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
+        specifier: ^17.1.11
+        version: 17.1.11(i18next@26.7.0(typescript@7.0.2))(react-dom@19.3.0(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
       react-native:
         specifier: 0.88.1
         version: 0.88.1(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.0)
@@ -3306,8 +3306,8 @@ packages:
   hyphenate-style-name@1.1.0:
     resolution: {integrity: sha512-WDC/ui2VVRrz3jOVi+XtjqkDjiVjTtFaAGiW37k6b+ohyQ5wYDOGkvCZa8+H0nx3gyvv0+BST9xuOgIyGQ00gw==}
 
-  i18next@26.6.0:
-    resolution: {integrity: sha512-jpb1n5386s9mbBLNF6tSNIVhbBUUNiNeDyjWte+uxHP/Wr+CEy7WBM8q29TkfQ46VbwKeJFYdQJK3pSUhLp4CQ==}
+  i18next@26.7.0:
+    resolution: {integrity: sha512-ooLIKg1z3/iTQ4fjeQKB2FkMoYhplTCB4djrlTYLg9b32sycFcqovQIXfM7NYVMtmSwQ4I67uf4/JRSeO/Cvog==}
     peerDependencies:
       typescript: ^5 || ^6 || ^7
     peerDependenciesMeta:
@@ -4185,8 +4185,8 @@ packages:
     peerDependencies:
       react: '>=17.0.0'
 
-  react-i18next@17.1.10:
-    resolution: {integrity: sha512-XuUuA/rxukE4hXuR//PN308DuSQkWqKNNWBUj0dDTR087l3+6WLid3NC/w55ALrXA/dtWb7lychJ4rQLR3DCDg==}
+  react-i18next@17.1.11:
+    resolution: {integrity: sha512-nQqkvaD+N4kSrM0bosDc7yW2IvaC3chHPhZb0FoRXX6Buf1JzfOLLLs2u7SfXcnAE3nKAIn0Kvu68lQGObPlyA==}
     peerDependencies:
       i18next: '>= 26.2.0'
       react: '>= 16.8.0'
@@ -8412,7 +8412,7 @@ snapshots:
 
   hyphenate-style-name@1.1.0: {}
 
-  i18next@26.6.0(typescript@7.0.2):
+  i18next@26.7.0(typescript@7.0.2):
     optionalDependencies:
       typescript: 7.0.2
 
@@ -8499,7 +8499,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 22.20.0
+      '@types/node': 24.19.2
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
@@ -9289,11 +9289,11 @@ snapshots:
     dependencies:
       react: 19.3.0
 
-  react-i18next@17.1.10(i18next@26.6.0(typescript@7.0.2))(react-dom@19.3.0(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2):
+  react-i18next@17.1.11(i18next@26.7.0(typescript@7.0.2))(react-dom@19.3.0(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2):
     dependencies:
       '@babel/runtime': 7.29.7
       html-parse-stringify: 4.0.1
-      i18next: 26.6.0(typescript@7.0.2)
+      i18next: 26.7.0(typescript@7.0.2)
       react: 19.3.0
       use-sync-external-store: 1.7.0(react@19.3.0)
     optionalDependencies:
