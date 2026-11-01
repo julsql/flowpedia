@@ -1,7 +1,6 @@
-import { Stack } from "expo-router";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { ThemeProvider as NavThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { I18nextProvider } from "react-i18next";
 import "../src/web/hideScrollbars";
 import { OpenInAppBanner } from "../src/web/OpenInAppBanner";

@@ -8,6 +8,7 @@ import {
   View,
   type StyleProp,
   type ViewStyle,
+  type ViewInstance,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
@@ -39,7 +40,7 @@ export function MoreOptionsMenu({
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { openShare } = useShare();
   const { muteInterest } = useLibrary();
-  const btnRef = useRef<View>(null);
+  const btnRef = useRef<ViewInstance>(null);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, right: 12 });
   const [copied, setCopied] = useState(false);

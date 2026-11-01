@@ -23,6 +23,7 @@ import {
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  type ScrollViewInstance,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -192,7 +193,7 @@ export default function ArticleScreen() {
   // the scroll callbacks always read the latest mapping).
   const sectionBlockIndexRef = useRef<Map<string, number>>(new Map());
   // The chips strip scrolls to follow the active section as the reader advances.
-  const chipsScrollRef = useRef<ScrollView>(null);
+  const chipsScrollRef = useRef<ScrollViewInstance>(null);
   const chipLayout = useRef<Record<string, { x: number; width: number }>>({});
 
   const openOriginal = useCallback(() => {

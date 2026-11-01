@@ -5,7 +5,7 @@
   "description": "Flowpedia — a social-style feed of Wikipedia articles",
   "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "scripts": {
     "api": "pnpm --filter @flowpedia/api start:dev",
@@ -19,9 +19,6 @@
     "test": "pnpm -r test"
   },
   "pnpm": {
-    "patchedDependencies": {
-      "expo-speech@14.0.8": "patches/expo-speech@14.0.8.patch"
-    },
     "overrides": {
       "ajv": ">=8.18.0",
       "baseline-browser-mapping": ">=2.11.0",

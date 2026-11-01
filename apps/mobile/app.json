@@ -6,14 +6,8 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
     "backgroundColor": "#121110",
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#121110"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "fr.julsql.flowpedia"
@@ -33,13 +27,29 @@
       "favicon": "./assets/icon.png"
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "asyncRoutes": {
+            "web": false
+          }
+        }
+      ],
       "expo-localization",
       [
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
           "color": "#d9822b"
+        }
+      ],
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#121110"
         }
       ]
     ],
