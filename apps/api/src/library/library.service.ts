@@ -62,6 +62,11 @@ export class LibraryService {
   }
 
   async remove(userId: string, articleId: string, kind: LibraryKind): Promise<void> {
+    // Both keys are required: TypeORM 1 rejects undefined where-values, and a
+    // partial criteria would otherwise widen the delete to the whole library.
+    if (!articleId || !KINDS.includes(kind)) {
+      return;
+    }
     await this.repo().delete({ userId, articleId, kind });
   }
 
