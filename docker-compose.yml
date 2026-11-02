@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: flowpedia-postgres
     environment:
       POSTGRES_USER: flowpedia
@@ -10,7 +10,7 @@ services:
       # Host 5433 to avoid clashing with a local Postgres on the default 5432.
       - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U flowpedia"]
       interval: 5s
@@ -18,7 +18,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: flowpedia-redis
     ports:
       - "6379:6379"
