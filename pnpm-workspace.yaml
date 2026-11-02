@@ -15,14 +15,6 @@ allowBuilds:
   onnxruntime-node: false
   protobufjs: false
 
-# pnpm >=11 enforces a 1-day minimumReleaseAge. These exact versions are already
-# on main and were published < 24h before the pnpm 12 migration; the exclusion
-# is version-pinned and can be dropped after 2026-11-02T22:00Z.
-minimumReleaseAgeExclude:
-  - i18next@26.7.0
-  - react-i18next@17.1.11
-  - tinybench@6.2.3
-
 overrides:
   "ajv": ">=8.18.0"
   "baseline-browser-mapping": ">=2.11.0"
